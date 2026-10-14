@@ -11,31 +11,28 @@ STATUS_LABEL = {"live": ("Live data", "accent"), "cached": ("Saved copy", ""),
 
 
 def persona_card(persona) -> None:
+    """The active reader, shown in the page body that needs it.
+
+    Lives here rather than in the chrome because it is context for an answer, not
+    navigation - and because the gate already established who you are.
+    """
     st.markdown(
-        f'<div class="fin-persona"><b>{persona.name}, {persona.age}</b><br>'
-        f'<span>{persona.headline}</span><br>'
-        f'<span>{persona.experience_level.value} · {persona.risk_tolerance} risk · '
-        f'{persona.horizon_years}-year horizon</span></div>',
+        f'<div class="fin-persona"><b>{persona.name}, {persona.age}</b> '
+        f'<span>&middot; {persona.headline}</span><br>'
+        f'<span>{persona.experience_level.value} &middot; {persona.risk_tolerance} risk '
+        f'&middot; {persona.horizon_years}-year horizon &middot; '
+        f'a teaching example, not a real account</span></div>',
         unsafe_allow_html=True,
     )
 
 
-def persona_selector() -> None:
-    from src.data.personas import PERSONAS
-
-    st.sidebar.markdown("**Who are you today?**")
-    ids = [p.id for p in PERSONAS]
-    labels = {p.id: f"{p.name}, {p.age} — {p.headline}" for p in PERSONAS}
-    current = st.session_state.get("persona_id", "maya")
-    chosen = st.sidebar.radio(
-        "Persona", ids, index=ids.index(current) if current in ids else 0,
-        format_func=lambda i: labels[i], label_visibility="collapsed", key="persona_radio",
+def persona_line(persona) -> None:
+    """One-line variant for the data pages, where the card would be noise."""
+    st.caption(
+        f"{persona.name}, {persona.age} · {persona.headline} · "
+        f"{persona.experience_level.value} · states {persona.risk_tolerance} risk. "
+        f"A teaching example, not a real account."
     )
-    if chosen != current:
-        st.session_state["persona_id"] = chosen
-        st.session_state.pop("last_result", None)
-    st.session_state.setdefault("persona_id", chosen)
-    st.sidebar.caption("Every persona is a teaching example, not a real account.")
 
 
 def data_status_chip(status: str) -> str:

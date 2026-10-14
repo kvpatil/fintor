@@ -11,8 +11,20 @@ from typing import Any
 
 import streamlit as st
 
-from src.core.config import load_settings
 from src.data import personas as persona_store
+
+
+@st.cache_resource
+def app_settings():
+    """Config only - no container.
+
+    The gate needs the passcode and the offline flag, and nothing else. Routing it
+    through get_deps() would load model2vec and the retrieval index just to paint a
+    sign-in screen, which is a slow first impression for no benefit.
+    """
+    from src.core.config import load_settings
+
+    return load_settings()
 
 
 @st.cache_resource(show_spinner="Loading Fintor…")

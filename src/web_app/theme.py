@@ -56,6 +56,65 @@ h1 { font-size: 1.72rem; }
 .fin-persona b { font-size: 0.96rem; }
 .fin-persona span { color: var(--fin-muted); font-size: 0.8rem; }
 
+/* ---- entry gate ---- */
+.gate-wrap { max-width: 980px; margin: 0 auto; }
+.gate-logo { margin: 18px 0 2px; }
+.gate-logo svg { height: 38px; width: auto; }
+.gate-tagline {
+  font-family: Georgia, "Iowan Old Style", serif;
+  font-size: 1.55rem; font-weight: 700; letter-spacing: -0.015em;
+  margin: 2px 0 6px;
+}
+.gate-subline { color: var(--fin-muted); max-width: 60ch; margin: 0 0 26px; }
+.gate-ask {
+  font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--fin-accent); margin: 10px 0 10px;
+}
+.gate-card {
+  border: 1px solid var(--fin-line); border-radius: 8px;
+  background: #fffefb; padding: 14px 15px 12px; margin-bottom: 8px;
+  min-height: 146px;
+}
+.gate-name { font-family: Georgia, serif; font-size: 1.1rem; font-weight: 700; margin: 0; }
+.gate-head { margin: 2px 0 8px; font-size: 0.9rem; }
+.gate-meta { color: var(--fin-muted); font-size: 0.78rem; margin: 0 0 10px; }
+.gate-nums {
+  display: flex; gap: 14px; margin: 0; font-size: 0.76rem; color: var(--fin-muted);
+  font-variant-numeric: tabular-nums lining-nums;
+  border-top: 1px solid var(--fin-line); padding-top: 8px;
+}
+.gate-nums b { color: var(--fin-ink); font-weight: 650; }
+.gate-foot { color: var(--fin-muted); font-size: 0.78rem; margin: 22px 0 0; max-width: 72ch; }
+
+/* ---- top chrome ---- */
+.bc { margin: 0; }
+.bc ol { list-style: none; display: flex; flex-wrap: wrap; gap: 6px;
+         margin: 0; padding: 0; font-size: 0.84rem; color: var(--fin-muted); }
+.bc li { display: flex; gap: 6px; align-items: baseline; }
+.bc-sep { color: var(--fin-line); }
+.bc-now { color: var(--fin-ink); font-weight: 600; }
+
+.ident { display: flex; align-items: baseline; justify-content: flex-end;
+         gap: 8px; flex-wrap: wrap; }
+.ident-who { font-size: 0.86rem; font-weight: 600; }
+.ident-sub { color: var(--fin-muted); font-weight: 400; }
+
+.chip, .chip-accent, .chip-warn {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--fin-line); background: #fffefb;
+  font-size: 0.72rem; color: var(--fin-muted);
+  font-variant-numeric: tabular-nums;
+}
+.chip-accent { border-color: var(--fin-accent); color: var(--fin-accent); }
+.chip-warn { border-color: var(--fin-warn); color: var(--fin-warn); }
+
+.chrome-rule { border-top: 1px solid var(--fin-line); margin: 10px 0 18px; }
+
+.prompt-hint {
+  font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--fin-muted); margin: 14px 0 6px;
+}
+
 .fin-disclaimer {
   color: var(--fin-muted); font-size: 0.78rem; border-top: 1px solid var(--fin-line);
   padding-top: 8px; margin-top: 14px;
@@ -64,8 +123,19 @@ h1 { font-size: 1.72rem; }
 
 @media (prefers-color-scheme: dark) {
   :root { --fin-line: #333b37; --fin-muted: #9aa5a0; }
-  [data-testid="stMetric"], .fin-chip, .fin-persona { background: #1b211e; }
+  [data-testid="stMetric"], .fin-chip, .fin-persona,
+  .gate-card, .chip, .chip-accent, .chip-warn { background: #1b211e; }
 }
+:root[data-theme="dark"] {
+  --fin-line: #333b37; --fin-muted: #9aa5a0;
+}
+:root[data-theme="dark"] [data-testid="stMetric"],
+:root[data-theme="dark"] .fin-chip,
+:root[data-theme="dark"] .fin-persona,
+:root[data-theme="dark"] .gate-card,
+:root[data-theme="dark"] .chip,
+:root[data-theme="dark"] .chip-accent,
+:root[data-theme="dark"] .chip-warn { background: #1b211e; }
 </style>
 """
 
@@ -77,13 +147,3 @@ def inject() -> None:
 def chip(label: str, kind: str = "") -> str:
     cls = {"accent": "fin-chip fin-chip-accent", "warn": "fin-chip fin-chip-warn"}.get(kind, "fin-chip")
     return f'<span class="{cls}">{label}</span>'
-
-
-LOGO_SVG = """
-<svg width="132" height="34" viewBox="0 0 132 34" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fintor">
-  <rect x="0" y="2" width="30" height="30" rx="8" fill="#1f6f5c"/>
-  <text x="15" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="16"
-        font-weight="700" fill="#fbfaf7">Fi</text>
-  <text x="38" y="23" font-family="Georgia,serif" font-size="19" font-weight="600" fill="#17211d">Fintor</text>
-</svg>
-"""

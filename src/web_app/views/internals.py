@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.web_app.components import cost_bar, persona_selector
+from src.web_app.components import cost_bar
 from src.web_app.state import active_persona, get_deps, last_result
 from src.web_app.theme import chip
 
@@ -45,7 +45,6 @@ def _graph_section(deps) -> None:
 
 def render() -> None:
     deps = get_deps()
-    persona_selector()
     persona = active_persona()
 
     st.title("AI Internals")
@@ -56,7 +55,7 @@ def render() -> None:
 
     result = last_result()
     if not result:
-        st.info("Ask something on the Chat page, then come back — this page reports the last run.")
+        st.info("Ask something on the Chat tab, then come back — this page reports the last run.")
         _graph_section(deps)
         return
 

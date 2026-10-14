@@ -248,7 +248,7 @@ These are not decorative. Because Claude writes the implementation, these files 
 | 7 | **Cache layers 1, 4, 5, 7 + offline mode + budget guard** | `core/cache.py`, `core/cost.py` | Where each tier pays off |
 | 8 | **Streaming** — `astream_events(version="v2")` → `st.write_stream`, plus `st.status` live agent-handoff trace | `web_app/app.py` | Perceived vs actual latency |
 | 9 | **Six agents** — distinct prompts, structured output, per-agent model tier + retrieval slice | `agents/*.py` | Specialization vs one mega-prompt |
-| 10 | **AI Internals page** with the live graph visualization | `web_app/pages/internals.py` | The demo centerpiece |
+| 10 | **AI Internals page** with the live graph visualization | `web_app/views/internals.py` | The demo centerpiece |
 | 11 | **Persona personalization** — prompt conditioning, difficulty-filtered retrieval, per-persona threads | `data/personas.py` | Benchmark has no personalization beyond three static fields |
 
 ### Phase 2 — retrieval & evaluation depth (~3 h)

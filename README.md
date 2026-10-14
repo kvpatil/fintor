@@ -140,7 +140,7 @@ fintor/
 │   ├── data/             market · news · personas · kb/ (corpus + committed index)
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
-│   └── web_app/          app.py · pages/ · theme · state · components
+│   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
 └── tests/                47 tests
 ```
 

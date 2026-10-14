@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.web_app.components import citations_block, data_status_chip, persona_card, persona_selector
+from src.web_app.components import citations_block, data_status_chip, persona_card
 from src.web_app.state import active_persona, checkpoint_path, get_deps, record_turn, run_async, turns
 from src.web_app.theme import chip
 
@@ -49,22 +49,26 @@ def _collect(deps, question: str, persona, status) -> dict:
 
 
 def render() -> None:
-    deps = get_deps()
-    persona_selector()
     persona = active_persona()
 
     st.title("Ask Fintor")
     st.caption("Six specialist agents, grounded in a cited knowledge base. "
                "Education only — never buy or sell advice.")
 
-    with st.sidebar:
-        persona_card(persona)
-        st.markdown("**Try one of these**")
-        for i, prompt in enumerate(persona.journey_prompts):
-            if st.button(prompt, key=f"jp{i}", width="stretch"):
-                st.session_state["pending_q"] = prompt
-        mode = "Offline (free)" if deps.offline else f"Live · {getattr(deps.chain.primary,'model','?')}"
-        st.markdown(chip(mode, "accent" if deps.offline else ""), unsafe_allow_html=True)
+    persona_card(persona)
+
+    # The journey prompts moved out of the sidebar into the body, but they still
+    # set session_state["pending_q"] - so the question pickup below is unchanged.
+    # Shown only on an empty transcript: once you are in a conversation they are
+    # clutter rather than an invitation.
+    if not turns():
+        st.markdown('<p class="prompt-hint">Try one of these</p>', unsafe_allow_html=True)
+        for row_start in (0, 2):
+            prompts = persona.journey_prompts[row_start:row_start + 2]
+            for prompt, column in zip(prompts, st.columns(2), strict=False):
+                with column:
+                    if st.button(prompt, key=f"jp{row_start}-{prompt[:16]}", width="stretch"):
+                        st.session_state["pending_q"] = prompt
 
     for turn in turns():
         with st.chat_message("user"):
@@ -77,7 +81,7 @@ def render() -> None:
 
     if not question:
         if not turns():
-            st.info("Pick a persona on the left, then ask a question or tap a suggested prompt.")
+            st.info("Ask a question above, or tap one of the suggested prompts.")
         return
 
     with st.chat_message("user"):
@@ -85,7 +89,7 @@ def render() -> None:
 
     with st.chat_message("assistant"):
         with st.status("Running the workflow…", expanded=True) as status:
-            result = _collect(deps, question, persona, status)
+            result = _collect(get_deps(), question, persona, status)
             status.update(label="Done", state="complete", expanded=False)
 
         final = result.get("final", {})

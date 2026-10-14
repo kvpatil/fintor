@@ -44,6 +44,9 @@ class Settings:
     anthropic_api_key: str = field(default="", repr=False)
     offline: bool = False
     session_budget_usd: float = 0.50
+    # Optional shared passcode for the entry gate. Blank means no passcode field is
+    # shown at all, so a fresh clone is never locked out of its own checkout.
+    passcode: str = field(default="", repr=False)
 
     # -- section accessors; sections are plain dicts straight from config.yaml ----
     @property
@@ -101,5 +104,6 @@ def load_settings(config_path: Path | None = None) -> Settings:
         openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip(),
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", "").strip(),
         offline=os.environ.get("FINTOR_OFFLINE", "0").strip() in {"1", "true", "True", "yes"},
+        passcode=os.environ.get("FINTOR_PASSCODE", "").strip(),
         session_budget_usd=float(budget) if budget else float(raw.get("cost", {}).get("session_budget_usd", 0.50)),
     )

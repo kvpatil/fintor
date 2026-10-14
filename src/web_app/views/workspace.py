@@ -14,17 +14,15 @@ from src.core.quant import (
     class_weights, concentration_flags, diversification_score, portfolio_value, project_goal,
     risk_score, weights,
 )
-from src.web_app.components import data_status_chip, persona_card, persona_selector
+from src.web_app.components import data_status_chip, persona_line
 from src.web_app.state import active_persona, get_deps
 
 
 def _shell(title: str, caption: str):
-    persona_selector()
     persona = active_persona()
     st.title(title)
     st.caption(caption)
-    with st.sidebar:
-        persona_card(persona)
+    persona_line(persona)
     return get_deps(), persona
 
 
