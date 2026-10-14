@@ -144,11 +144,14 @@ def heuristic_route(text: str) -> RouteDecision:
 
 class Router:
     def __init__(self, embedder=None, chain=None, *, use_llm: bool = True,
-                 centroid_threshold: float = 0.42) -> None:
+                 centroid_threshold: float = 0.42, centroid_margin: float = 0.04) -> None:
         self._embedder = embedder
         self._chain = chain
         self._use_llm = use_llm
         self._threshold = centroid_threshold
+        # Similarity alone is not enough: a query close to two centroids is ambiguous
+        # no matter how high the top score is, so tier 2 also needs a clear winner.
+        self._margin = centroid_margin
         self._centroids: dict[Intent, list[float]] | None = None
 
     def _build_centroids(self) -> dict[Intent, list[float]]:
@@ -182,7 +185,7 @@ class Router:
 
         if self._embedder is not None:
             intents, score, margin = self.embedding_route(text)
-            if score >= self._threshold and margin >= 0.04:
+            if score >= self._threshold and margin >= self._margin:
                 return RouteDecision(
                     intents=intents, tier=RouterTier.EMBEDDING,
                     reason=f"centroid similarity {score:.2f}, margin {margin:.2f}",

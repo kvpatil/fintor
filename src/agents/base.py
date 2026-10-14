@@ -22,7 +22,7 @@ class BaseAgent(ABC):
     section_title: str = "Background"
 
     def __init__(self, deps) -> None:
-        self.deps = deps  # the container; see core/container.py
+        self.deps = deps  # the container; see src/container.py
 
     @abstractmethod
     async def _execute(self, query: Query, persona: Persona | None) -> AgentResult: ...

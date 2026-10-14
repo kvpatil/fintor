@@ -1,5 +1,10 @@
 """Composition root. Nothing else constructs its own dependencies.
 
+Deliberately at `src/` rather than inside `src/core/`: wiring must import from
+every layer, so it has to sit at the TOP of the dependency order. It lived in
+`core` until test_no_upward_imports caught the inversion - the fitness function
+earning its place on day one.
+
 One place to read config and wire implementations means swapping an embedder, a
 provider, or a cache backend is a config change rather than a code change.
 """
