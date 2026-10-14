@@ -43,4 +43,13 @@ Reads `Query`, `RouteDecision`, `Persona`; produces `AgentResult` list and a fin
 
 ## Status
 
-Draft — implementation follows this commit.
+Implemented — `graph.py`, `tools.py`, `verify.py`.
+
+Verified: two 0.5s agents complete in 0.51s wall clock (AC2); citations renumbered across
+agents with none colliding (AC3); the live ReAct loop made two real tool calls and returned
+AAPL at $341.27 (AC4); self-harm visits only `guard → verify`, never the router or an LLM
+(AC5); a thread reloads from disk in a fresh workflow instance while a sibling persona thread
+stays empty (AC6); a raising agent degrades one section and the request still succeeds (AC7).
+
+Two fixes the tests forced: the node now contains *any* agent exception rather than only
+timeouts, and `AsyncSqliteSaver` replaces `SqliteSaver` because the graph is async.

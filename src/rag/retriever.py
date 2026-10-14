@@ -14,6 +14,7 @@ import re
 from collections.abc import Sequence
 
 from src.core.contracts import Citation, Difficulty, RetrievedChunk
+from src.rag.categories import resolve as resolve_categories
 from src.rag.index import NumpyIndex
 
 _TOKEN = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*")
@@ -107,9 +108,9 @@ class HybridRetriever:
         return len(self._by_id)
 
     @staticmethod
-    def _eligible(chunk: dict, category: str | None, ceiling: Difficulty | None) -> bool:
+    def _eligible(chunk: dict, categories: tuple[str, ...] | None, ceiling: Difficulty | None) -> bool:
         meta = chunk.get("metadata", {})
-        if category and category not in (meta.get("category", ""), meta.get("group", "")):
+        if categories and meta.get("category", "") not in categories:
             return False
         if ceiling is not None:
             raw = meta.get("difficulty")
@@ -153,10 +154,11 @@ class HybridRetriever:
         qvec = self._embedder.embed([query])[0]
         cosines = dict(self._index.search(qvec, self._index.count()))
 
+        allowed = resolve_categories(category)
         out: list[RetrievedChunk] = []
         for cid, entry in fused.items():
             chunk = self._by_id.get(cid)
-            if chunk is None or not self._eligible(chunk, category, difficulty_ceiling):
+            if chunk is None or not self._eligible(chunk, allowed, difficulty_ceiling):
                 continue
             meta = chunk.get("metadata", {})
             raw_diff = meta.get("difficulty")

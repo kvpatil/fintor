@@ -38,7 +38,7 @@ class TaxAgent(FinanceQAAgent):
     intent = Intent.TAX
     section_title = "Taxes"
     system_prompt = TAX_SYSTEM_PROMPT
-    default_category = "tax_education"
+    default_category = "tax"   # a group; see src/rag/categories.py
 
     async def _execute(self, query: Query, persona: Persona | None) -> AgentResult:
         result = await super()._execute(query, persona)

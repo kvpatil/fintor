@@ -16,7 +16,8 @@ langchain-core>=0.3.0
 langchain-community>=0.3.0          # SQLiteCache (exact LLM response cache)
 langchain-openai>=0.2.0
 langchain-anthropic>=0.3.0
-langgraph-checkpoint-sqlite>=2.0.0  # SqliteSaver durable threads
+langgraph-checkpoint-sqlite>=2.0.0  # durable threads
+aiosqlite>=0.20.0                   # AsyncSqliteSaver: the graph is async, so the sync saver won't do
 
 # --- Retrieval ----------------------------------------------------------
 model2vec>=0.10.0                   # local embeddings, no torch required
