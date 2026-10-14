@@ -1,0 +1,1446 @@
+{
+ "schema_version": 1,
+ "collection": "fintor_financial_education",
+ "purpose": "Educational finance corpus for Fintor RAG. Education only, not advice.",
+ "source_policy": {
+  "note": "Definitions written for Fintor, attributed to the primary authority for each topic. Not verbatim reproductions."
+ },
+ "documents": [
+  {
+   "id": "emergency_fund",
+   "term": "Emergency Fund",
+   "aliases": [
+    "rainy day fund"
+   ],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "Cash set aside to cover unexpected expenses or a loss of income, held somewhere safe and immediately accessible rather than invested. Most guidance suggests three to six months of essential expenses, built before investing in markets, because selling investments during a personal crisis often means selling at a bad time.",
+   "example": "Someone with $3,000 of monthly essential costs targets $9,000-$18,000 in a savings account before adding to a brokerage account.",
+   "related_terms": [
+    "savings_rate",
+    "liquidity",
+    "high_yield_savings"
+   ],
+   "source_name": "CFPB",
+   "source_url": "https://www.consumerfinance.gov/consumer-tools/",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "compound_interest",
+   "term": "Compound Interest",
+   "aliases": [
+    "compounding"
+   ],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "Growth that accrues on both the original amount and on previously accumulated growth. Because each period's gain joins the base for the next, the effect accelerates over time, which is why time in the market usually matters more than the size of any single contribution.",
+   "example": "$1,000 growing at 7% becomes about $1,070 after one year and about $1,967 after ten, the extra coming from growth on growth.",
+   "related_terms": [
+    "time_value_of_money",
+    "rule_of_72",
+    "dollar_cost_averaging"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "rule_of_72",
+   "term": "Rule of 72",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "A mental shortcut for doubling time: divide 72 by an annual growth rate expressed as a whole number to approximate the years required to double. It is an approximation, not a projection, and says nothing about whether a given rate will occur.",
+   "example": "At an assumed 6% a year, 72 / 6 = roughly 12 years to double.",
+   "related_terms": [
+    "compound_interest",
+    "time_value_of_money"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "savings_rate",
+   "term": "Savings Rate",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "The share of income not spent. It is the one input an investor fully controls, and over short and medium horizons it usually influences outcomes more than investment selection does.",
+   "example": "Saving $500 from $4,000 of monthly take-home pay is a 12.5% savings rate.",
+   "related_terms": [
+    "emergency_fund",
+    "live_below_means",
+    "budget"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "live_below_means",
+   "term": "Living Below Your Means",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "Consistently spending less than income, which creates the surplus that funds an emergency fund, debt repayment, and investing. Without a surplus, no investment strategy has anything to work with.",
+   "example": "A household that automates a transfer to savings on payday treats saving as a fixed cost rather than a leftover.",
+   "related_terms": [
+    "savings_rate",
+    "budget",
+    "emergency_fund"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "inflation",
+   "term": "Inflation",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "A general rise in prices over time, which reduces what a fixed amount of money can buy. It is the reason holding only cash carries a risk of its own: the nominal balance is stable while its purchasing power erodes.",
+   "example": "At 3% inflation, $100 of groceries today costs about $134 in ten years.",
+   "related_terms": [
+    "real_return",
+    "purchasing_power",
+    "tips"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "real_return",
+   "term": "Real Return",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "intermediate",
+   "definition": "A return after subtracting inflation, as opposed to the nominal return actually quoted. Real return is what determines whether purchasing power grew.",
+   "example": "A 5% nominal return during 3% inflation is roughly a 2% real return.",
+   "related_terms": [
+    "inflation",
+    "nominal_return",
+    "total_return"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "liquidity",
+   "term": "Liquidity",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "How quickly an asset can be converted to cash near its fair value. Savings accounts are highly liquid; a house is not. Liquidity needs usually determine which money should not be invested at all.",
+   "example": "Money needed for next month's rent belongs in cash, not in a stock fund, regardless of expected return.",
+   "related_terms": [
+    "emergency_fund",
+    "time_horizon"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "time_horizon",
+   "term": "Time Horizon",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "How long until money is needed. It is the single most useful input for deciding how much short-term fluctuation a portfolio should be exposed to, because volatility matters far more when a withdrawal is imminent.",
+   "example": "A down payment needed in 18 months and a retirement 30 years away justify very different allocations.",
+   "related_terms": [
+    "risk_tolerance",
+    "asset_allocation",
+    "sequence_risk"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "simple_vs_compound",
+   "term": "Simple vs Compound Interest",
+   "aliases": [],
+   "category": "financial_basics",
+   "difficulty": "beginner",
+   "definition": "Simple interest accrues only on the original principal; compound interest accrues on principal plus accumulated interest. Most savings and investment growth compounds, while some consumer loans quote simple interest.",
+   "example": "$1,000 at 5% simple earns $50 every year; compounding earns $50, then $52.50, then $55.13.",
+   "related_terms": [
+    "compound_interest",
+    "apr_vs_apy"
+   ],
+   "source_name": "CFPB",
+   "source_url": "https://www.consumerfinance.gov/consumer-tools/",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "stock",
+   "term": "Stock",
+   "aliases": [
+    "share",
+    "equity security"
+   ],
+   "category": "stocks",
+   "difficulty": "beginner",
+   "definition": "A share of ownership in a company. Shareholders have a claim on residual profits and assets after creditors, which is why equity offers higher expected long-run returns than bonds alongside greater uncertainty.",
+   "example": "Owning 10 shares of a company with 1,000 shares outstanding is a 1% ownership stake.",
+   "related_terms": [
+    "equity",
+    "dividend",
+    "market_capitalization"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "dividend",
+   "term": "Dividend",
+   "aliases": [],
+   "category": "stocks",
+   "difficulty": "beginner",
+   "definition": "A distribution of company profits to shareholders, usually quarterly in cash. Dividends are declared at a company's discretion and can be cut; a high yield sometimes reflects a falling share price rather than strength.",
+   "example": "A $50 stock paying $0.50 quarterly has a $2 annual dividend and a 4% yield.",
+   "related_terms": [
+    "dividend_yield",
+    "total_return",
+    "qualified_dividend"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "market_capitalization",
+   "term": "Market Capitalization",
+   "aliases": [
+    "market cap"
+   ],
+   "category": "stocks",
+   "difficulty": "beginner",
+   "definition": "Share price multiplied by shares outstanding, the market's price for the whole company. It is the usual basis for the large-, mid-, and small-cap labels funds use.",
+   "example": "20 million shares at $45 is a $900 million market capitalization, conventionally small-cap.",
+   "related_terms": [
+    "stock",
+    "index",
+    "small_cap"
+   ],
+   "source_name": "FINRA",
+   "source_url": "https://www.finra.org/investors",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "pe_ratio",
+   "term": "Price-to-Earnings Ratio",
+   "aliases": [
+    "P/E",
+    "PE multiple"
+   ],
+   "category": "stocks",
+   "difficulty": "intermediate",
+   "definition": "Share price divided by earnings per share, a rough measure of how much investors pay per dollar of current profit. It is only comparable between similar businesses, and is undefined when earnings are negative.",
+   "example": "A $60 share price on $3 of annual earnings per share is a P/E of 20.",
+   "related_terms": [
+    "valuation",
+    "earnings_per_share",
+    "stock"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "earnings_per_share",
+   "term": "Earnings Per Share",
+   "aliases": [
+    "EPS"
+   ],
+   "category": "stocks",
+   "difficulty": "intermediate",
+   "definition": "Net income divided by shares outstanding, the profit attributable to each share. Share buybacks can raise it without any change in total profit, so the driver matters as much as the number.",
+   "example": "$30 million of net income across 10 million shares is $3.00 of earnings per share.",
+   "related_terms": [
+    "pe_ratio",
+    "stock",
+    "buyback"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "volatility",
+   "term": "Volatility",
+   "aliases": [],
+   "category": "stocks",
+   "difficulty": "intermediate",
+   "definition": "How much a price fluctuates, usually measured as the annualized standard deviation of returns. Volatility describes dispersion, not direction, and is a measure of uncertainty rather than of loss.",
+   "example": "An asset with 20% annualized volatility has historically moved far more in both directions than one at 6%.",
+   "related_terms": [
+    "standard_deviation",
+    "risk",
+    "drawdown"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "drawdown",
+   "term": "Maximum Drawdown",
+   "aliases": [
+    "max drawdown"
+   ],
+   "category": "stocks",
+   "difficulty": "intermediate",
+   "definition": "The largest peak-to-trough decline over a period, expressed as a percentage. It describes the worst historical experience of holding an asset, which often predicts investor behaviour better than volatility does.",
+   "example": "A fund that fell from $120 to $78 before recovering had a 35% maximum drawdown.",
+   "related_terms": [
+    "volatility",
+    "risk_tolerance",
+    "bear_market"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "bear_market",
+   "term": "Bear Market",
+   "aliases": [],
+   "category": "markets",
+   "difficulty": "beginner",
+   "definition": "A decline of 20% or more from a recent peak in a broad index. The label is a description of what has already happened, not a prediction of what follows.",
+   "example": "An index falling from 5,000 to 4,000 has entered a bear market by the conventional definition.",
+   "related_terms": [
+    "bull_market",
+    "drawdown",
+    "market_correction"
+   ],
+   "source_name": "FINRA",
+   "source_url": "https://www.finra.org/investors",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "bull_market",
+   "term": "Bull Market",
+   "aliases": [],
+   "category": "markets",
+   "difficulty": "beginner",
+   "definition": "A sustained period of rising prices, conventionally a 20% advance from a recent low. Like its counterpart, it is named after the fact.",
+   "example": "A broad index rising from 3,000 to 3,600 over several months is commonly described as a bull market.",
+   "related_terms": [
+    "bear_market",
+    "market_correction"
+   ],
+   "source_name": "FINRA",
+   "source_url": "https://www.finra.org/investors",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "market_correction",
+   "term": "Market Correction",
+   "aliases": [],
+   "category": "markets",
+   "difficulty": "beginner",
+   "definition": "A decline of roughly 10% to 20% from a recent peak, shallower than a bear market. Corrections are frequent and historically common within rising long-run trends.",
+   "example": "A 12% pullback over six weeks that then recovers is typically called a correction.",
+   "related_terms": [
+    "bear_market",
+    "volatility"
+   ],
+   "source_name": "FINRA",
+   "source_url": "https://www.finra.org/investors",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "bond",
+   "term": "Bond",
+   "aliases": [],
+   "category": "bonds",
+   "difficulty": "beginner",
+   "definition": "A loan to a government or company that pays periodic interest and returns principal at maturity. Bondholders rank ahead of shareholders in a bankruptcy, which is why bonds are generally less volatile and lower-returning than stocks.",
+   "example": "A $1,000 bond with a 4% coupon pays $40 a year until it matures.",
+   "related_terms": [
+    "coupon",
+    "maturity",
+    "yield_to_maturity",
+    "duration"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bonds",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "coupon",
+   "term": "Coupon",
+   "aliases": [],
+   "category": "bonds",
+   "difficulty": "beginner",
+   "definition": "The fixed interest a bond pays, stated as a percentage of face value. The coupon never changes, which is why a bond's market price must move when prevailing rates do.",
+   "example": "A 3% coupon on $1,000 of face value pays $30 a year regardless of the bond's market price.",
+   "related_terms": [
+    "bond",
+    "yield_to_maturity",
+    "interest_rate_risk"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bonds",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "maturity",
+   "term": "Maturity",
+   "aliases": [],
+   "category": "bonds",
+   "difficulty": "beginner",
+   "definition": "The date a bond repays its face value and stops paying interest. Longer maturity generally means greater price sensitivity to interest-rate changes.",
+   "example": "A bond maturing in 2032 returns its $1,000 face value on that date.",
+   "related_terms": [
+    "bond",
+    "duration",
+    "interest_rate_risk"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bonds",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "yield_to_maturity",
+   "term": "Yield to Maturity",
+   "aliases": [
+    "YTM"
+   ],
+   "category": "bonds",
+   "difficulty": "intermediate",
+   "definition": "The total annualized return from holding a bond to maturity, accounting for its price, coupon payments, and repayment of face value. It is the figure that makes bonds bought at different prices comparable.",
+   "example": "A bond bought below face value has a yield to maturity above its coupon rate.",
+   "related_terms": [
+    "coupon",
+    "bond",
+    "current_yield"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "interest_rate_risk",
+   "term": "Interest Rate Risk",
+   "aliases": [],
+   "category": "bonds",
+   "difficulty": "intermediate",
+   "definition": "The risk that a bond's market price falls when prevailing interest rates rise, because its fixed coupon becomes less attractive than newly issued debt. It is the main reason bond funds can lose value.",
+   "example": "When rates rose sharply in 2022, long-maturity bond funds fell substantially despite no defaults.",
+   "related_terms": [
+    "duration",
+    "bond",
+    "maturity"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bonds",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "duration",
+   "term": "Duration",
+   "aliases": [
+    "modified duration"
+   ],
+   "category": "bonds",
+   "difficulty": "advanced",
+   "definition": "A measure of a bond's price sensitivity to interest-rate changes, expressed in years. A duration of 7 implies roughly a 7% price change for a one-percentage-point move in rates, in the opposite direction.",
+   "example": "A bond fund with 6.5 years of duration would be expected to fall about 6.5% if rates rose one point.",
+   "related_terms": [
+    "interest_rate_risk",
+    "maturity",
+    "convexity"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "credit_risk",
+   "term": "Credit Risk",
+   "aliases": [
+    "default risk"
+   ],
+   "category": "bonds",
+   "difficulty": "intermediate",
+   "definition": "The risk that a borrower fails to make promised payments. It is why corporate bonds yield more than Treasuries of the same maturity: the extra yield compensates for the possibility of default.",
+   "example": "A high-yield corporate bond might offer three points more than a Treasury of similar maturity.",
+   "related_terms": [
+    "bond",
+    "default",
+    "credit_rating"
+   ],
+   "source_name": "FINRA",
+   "source_url": "https://www.finra.org/investors",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "treasury",
+   "term": "Treasury Security",
+   "aliases": [],
+   "category": "bonds",
+   "difficulty": "beginner",
+   "definition": "Debt issued by the U.S. federal government, available as short-term bills, medium-term notes, and long-term bonds. Treasuries are conventionally treated as the benchmark for credit-risk-free returns in dollars.",
+   "example": "A 10-year Treasury note pays interest twice a year and returns face value after ten years.",
+   "related_terms": [
+    "bond",
+    "credit_risk",
+    "risk_free_rate"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.treasurydirect.gov/",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "tips",
+   "term": "Treasury Inflation-Protected Securities",
+   "aliases": [
+    "TIPS"
+   ],
+   "category": "bonds",
+   "difficulty": "intermediate",
+   "definition": "Treasury bonds whose principal adjusts with the Consumer Price Index, so interest and repayment keep pace with measured inflation. They shift the risk being managed from nominal loss to purchasing-power loss.",
+   "example": "If inflation runs 3%, the principal of a TIPS holding adjusts upward by roughly that amount.",
+   "related_terms": [
+    "inflation",
+    "treasury",
+    "real_return"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.treasurydirect.gov/",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "index_fund",
+   "term": "Index Fund",
+   "aliases": [
+    "indexing"
+   ],
+   "category": "etfs_and_funds",
+   "difficulty": "beginner",
+   "definition": "A fund that holds the components of a market index rather than selecting securities, aiming to match the index's return at low cost. Because it avoids research and frequent trading, it typically charges far less than an actively managed fund.",
+   "example": "A total-market index fund might hold several thousand stocks weighted by market capitalization.",
+   "related_terms": [
+    "etf",
+    "expense_ratio",
+    "passive_investing",
+    "diversification"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "etf",
+   "term": "Exchange-Traded Fund",
+   "aliases": [
+    "ETF"
+   ],
+   "category": "etfs_and_funds",
+   "difficulty": "beginner",
+   "definition": "A pooled fund that trades on an exchange like a stock, so its price moves through the day. Most ETFs track an index, and their structure often makes them tax-efficient in taxable accounts.",
+   "example": "Buying one share of a broad-market ETF gives proportional exposure to every company it holds.",
+   "related_terms": [
+    "index_fund",
+    "mutual_fund",
+    "expense_ratio",
+    "nav"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "mutual_fund",
+   "term": "Mutual Fund",
+   "aliases": [],
+   "category": "etfs_and_funds",
+   "difficulty": "beginner",
+   "definition": "A pooled investment priced once a day after the market closes, at which point all buy and sell orders execute at the same net asset value. Unlike an ETF, it cannot be traded intraday.",
+   "example": "An order placed at 11am executes at that evening's net asset value, not the price at 11am.",
+   "related_terms": [
+    "etf",
+    "nav",
+    "expense_ratio"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "expense_ratio",
+   "term": "Expense Ratio",
+   "aliases": [
+    "management fee"
+   ],
+   "category": "etfs_and_funds",
+   "difficulty": "beginner",
+   "definition": "The annual percentage of assets a fund charges to cover its costs, deducted from returns rather than billed. It is one of the few predictors of future relative performance that is known in advance.",
+   "example": "A 0.03% expense ratio costs $3 a year per $10,000; a 1.00% ratio costs $100.",
+   "related_terms": [
+    "index_fund",
+    "etf",
+    "fees"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "nav",
+   "term": "Net Asset Value",
+   "aliases": [
+    "NAV"
+   ],
+   "category": "etfs_and_funds",
+   "difficulty": "intermediate",
+   "definition": "A fund's per-share value, computed as assets minus liabilities divided by shares outstanding. Mutual funds transact at net asset value; ETF market prices can trade slightly above or below it.",
+   "example": "A fund holding $500 million against 25 million shares has a $20 net asset value.",
+   "related_terms": [
+    "mutual_fund",
+    "etf",
+    "premium_discount"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "target_date_fund",
+   "term": "Target-Date Fund",
+   "aliases": [
+    "lifecycle fund"
+   ],
+   "category": "etfs_and_funds",
+   "difficulty": "beginner",
+   "definition": "A single fund holding a diversified mix that shifts gradually from stocks toward bonds as a stated year approaches. It packages allocation and rebalancing into one holding, which is why it is a common retirement-plan default.",
+   "example": "A 2055 fund holds mostly equities today and will hold progressively more bonds by the 2050s.",
+   "related_terms": [
+    "asset_allocation",
+    "rebalancing",
+    "glide_path"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "passive_investing",
+   "term": "Passive Investing",
+   "aliases": [],
+   "category": "etfs_and_funds",
+   "difficulty": "intermediate",
+   "definition": "An approach that seeks to capture a market's return by holding it broadly, rather than attempting to outperform through selection or timing. Its case rests on costs: the average active dollar must, before fees, earn the market return.",
+   "example": "Holding a total-market index fund for decades and rebalancing annually is a passive strategy.",
+   "related_terms": [
+    "index_fund",
+    "active_management",
+    "expense_ratio"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "active_management",
+   "term": "Active Management",
+   "aliases": [],
+   "category": "etfs_and_funds",
+   "difficulty": "intermediate",
+   "definition": "Attempting to beat a benchmark by selecting securities or adjusting exposures. It can succeed, but must overcome higher costs, and persistence of outperformance has historically been difficult to identify in advance.",
+   "example": "A manager holding 40 hand-picked stocks against a 500-stock benchmark is managing actively.",
+   "related_terms": [
+    "passive_investing",
+    "expense_ratio",
+    "benchmark"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "diversification",
+   "term": "Diversification",
+   "aliases": [],
+   "category": "portfolio_management",
+   "difficulty": "beginner",
+   "definition": "Spreading money across holdings whose outcomes are not tightly linked, so that no single failure is decisive. It reduces exposure to the risk specific to one company or sector, though it cannot remove market-wide risk.",
+   "example": "A single-stock portfolio can go to zero; a 3,000-stock index fund cannot without a systemic collapse.",
+   "related_terms": [
+    "correlation",
+    "concentration_risk",
+    "asset_allocation",
+    "systematic_risk"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "asset_allocation",
+   "term": "Asset Allocation",
+   "aliases": [],
+   "category": "portfolio_management",
+   "difficulty": "beginner",
+   "definition": "How a portfolio is divided among asset classes such as stocks, bonds, and cash. It explains the large majority of the variation in a diversified portfolio's returns over time, far more than individual security choices.",
+   "example": "A 70/30 allocation holds 70% equities and 30% bonds, rebalanced back when it drifts.",
+   "related_terms": [
+    "diversification",
+    "rebalancing",
+    "risk_tolerance",
+    "time_horizon"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "rebalancing",
+   "term": "Rebalancing",
+   "aliases": [],
+   "category": "portfolio_management",
+   "difficulty": "intermediate",
+   "definition": "Returning a portfolio to its target allocation after market moves have shifted it, by selling what has grown and buying what has lagged. Its purpose is risk control; it is not a return-enhancement technique.",
+   "example": "A 70/30 portfolio that drifts to 80/20 after a rally is sold back to 70/30.",
+   "related_terms": [
+    "asset_allocation",
+    "diversification",
+    "tax_loss_harvesting"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "correlation",
+   "term": "Correlation",
+   "aliases": [],
+   "category": "portfolio_management",
+   "difficulty": "intermediate",
+   "definition": "A measure from -1 to +1 of how two assets' returns move together. Diversification benefits come from combining assets with low correlation, and correlations often rise during market stress, precisely when diversification is most wanted.",
+   "example": "Two tech stocks might correlate at 0.85, while stocks and Treasuries have often correlated near zero or negatively.",
+   "related_terms": [
+    "diversification",
+    "covariance",
+    "modern_portfolio_theory"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "concentration_risk",
+   "term": "Concentration Risk",
+   "aliases": [],
+   "category": "portfolio_management",
+   "difficulty": "intermediate",
+   "definition": "The exposure created when a large share of a portfolio sits in one holding, sector, or employer. It is the most common avoidable risk in individual portfolios, and employer stock compounds it by linking savings to the same source as income.",
+   "example": "Holding 70% of a portfolio in an employer's stock ties both paycheck and savings to one company.",
+   "related_terms": [
+    "diversification",
+    "employer_stock",
+    "position_sizing"
+   ],
+   "source_name": "FINRA",
+   "source_url": "https://www.finra.org/investors",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "systematic_risk",
+   "term": "Systematic Risk",
+   "aliases": [
+    "market risk"
+   ],
+   "category": "risk",
+   "difficulty": "advanced",
+   "definition": "Risk affecting the entire market, which diversification cannot remove. It is distinguished from idiosyncratic risk, which is specific to one company and can be diversified away, and it is the risk for which investors are compensated.",
+   "example": "A broad recession moves nearly all equities together; a single company's recall does not.",
+   "related_terms": [
+    "beta",
+    "diversification",
+    "modern_portfolio_theory"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "beta",
+   "term": "Beta",
+   "aliases": [],
+   "category": "risk",
+   "difficulty": "advanced",
+   "definition": "A measure of how much an asset has moved relative to a benchmark. A beta of 1.2 indicates historical moves about 20% larger than the market's in both directions; it describes past sensitivity, not future risk.",
+   "example": "A utility stock might have a beta of 0.6, a high-growth technology stock 1.4.",
+   "related_terms": [
+    "systematic_risk",
+    "volatility",
+    "capm"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "sharpe_ratio",
+   "term": "Sharpe Ratio",
+   "aliases": [],
+   "category": "risk_adjusted_performance",
+   "difficulty": "advanced",
+   "definition": "Return above the risk-free rate divided by volatility, a measure of return earned per unit of risk taken. It allows portfolios of different risk levels to be compared, though it penalizes upside and downside volatility equally.",
+   "example": "An 8% return at 10% volatility with a 3% risk-free rate gives a Sharpe ratio of 0.5.",
+   "related_terms": [
+    "volatility",
+    "risk_free_rate",
+    "sortino_ratio"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "modern_portfolio_theory",
+   "term": "Modern Portfolio Theory",
+   "aliases": [
+    "MPT"
+   ],
+   "category": "portfolio_management",
+   "difficulty": "advanced",
+   "definition": "Markowitz's framework showing that an asset should be judged by its contribution to a portfolio's overall risk and return rather than in isolation, because combining imperfectly correlated assets can reduce risk without proportionally reducing return.",
+   "example": "Adding bonds to an all-equity portfolio has historically reduced volatility more than it reduced return.",
+   "related_terms": [
+    "correlation",
+    "diversification",
+    "efficient_frontier"
+   ],
+   "source_name": "Markowitz (1952)",
+   "source_url": "https://www.jstor.org/stable/2975974",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "risk_tolerance",
+   "term": "Risk Tolerance",
+   "aliases": [],
+   "category": "risk",
+   "difficulty": "beginner",
+   "definition": "How much short-term fluctuation an investor can hold without abandoning a plan. It combines financial capacity to absorb loss with the behavioural willingness to watch it happen, and the second is usually the binding constraint.",
+   "example": "An investor who sold everything during a 30% decline had lower tolerance than their allocation assumed.",
+   "related_terms": [
+    "time_horizon",
+    "asset_allocation",
+    "loss_aversion"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "dollar_cost_averaging",
+   "term": "Dollar-Cost Averaging",
+   "aliases": [
+    "DCA"
+   ],
+   "category": "portfolio_management",
+   "difficulty": "beginner",
+   "definition": "Investing a fixed amount at regular intervals regardless of price, which buys more shares when prices are low and fewer when high. Its main benefit is behavioural: it removes the need to decide when to invest.",
+   "example": "Contributing $400 on the first of every month, whatever the market has done.",
+   "related_terms": [
+    "compound_interest",
+    "market_timing",
+    "volatility"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "market_timing",
+   "term": "Market Timing",
+   "aliases": [],
+   "category": "behavior",
+   "difficulty": "intermediate",
+   "definition": "Attempting to buy and sell based on predictions of short-term market direction. It requires being right about both timing and magnitude, and missing a small number of strong days has historically reduced long-run returns substantially.",
+   "example": "An investor who exits during a decline must also decide when to return, which is the harder half.",
+   "related_terms": [
+    "dollar_cost_averaging",
+    "loss_aversion",
+    "passive_investing"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "loss_aversion",
+   "term": "Loss Aversion",
+   "aliases": [],
+   "category": "behavior",
+   "difficulty": "intermediate",
+   "definition": "The tendency to feel losses more intensely than equivalent gains, which pushes investors to sell after declines and to avoid risk they had planned to accept. It is a behavioural explanation for why realized returns often trail fund returns.",
+   "example": "A 10% loss feeling roughly twice as bad as a 10% gain feels good is the usual description.",
+   "related_terms": [
+    "risk_tolerance",
+    "recency_bias",
+    "market_timing"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "recency_bias",
+   "term": "Recency Bias",
+   "aliases": [],
+   "category": "behavior",
+   "difficulty": "intermediate",
+   "definition": "Over-weighting recent events when forming expectations, which leads investors to chase what has just performed well and abandon what has just lagged. It is the mechanism behind buying high and selling low.",
+   "example": "Moving savings into whichever sector led last year is recency bias in action.",
+   "related_terms": [
+    "loss_aversion",
+    "market_timing",
+    "performance_chasing"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "401k",
+   "term": "401(k) Plan",
+   "aliases": [
+    "401k"
+   ],
+   "category": "retirement",
+   "difficulty": "beginner",
+   "definition": "An employer-sponsored retirement account funded by payroll deferrals, often with an employer match. Traditional contributions reduce taxable income now and are taxed on withdrawal; Roth contributions are taxed now and withdrawn tax-free in retirement if rules are met.",
+   "example": "Deferring 6% of salary where an employer matches 50% of the first 6% adds an immediate 3% of salary.",
+   "related_terms": [
+    "employer_match",
+    "roth_401k",
+    "ira",
+    "rmd"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "employer_match",
+   "term": "Employer Match",
+   "aliases": [],
+   "category": "retirement",
+   "difficulty": "beginner",
+   "definition": "Money an employer contributes to a retirement plan conditional on an employee's own contribution. Because it is immediate additional compensation, contributing at least enough to capture the full match is a widely shared starting point.",
+   "example": "A dollar-for-dollar match on the first 4% of pay doubles those contributions on arrival.",
+   "related_terms": [
+    "401k",
+    "vesting"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "ira",
+   "term": "Individual Retirement Arrangement",
+   "aliases": [
+    "IRA"
+   ],
+   "category": "retirement",
+   "difficulty": "beginner",
+   "definition": "A tax-advantaged retirement account an individual opens independently of an employer, in traditional or Roth form. Annual contribution limits apply and are set by the IRS, and eligibility for deductions or Roth contributions can phase out with income.",
+   "example": "An investor with no workplace plan might open an IRA at a brokerage and hold index funds in it.",
+   "related_terms": [
+    "roth_ira",
+    "traditional_ira",
+    "401k"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "roth_ira",
+   "term": "Roth IRA",
+   "aliases": [],
+   "category": "retirement",
+   "difficulty": "intermediate",
+   "definition": "A retirement account funded with after-tax dollars, where qualified withdrawals of both contributions and growth are tax-free. Because no deduction is taken up front, it favours those who expect a higher tax rate later.",
+   "example": "Contributions can generally be withdrawn at any time without tax or penalty; growth has conditions.",
+   "related_terms": [
+    "ira",
+    "traditional_ira",
+    "tax_free_growth"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "traditional_ira",
+   "term": "Traditional IRA",
+   "aliases": [],
+   "category": "retirement",
+   "difficulty": "intermediate",
+   "definition": "A retirement account where contributions may be deductible and growth is tax-deferred, with withdrawals taxed as ordinary income. It shifts tax from the present to retirement, which favours those expecting a lower rate later.",
+   "example": "A deductible contribution reduces this year's taxable income; the withdrawal decades later is taxed.",
+   "related_terms": [
+    "ira",
+    "roth_ira",
+    "rmd",
+    "tax_deferred"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "hsa",
+   "term": "Health Savings Account",
+   "aliases": [
+    "HSA"
+   ],
+   "category": "retirement",
+   "difficulty": "intermediate",
+   "definition": "An account available alongside a qualifying high-deductible health plan, offering a deduction on contribution, tax-free growth, and tax-free withdrawals for qualified medical expenses. That combination is why it is often described as triple tax-advantaged.",
+   "example": "Paying current medical costs from cash and investing the HSA instead preserves the tax-free growth.",
+   "related_terms": [
+    "401k",
+    "roth_ira",
+    "tax_free_growth",
+    "hdhp"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/publications/p969",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "rmd",
+   "term": "Required Minimum Distribution",
+   "aliases": [
+    "RMD"
+   ],
+   "category": "retirement",
+   "difficulty": "advanced",
+   "definition": "The minimum amount that must be withdrawn annually from certain tax-deferred retirement accounts once a statutory age is reached, calculated from the balance and an IRS life-expectancy factor. Roth IRAs are not subject to them during the owner's lifetime.",
+   "example": "A traditional IRA owner past the threshold age must withdraw a computed amount each year or face a penalty.",
+   "related_terms": [
+    "traditional_ira",
+    "401k",
+    "tax_deferred"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "sequence_risk",
+   "term": "Sequence-of-Returns Risk",
+   "aliases": [
+    "sequence risk"
+   ],
+   "category": "retirement",
+   "difficulty": "advanced",
+   "definition": "The risk that poor returns early in retirement permanently damage a portfolio, because withdrawals during a decline sell more shares and leave less to recover. Two retirees with identical average returns can have very different outcomes based on order alone.",
+   "example": "A 30% fall in year one of withdrawals is far more damaging than the same fall in year twenty.",
+   "related_terms": [
+    "drawdown",
+    "withdrawal_rate",
+    "time_horizon"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "withdrawal_rate",
+   "term": "Withdrawal Rate",
+   "aliases": [],
+   "category": "retirement",
+   "difficulty": "advanced",
+   "definition": "The percentage of a portfolio withdrawn in a year, often adjusted for inflation thereafter. Research into sustainable rates produces ranges rather than a single safe number, and outcomes depend heavily on the sequence of early returns.",
+   "example": "Withdrawing $40,000 from a $1,000,000 portfolio is a 4% initial withdrawal rate.",
+   "related_terms": [
+    "sequence_risk",
+    "retirement",
+    "real_return"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "capital_gain",
+   "term": "Capital Gain",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "beginner",
+   "definition": "The profit from selling an asset for more than its cost basis. Gains are only realized, and therefore generally only taxable, when the asset is sold; unrealized gains are not taxed as they accrue.",
+   "example": "Buying at $40 and selling at $70 realizes a $30 per-share capital gain.",
+   "related_terms": [
+    "cost_basis",
+    "long_term_capital_gains",
+    "wash_sale"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/taxtopics/tc409",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "long_term_capital_gains",
+   "term": "Long-Term vs Short-Term Capital Gains",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "intermediate",
+   "definition": "Gains on assets held longer than one year are long-term and taxed at preferential rates; gains on assets held one year or less are short-term and taxed as ordinary income. The holding period is therefore a tax variable the investor controls.",
+   "example": "Selling at 11 months versus 13 months can change the applicable rate category entirely.",
+   "related_terms": [
+    "capital_gain",
+    "cost_basis",
+    "holding_period"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/taxtopics/tc409",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "cost_basis",
+   "term": "Cost Basis",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "intermediate",
+   "definition": "What was paid for an investment, including commissions and reinvested dividends, used to compute gain or loss on sale. Which shares are identified at sale can change the reported gain, so lot selection matters.",
+   "example": "Shares bought at $20 and at $60 have different bases; selling the higher-basis lot reports a smaller gain.",
+   "related_terms": [
+    "capital_gain",
+    "specific_identification",
+    "wash_sale"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/taxtopics/tc409",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "tax_loss_harvesting",
+   "term": "Tax-Loss Harvesting",
+   "aliases": [],
+   "category": "tax_efficiency",
+   "difficulty": "advanced",
+   "definition": "Selling a holding at a loss to offset realized gains or, within limits, ordinary income, usually while maintaining market exposure through a non-substantially-identical replacement. The wash-sale rule governs what replacements are permissible.",
+   "example": "Realizing a loss on one broad fund and buying a different broad index fund keeps exposure while booking the loss.",
+   "related_terms": [
+    "wash_sale",
+    "capital_gain",
+    "cost_basis"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/taxtopics/tc409",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "wash_sale",
+   "term": "Wash Sale Rule",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "advanced",
+   "definition": "A rule disallowing a loss deduction when substantially identical securities are bought within 30 days before or after the sale that produced the loss. The disallowed loss is added to the basis of the replacement shares rather than lost.",
+   "example": "Selling a fund at a loss and repurchasing the same fund a week later disallows the deduction.",
+   "related_terms": [
+    "tax_loss_harvesting",
+    "cost_basis",
+    "capital_gain"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/publications/p550",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "qualified_dividend",
+   "term": "Qualified Dividend",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "intermediate",
+   "definition": "A dividend meeting holding-period and issuer requirements, taxed at long-term capital-gains rates rather than as ordinary income. Whether a distribution qualifies is reported by the payer rather than chosen by the investor.",
+   "example": "Most dividends from U.S. corporations held for the required period are qualified.",
+   "related_terms": [
+    "dividend",
+    "long_term_capital_gains"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/taxtopics/tc404",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "tax_deferred",
+   "term": "Tax-Deferred Growth",
+   "aliases": [],
+   "category": "tax_efficiency",
+   "difficulty": "intermediate",
+   "definition": "Growth that is not taxed as it accrues, with tax instead due on withdrawal. Deferral lets the amount that would have gone to tax stay invested and compound, which is the mechanical advantage of traditional retirement accounts.",
+   "example": "Dividends reinvested inside a traditional IRA generate no annual tax bill.",
+   "related_terms": [
+    "traditional_ira",
+    "401k",
+    "asset_location"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/retirement-plans",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "asset_location",
+   "term": "Asset Location",
+   "aliases": [],
+   "category": "tax_efficiency",
+   "difficulty": "advanced",
+   "definition": "Deciding which account type holds which asset, so that tax-inefficient holdings sit in tax-advantaged accounts and tax-efficient ones in taxable accounts. It is distinct from asset allocation, which decides what to hold at all.",
+   "example": "Holding taxable bonds inside a traditional IRA and broad equity index funds in a taxable account.",
+   "related_terms": [
+    "tax_deferred",
+    "asset_allocation",
+    "tax_efficiency"
+   ],
+   "source_name": "Bogleheads Wiki",
+   "source_url": "https://www.bogleheads.org/wiki/Main_Page",
+   "content_type": "investment_principle",
+   "educational_only": true
+  },
+  {
+   "id": "marginal_tax_rate",
+   "term": "Marginal Tax Rate",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "intermediate",
+   "definition": "The rate applied to the next dollar of income, as opposed to the average rate paid across all income. Because brackets are progressive, entering a higher bracket raises the rate on additional income only, not on everything earned.",
+   "example": "Crossing into a higher bracket does not reprice income already taxed in lower brackets.",
+   "related_terms": [
+    "effective_tax_rate",
+    "tax_bracket"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "fifo_specific_id",
+   "term": "Specific Share Identification",
+   "aliases": [],
+   "category": "tax_education",
+   "difficulty": "advanced",
+   "definition": "Choosing which tax lots to sell rather than defaulting to first-in-first-out, which lets an investor control the realized gain or loss. It requires identifying the lots with the broker at the time of sale.",
+   "example": "Selling the highest-basis lots first minimizes the realized gain on a partial sale.",
+   "related_terms": [
+    "cost_basis",
+    "capital_gain",
+    "tax_loss_harvesting"
+   ],
+   "source_name": "IRS",
+   "source_url": "https://www.irs.gov/publications/p550",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "term_life_insurance",
+   "term": "Term Life Insurance",
+   "aliases": [],
+   "category": "protection",
+   "difficulty": "beginner",
+   "definition": "Life insurance covering a fixed period, paying a benefit only if death occurs within the term. Because it has no investment component, it is typically far cheaper than permanent policies for the same coverage.",
+   "example": "A 20-year term policy sized to cover a mortgage and dependents' needs until children are independent.",
+   "related_terms": [
+    "insurance",
+    "emergency_fund"
+   ],
+   "source_name": "CFPB",
+   "source_url": "https://www.consumerfinance.gov/consumer-tools/",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "mortgage_amortization",
+   "term": "Mortgage Amortization",
+   "aliases": [],
+   "category": "real_estate",
+   "difficulty": "intermediate",
+   "definition": "The schedule by which a fixed mortgage payment is split between interest and principal. Early payments are mostly interest and late payments mostly principal, which is why extra principal payments early have an outsized effect.",
+   "example": "On a 30-year loan, the first year's payments may reduce the balance by only a few percent.",
+   "related_terms": [
+    "interest_rate_risk",
+    "home_equity"
+   ],
+   "source_name": "CFPB",
+   "source_url": "https://www.consumerfinance.gov/owning-a-home/",
+   "content_type": "educational_article",
+   "educational_only": true
+  },
+  {
+   "id": "reit",
+   "term": "Real Estate Investment Trust",
+   "aliases": [
+    "REIT"
+   ],
+   "category": "real_estate",
+   "difficulty": "intermediate",
+   "definition": "A company owning income-producing real estate that must distribute most of its taxable income to shareholders, and whose shares often trade on an exchange. Those distributions are frequently taxed as ordinary income rather than as qualified dividends.",
+   "example": "A REIT index fund provides property exposure without buying or managing a building.",
+   "related_terms": [
+    "dividend",
+    "diversification",
+    "asset_location"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/real-estate-investment-trusts-reits",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "apr_vs_apy",
+   "term": "APR vs APY",
+   "aliases": [],
+   "category": "banking",
+   "difficulty": "beginner",
+   "definition": "APR states an annual rate without accounting for compounding within the year; APY includes it. Comparing a loan quoted in APR against a savings rate quoted in APY is not an apples-to-apples comparison.",
+   "example": "12% APR compounded monthly corresponds to roughly 12.68% APY.",
+   "related_terms": [
+    "compound_interest",
+    "simple_vs_compound"
+   ],
+   "source_name": "CFPB",
+   "source_url": "https://www.consumerfinance.gov/consumer-tools/",
+   "content_type": "concept_definition",
+   "educational_only": true
+  },
+  {
+   "id": "risk_free_rate",
+   "term": "Risk-Free Rate",
+   "aliases": [],
+   "category": "risk_adjusted_performance",
+   "difficulty": "advanced",
+   "definition": "The theoretical return on an investment with no default risk, usually proxied by short-term Treasury yields. It is the baseline against which risky returns are judged and a required input to the Sharpe ratio.",
+   "example": "With three-month Treasuries near 4%, a risky asset returning 4% delivered no risk premium.",
+   "related_terms": [
+    "sharpe_ratio",
+    "treasury",
+    "beta"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  },
+  {
+   "id": "fiduciary_vs_suitability",
+   "term": "Fiduciary and Suitability Standards",
+   "aliases": [],
+   "category": "standards_of_conduct",
+   "difficulty": "intermediate",
+   "definition": "A fiduciary must act in a client's best interest; a suitability standard requires only that a recommendation be appropriate. The distinction affects how conflicts of interest and compensation must be handled and disclosed.",
+   "example": "Asking an adviser in writing whether they are a fiduciary at all times is the usual way to establish which applies.",
+   "related_terms": [
+    "conflict_of_interest",
+    "fees"
+   ],
+   "source_name": "SEC Investor.gov",
+   "source_url": "https://www.investor.gov/introduction-investing/getting-started/working-investment-professional",
+   "content_type": "regulatory_guidance",
+   "educational_only": true
+  },
+  {
+   "id": "diversifiable_risk",
+   "term": "Idiosyncratic Risk",
+   "aliases": [
+    "unsystematic risk"
+   ],
+   "category": "risk",
+   "difficulty": "advanced",
+   "definition": "Risk specific to a single company or asset, which can be reduced substantially by holding many imperfectly correlated positions. Because it is avoidable through diversification, theory holds that investors are not compensated for bearing it.",
+   "example": "A single firm's accounting scandal is idiosyncratic; a rate shock affecting all equities is not.",
+   "related_terms": [
+    "systematic_risk",
+    "diversification",
+    "concentration_risk"
+   ],
+   "source_name": "CFA Institute",
+   "source_url": "https://www.cfainstitute.org/",
+   "content_type": "theory_concept",
+   "educational_only": true
+  }
+ ]
+}

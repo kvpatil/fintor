@@ -38,11 +38,12 @@ cost:
     text-embedding-3-small:       {input: 0.02,  output: 0.00}
 
 rag:
-  # local = all-MiniLM-L6-v2 (384d, free, offline-capable). openai = text-embedding-3-small (1536d).
+  # local = model2vec potion-base-8M (256d, free, no torch, offline-capable).
+  # openai = text-embedding-3-small (1536d, higher recall, costs credits).
   # Switching invalidates the index: the dimension guard forces a rebuild.
   embeddings: local
   models:
-    local: sentence-transformers/all-MiniLM-L6-v2
+    local: minishlab/potion-base-8M
     openai: text-embedding-3-small
   top_k: 3
   overfetch: 20                 # candidates per list before RRF fusion

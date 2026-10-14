@@ -54,4 +54,10 @@ Implements `Embedder`, `VectorIndex`, and `Retriever` from `src/core/ports.py`. 
 
 ## Status
 
-Draft — implementation follows this commit.
+Implemented — `embedding.py`, `index.py`, `retriever.py`, `build.py`. Corpus is 77 documents
+(above the 60 target, inside the brief's 50–100), split 34 beginner / 29 intermediate /
+14 advanced so the persona difficulty filter has material at every level.
+
+All seven criteria verified at implementation time; formalised as pytest cases in Block B.
+Deviation: the corpus is hand-authored rather than LLM-generated — it costs nothing, is
+deterministic, and keeps every `source_url` real.
