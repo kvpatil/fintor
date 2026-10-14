@@ -1,0 +1,45 @@
+# Fintor dependencies.
+#
+# STACK NOTE (Python 3.14 on Intel macOS): there are no cp314 wheels for torch
+# or onnxruntime, and faiss-cpu ships only a source tarball. So instead of
+# sentence-transformers + FAISS this build uses:
+#   * model2vec   - static distilled embeddings, numpy-only, no torch, free
+#   * NumpyIndex  - exact cosine over a ~308x256 matrix. FAISS IndexFlatIP does
+#                   the same brute-force scan, so an ANN index buys nothing at
+#                   this corpus size. Both sit behind core.ports.VectorIndex,
+#                   so FaissIndex can be added without touching callers.
+
+# --- Core orchestration -------------------------------------------------
+langgraph>=0.2.60
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0          # SQLiteCache (exact LLM response cache)
+langchain-openai>=0.2.0
+langchain-anthropic>=0.3.0
+langgraph-checkpoint-sqlite>=2.0.0  # SqliteSaver durable threads
+
+# --- Retrieval ----------------------------------------------------------
+model2vec>=0.10.0                   # local embeddings, no torch required
+rank-bm25>=0.2.2                    # sparse half of hybrid retrieval
+
+# --- Data (both keyless) ------------------------------------------------
+yfinance==0.2.51                    # PINNED: unofficial Yahoo wrapper, breaks on upstream changes
+feedparser>=6.0.11                  # RSS news, no API key
+
+# --- UI -----------------------------------------------------------------
+streamlit>=1.40.0                   # needs st.feedback, st.navigation, st.fragment
+plotly>=5.24.0
+streamlit-flow-component>=1.2.0     # live LangGraph visualization
+streamlit-mermaid>=0.3.0            # architecture diagrams
+st-annotated-text>=4.0.2            # Phase 2 citation highlighting
+
+# --- Support ------------------------------------------------------------
+pydantic>=2.9.0
+pyyaml>=6.0.2
+numpy>=1.26.0
+pandas>=2.2.0
+
+# --- Dev ----------------------------------------------------------------
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+ruff>=0.8.0

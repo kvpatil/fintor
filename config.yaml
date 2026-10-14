@@ -1,0 +1,85 @@
+# Fintor configuration. Secrets live only in .env - never here.
+# Every value below is read through src/core/config.py; nothing else reads env vars.
+
+app:
+  name: Fintor
+  tagline: "Finance, taught."
+  # Education-only product. See .github/skills/finance-compliance/SKILL.md
+  educational_only: true
+
+llm:
+  # Provider chain: primary first, fallbacks in order. Built with
+  # LangChain .with_fallbacks() so a primary outage degrades instead of failing.
+  chain: [openai, anthropic]
+  tiers:
+    cheap:                      # classification, routing, extraction
+      openai: gpt-4o-mini
+      anthropic: claude-haiku-4-5-20251001
+    strong:                     # synthesis, only on explicit escalation
+      openai: gpt-4o
+      anthropic: claude-sonnet-5
+  default_tier: cheap           # cost discipline: strong is opt-in, never default
+  temperature: 0.1
+  max_output_tokens: 900
+  timeout_seconds: 60
+  max_retries: 2
+
+cost:
+  # Hard ceiling per session. Exceeding it raises BudgetExceeded - a kill
+  # switch, not a warning, because OpenAI credits are a binding constraint.
+  session_budget_usd: 0.50
+  warn_at_fraction: 0.75
+  # Per-1M-token prices used by the meter. Update if provider pricing moves.
+  prices_per_mtok:
+    gpt-4o-mini:                  {input: 0.15,  output: 0.60}
+    gpt-4o:                       {input: 2.50,  output: 10.00}
+    claude-haiku-4-5-20251001:    {input: 1.00,  output: 5.00}
+    claude-sonnet-5:              {input: 3.00,  output: 15.00}
+    text-embedding-3-small:       {input: 0.02,  output: 0.00}
+
+rag:
+  # local = all-MiniLM-L6-v2 (384d, free, offline-capable). openai = text-embedding-3-small (1536d).
+  # Switching invalidates the index: the dimension guard forces a rebuild.
+  embeddings: local
+  models:
+    local: sentence-transformers/all-MiniLM-L6-v2
+    openai: text-embedding-3-small
+  top_k: 3
+  overfetch: 20                 # candidates per list before RRF fusion
+  rrf_k: 60                     # Reciprocal Rank Fusion constant
+  score_threshold: 0.25         # below this we refuse rather than generate
+  mode: hybrid                  # hybrid | dense | sparse
+  chunk_chars: 1000
+  chunk_overlap: 150
+  index_dir: src/data/kb/index  # committed on purpose, see .gitignore
+
+cache:
+  # Seven layers documented in docs/PLAN.md. Paths are gitignored.
+  dir: data/cache
+  llm_exact_ttl_seconds: 86400
+  embedding_cache: true         # layer 4: KB embedded once, ever
+  market_ttl_seconds: 1800      # layer 5: quotes
+  history_ttl_seconds: 21600    # layer 5: history
+  stale_max_age_seconds: 604800 # last-good fallback window (7 days)
+
+market:
+  providers: [yfinance, mock]   # alphavantage is Phase 2, fallback only
+  max_symbols: 8
+
+news:
+  providers: [yfinance, rss, mock]
+  rss_feeds:
+    - https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC&region=US&lang=en-US
+  limit: 5
+
+workflow:
+  agent_timeout_seconds: 45
+  max_tool_iterations: 3        # ToolNode loop-back cap: prevents runaway ReAct
+  router_use_llm: true          # tier 3; set false to stay entirely free
+  checkpoint_dir: data/checkpoints
+  max_history_messages: 8
+
+offline:
+  # FINTOR_OFFLINE=1 forces OfflineProvider everywhere: deterministic canned
+  # responses, zero network, zero spend. The default mode for UI development.
+  enabled_env_var: FINTOR_OFFLINE
