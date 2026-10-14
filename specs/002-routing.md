@@ -44,4 +44,7 @@ Agents return `AgentResult`. Both from `src/core/contracts.py`.
 
 ## Status
 
-Draft — implementation follows this commit.
+Implemented — `router.py`, `agents/*.py`, `registry.py`. Tier 1 scores 10/10 on the
+hand-checked case set, including the compound question (`market` + `tax`) and correctly
+*not* routing "What tax do I pay on my NVDA shares?" to the market agent. All three tiers
+observed firing live. Formalised as pytest cases in Block B.

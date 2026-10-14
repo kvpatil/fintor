@@ -23,7 +23,7 @@ model2vec>=0.10.0                   # local embeddings, no torch required
 rank-bm25>=0.2.2                    # sparse half of hybrid retrieval
 
 # --- Data (both keyless) ------------------------------------------------
-yfinance==0.2.51                    # PINNED: unofficial Yahoo wrapper, breaks on upstream changes
+yfinance>=1.7.0                     # unofficial Yahoo wrapper; 1.7 broke fast_info, so we use Ticker.history()
 feedparser>=6.0.11                  # RSS news, no API key
 
 # --- UI -----------------------------------------------------------------
