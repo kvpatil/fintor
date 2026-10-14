@@ -11,14 +11,20 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Generated state (added at creation time, per house convention)
-data/cache/            # SQLite embedding + LLM response caches
-data/checkpoints/      # LangGraph SqliteSaver threads
-data/market/           # market + news TTL cache
+# Generated state, gitignored at creation time per copilot-instructions.md.
+# NOTE: gitignore does not support trailing comments on a pattern line - they
+# become part of the pattern and silently match nothing. Keep comments above.
+
+# SQLite embedding + LLM response caches
+data/cache/
+# LangGraph SqliteSaver threads
+data/checkpoints/
+# market + news TTL cache
+data/market/
 .streamlit/secrets.toml
 
-# Local model weights (downloaded on demand, never committed)
+# Local model weights, downloaded on demand
 .cache/huggingface/
 
-# NOTE: src/data/kb/index/ IS committed on purpose - it lets graders and
-# Cloud Run run the app without re-embedding. See docs/PLAN.md, cost discipline.
+# src/data/kb/index/ IS committed on purpose: it lets graders and Cloud Run run
+# the app without re-embedding. See docs/design.md, section 4.
