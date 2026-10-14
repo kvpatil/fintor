@@ -56,4 +56,8 @@ Implements `ChatProvider` and `CacheBackend` from `src/core/ports.py`.
 
 ## Status
 
-Draft — implementation follows this commit.
+Implemented — `config.py`, `cost.py`, `cache.py`, `llm.py`.
+
+All six criteria verified manually at implementation time; formalised as pytest cases in
+Block B (`test_exact_cache_returns_without_provider_call`,
+`test_budget_guard_blocks_when_ceiling_exceeded`, `test_offline_mode_makes_no_network_calls`).
