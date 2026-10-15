@@ -1,7 +1,11 @@
-"""Portfolio, Market, and Goals. Deliberately plain: one table and one chart each.
+"""Portfolio, Market, and Goals.
 
-Richer dataviz (Monte Carlo fan chart, correlation heatmap) arrives in Phase 3 with
-the maths that justifies it.
+Every figure comes from `charts.py` and every number from `quant.py` or
+`market_calc.py`; this module only decides what appears and in what order. The
+Monte Carlo fan chart is still Phase 3 - the correlation heatmap shipped here.
+
+Each page asks `is_dark()` once and hands it to the factories, because a Plotly
+figure is built in Python and cannot inherit the page's theme the way CSS does.
 """
 
 from __future__ import annotations
@@ -18,7 +22,9 @@ from src.core.quant import (
 )
 from src.web_app import charts
 from src.web_app.components import data_status_chip, persona_line
+from src.web_app.labels import asset_class
 from src.web_app.state import active_persona, get_deps
+from src.web_app.theme import is_dark
 
 
 def _shell(title: str, caption: str):
@@ -54,18 +60,27 @@ def portfolio() -> None:
     c3.metric("Risk score", f"{risk}/100", label)
     c4.metric("Stated tolerance", persona.risk_tolerance)
 
+    dark = is_dark()
     st.markdown("###### Allocation")
-    st.plotly_chart(charts.allocation_bar(class_weights(persona.holdings, w)),
+    st.plotly_chart(charts.allocation_bar(class_weights(persona.holdings, w), dark=dark),
                     width="stretch", config={"displayModeBar": False})
 
+    # Column keys are what the reader sees, so they are written for a reader.
+    # Formats live in column_config rather than in f-strings because a
+    # NumberColumn keeps the values numeric - the column still sorts as numbers.
     rows = [{
-        "symbol": h.symbol, "shares": h.shares, "class": h.asset_class,
-        "price": quotes.get(h.symbol.upper()).price if quotes.get(h.symbol.upper()) else None,
-        "weight %": w.get(h.symbol.upper(), 0.0),
+        "Symbol": h.symbol, "Shares": h.shares, "Class": asset_class(h.asset_class),
+        "Price": quotes.get(h.symbol.upper()).price if quotes.get(h.symbol.upper()) else None,
+        "Weight": w.get(h.symbol.upper(), 0.0),
     } for h in persona.holdings]
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                 column_config={"weight %": st.column_config.ProgressColumn(
-                     "weight %", min_value=0.0, max_value=100.0, format="%.1f%%")})
+    st.dataframe(
+        pd.DataFrame(rows), hide_index=True, width="stretch",
+        column_config={
+            "Shares": st.column_config.NumberColumn(format="%d"),
+            "Price": st.column_config.NumberColumn(format="$%.2f"),
+            "Weight": st.column_config.ProgressColumn(
+                "Weight", min_value=0.0, max_value=100.0, format="%.1f%%"),
+        })
 
     # --- the figure ClarityFI has no equivalent of ------------------------
     histories = {}
@@ -78,8 +93,9 @@ def portfolio() -> None:
         st.markdown("###### How these holdings move together")
         st.caption("Pairwise correlation of daily returns over six months. Diversification "
                    "comes from combining holdings that do **not** move together, so a block "
-                   "of dark blue is concentration that the weights alone do not show.")
-        st.plotly_chart(charts.correlation_heatmap(names, matrix),
+                   "of **strong blue** is concentration the weights alone do not show. "
+                   "Red would mean a pair that moves in opposite directions.")
+        st.plotly_chart(charts.correlation_heatmap(names, matrix, dark=dark),
                         width="stretch", config={"displayModeBar": False})
 
     for flag in concentration_flags(persona.holdings, w):
@@ -113,9 +129,11 @@ def market() -> None:
     dates = [d for d, _ in rows]
     closes = [p for _, p in rows]
 
+    dark = is_dark()
     st.plotly_chart(
         charts.price_with_averages(dates, closes, moving_average(closes, 20),
-                                   moving_average(closes, 50), label=chart_for),
+                                   moving_average(closes, 50), label=chart_for,
+                                   dark=dark),
         width="stretch", config={"displayModeBar": False})
 
     # Stat tiles: a handful of headline numbers is a KPI row, not a chart.
@@ -145,7 +163,8 @@ def market() -> None:
             st.plotly_chart(
                 charts.rebased_comparison(
                     dates[-n:],
-                    {chart_for: rebase(closes[-n:]), bench: rebase([p for _, p in brows[-n:]])}),
+                    {chart_for: rebase(closes[-n:]), bench: rebase([p for _, p in brows[-n:]])},
+                    dark=dark),
                 width="stretch", config={"displayModeBar": False})
 
 
@@ -168,10 +187,28 @@ def goals() -> None:
               None if central["on_track"] else f"-${central['shortfall']:,.0f}")
     m3.metric("Monthly needed", f"${central['monthly_needed']:,.0f}")
 
-    st.dataframe(pd.DataFrame(proj["scenarios"]), hide_index=True, width="stretch")
+    # `on_track` as a raw bool renders as a CHECKBOX, which reads as a control
+    # the user can toggle. It is an outcome, not an input, so it becomes text.
+    scenarios = [{
+        "Scenario": row["label"],
+        "Assumed return": row["assumed_return_pct"] / 100.0,
+        "Projected value": row["projected_value"],
+        "On track": "Yes" if row["on_track"] else "No",
+        "Shortfall": row["shortfall"],
+        "Monthly needed": row["monthly_needed"],
+    } for row in proj["scenarios"]]
+    st.dataframe(
+        pd.DataFrame(scenarios), hide_index=True, width="stretch",
+        column_config={
+            "Assumed return": st.column_config.NumberColumn(format="percent"),
+            "Projected value": st.column_config.NumberColumn(format="$%,.0f"),
+            "Shortfall": st.column_config.NumberColumn(format="$%,.0f"),
+            "Monthly needed": st.column_config.NumberColumn(format="$%,.0f"),
+        })
     st.plotly_chart(
         charts.projection_area([y for y, _ in proj["yearly_path"]],
-                               [v for _, v in proj["yearly_path"]], target),
+                               [v for _, v in proj["yearly_path"]], target,
+                               dark=is_dark()),
         width="stretch", config={"displayModeBar": False})
     for note in proj["assumptions"]:
         st.caption(f"• {note}")

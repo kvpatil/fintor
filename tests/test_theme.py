@@ -92,19 +92,75 @@ def test_every_colour_token_is_redefined_for_dark(token):
     That is exactly how near-black --fin-ink and near-white --fin-paper ended up on
     a dark ground: they were styled through, but never overridden.
     """
-    dark_media = re.search(r"@media \(prefers-color-scheme: dark\)\s*\{(.*?)\n\}", CSS, re.S)
-    dark_attr = re.search(r':root\[data-theme="dark"\]\s*\{([^}]*)\}', CSS)
-    assert dark_media and dark_attr, "dark theme blocks missing"
-    assert token in dark_media.group(1), f"{token} not redefined under prefers-color-scheme"
-    assert token in dark_attr.group(1), f'{token} not redefined under [data-theme="dark"]'
+    from src.web_app.theme import DARK_TOKENS
+
+    assert token in DARK_TOKENS, f"{token} is not redefined for dark"
 
 
-def test_light_theme_is_restored_explicitly():
-    """The viewer's toggle must win in BOTH directions, so light is also explicit."""
-    light = re.search(r':root\[data-theme="light"\]\s*\{([^}]*)\}', CSS)
-    assert light, "no [data-theme=light] block - the toggle cannot override dark OS preference"
+def test_the_os_preference_is_not_the_theme_signal():
+    """Measured in the browser, OS on light and Streamlit set to Dark:
+
+        bodyBg      rgb(18, 23, 20)     <- dark, from Streamlit
+        --fin-paper #fffefb             <- light, the media query was false
+        valueColor  rgb(231, 235, 230)  <- light, from Streamlit
+
+    A near-white card under light text, 1.2:1. `prefers-color-scheme` follows
+    the OPERATING SYSTEM, and Streamlit's own toggle can disagree with it in
+    both directions, so it is simply the wrong question to ask.
+    """
+    assert "prefers-color-scheme" not in CSS
+
+
+def test_both_themes_are_attribute_scoped_so_either_can_win():
+    """Whichever way the toggle moves, the selected block must outrank the
+    plain `:root` defaults - including the dark block the server emits for the
+    first paint. Specificity does that only if BOTH are attribute-scoped."""
+    for mode in ("dark", "light"):
+        assert f':root[data-theme="{mode}"]' in CSS, f"no {mode} block"
     for token in THEME_TOKENS:
-        assert token in light.group(1), f"{token} missing from the light override"
+        light = re.search(r':root\[data-theme="light"\]\s*\{([^}]*)\}', CSS)
+        assert token in light.group(1), f"{token} missing from the light block"
+
+
+def test_a_probe_keeps_the_attribute_in_step_with_what_streamlit_painted():
+    """Streamlit's theme menu repaints WITHOUT rerunning the script, so a
+    server-side decision goes stale the moment the user toggles - verified by
+    switching Dark -> Light and watching black cards survive on a light page.
+
+    Streamlit stamps no theme attribute and defines no CSS variables, so the
+    only always-current signal is the colour it paints on stApp. The probe
+    reads that and sets the attribute itself.
+    """
+    from src.web_app.theme import THEME_PROBE, inject
+    import inspect
+
+    assert 'data-testid="stApp"' in THEME_PROBE, "the probe must read what was painted"
+    assert "setAttribute('data-theme'" in THEME_PROBE
+    assert "MutationObserver" in THEME_PROBE, "a one-shot read cannot track a toggle"
+    assert "theme_probe()" in inspect.getsource(inject)
+
+
+def test_inject_emits_the_dark_block_only_in_dark_mode(monkeypatch):
+    from src.web_app import theme
+
+    emitted = []
+    monkeypatch.setattr(theme.st, "markdown", lambda css, **_kw: emitted.append(css))
+
+    monkeypatch.setattr(theme, "is_dark", lambda: False)
+    theme.inject()
+    assert theme.DARK_CSS not in emitted
+
+    emitted.clear()
+    monkeypatch.setattr(theme, "is_dark", lambda: True)
+    theme.inject()
+    assert theme.DARK_CSS in emitted
+
+
+def test_is_dark_never_raises_without_a_script_context():
+    """Called from tests and from the fonts generator, where st.context is absent."""
+    from src.web_app.theme import is_dark
+
+    assert is_dark() is False
 
 
 def test_config_does_not_pin_a_single_palette():
@@ -136,12 +192,17 @@ def _contrast(fg: str, bg: str) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def _token(block_pattern: str, token: str) -> str:
-    block = re.search(block_pattern, CSS, re.S)
-    assert block, f"block not found for {token}"
-    found = re.search(rf"{token}:\s*(#[0-9a-fA-F]{{6}})", block.group(1))
-    assert found, f"{token} not found in block"
+def _token(source: str, token: str) -> str:
+    """First hex value for `token` in a CSS fragment (the light :root, or DARK_TOKENS)."""
+    found = re.search(rf"{token}:\s*(#[0-9a-fA-F]{{6}})", source)
+    assert found, f"{token} not found"
     return found.group(1)
+
+
+def _light_root() -> str:
+    block = re.search(r":root \{(.*?)\n\}", CSS, re.S)
+    assert block, "no :root block"
+    return block.group(1)
 
 
 def test_muted_contrast_passes_aa_on_both_grounds():
@@ -149,11 +210,13 @@ def test_muted_contrast_passes_aa_on_both_grounds():
     so both directions are measured rather than one assumed."""
     config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
 
-    light_muted = _token(r':root \{(.*?)\n\}', "--fin-muted")
+    light_muted = _token(_light_root(), "--fin-muted")
     light_bg = config["theme"]["light"]["backgroundColor"]
     light_ratio = _contrast(light_muted, light_bg)
 
-    dark_muted = _token(r':root\[data-theme="dark"\]\s*\{(.*?)\}', "--fin-muted")
+    from src.web_app.theme import DARK_TOKENS
+
+    dark_muted = _token(DARK_TOKENS, "--fin-muted")
     dark_bg = config["theme"]["dark"]["backgroundColor"]
     dark_ratio = _contrast(dark_muted, dark_bg)
 
@@ -163,10 +226,12 @@ def test_muted_contrast_passes_aa_on_both_grounds():
 
 def test_accent_is_legible_on_its_own_ground():
     """The accent carries the eyebrows and the active breadcrumb, so it is text."""
+    from src.web_app.theme import DARK_TOKENS
+
     config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
-    light = _contrast(_token(r':root \{(.*?)\n\}', "--fin-accent"),
+    light = _contrast(_token(_light_root(), "--fin-accent"),
                       config["theme"]["light"]["backgroundColor"])
-    dark = _contrast(_token(r':root\[data-theme="dark"\]\s*\{(.*?)\}', "--fin-accent"),
+    dark = _contrast(_token(DARK_TOKENS, "--fin-accent"),
                      config["theme"]["dark"]["backgroundColor"])
     assert light >= 4.5, f"light accent contrast is {light:.2f}:1"
     assert dark >= 4.5, f"dark accent contrast is {dark:.2f}:1"
@@ -240,11 +305,12 @@ def test_nav_styles_target_stable_hooks():
 
 
 def test_nav_colour_tokens_are_defined_for_both_themes():
+    from src.web_app.theme import DARK_TOKENS
+
     for token in ("--tab-workspace", "--tab-reference", "--dot-live",
                   "--dot-cached", "--dot-attention"):
         assert f"{token}:" in CSS, f"{token} undefined"
-        dark = re.search(r':root\[data-theme="dark"\]\s*\{([^}]*)\}', CSS)
-        assert token in dark.group(1), f"{token} not redefined for dark"
+        assert token in DARK_TOKENS, f"{token} not redefined for dark"
 
 
 # --- nav state dots -----------------------------------------------------
@@ -517,3 +583,158 @@ def test_no_metric_value_contains_two_dollar_signs():
     for call in _re.findall(r"\.metric\(([^\n]*)\)", src):
         value = call.split(",", 1)[1] if "," in call else ""
         assert value.count("$") < 2, f"two dollar signs will render as LaTeX: {call.strip()}"
+
+
+# --- heatmap cell labels must be readable on their own fill ---------------
+
+
+def _relative_luminance(hex_colour: str) -> float:
+    def channel(c: float) -> float:
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def _contrast(a: str, b: str) -> float:
+    lo, hi = sorted((_relative_luminance(a), _relative_luminance(b)))
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _sample_ramp(ramp, t: float) -> str:
+    """Colour at position t in a Plotly colorscale, by linear interpolation."""
+    for (p0, c0), (p1, c1) in zip(ramp, ramp[1:], strict=False):
+        if p0 <= t <= p1:
+            k = 0.0 if p1 == p0 else (t - p0) / (p1 - p0)
+            return "#" + "".join(
+                f"{round(int(c0[i:i + 2], 16) + (int(c1[i:i + 2], 16) - int(c0[i:i + 2], 16)) * k):02x}"
+                for i in (1, 3, 5))
+    raise AssertionError(f"t={t} outside the ramp")
+
+
+@pytest.mark.parametrize("dark", [False, True])
+def test_every_correlation_cell_label_clears_wcag_aa(dark):
+    """The cell value is drawn ON the fill, so the fill is its background.
+
+    This is the bug that shipped: the text colour flipped to white above
+    |r| 0.55, a threshold that was guessed. At r=0.57 the fill was #7fabdf,
+    where white scores 2.39:1. Sampling the whole ramp is the only honest
+    version of this check - a single spot value would have passed too.
+    """
+    from src.web_app.charts import scheme
+
+    sc = scheme(dark)
+    worst = min(
+        (_contrast(_sample_ramp(sc.diverging, i / 40), sc.ink), i / 40)
+        for i in range(41)
+    )
+    assert worst[0] >= 4.5, (
+        f"{'dark' if dark else 'light'}: label {sc.ink} on "
+        f"{_sample_ramp(sc.diverging, worst[1])} is {worst[0]:.2f}:1")
+
+
+def test_the_diverging_midpoint_is_neutral():
+    """A hue at the midpoint would make "uncorrelated" look like a category."""
+    from src.web_app.charts import DIVERGING, DIVERGING_DARK
+
+    for ramp in (DIVERGING, DIVERGING_DARK):
+        mid = ramp[1][1]
+        r, g, b = (int(mid[i:i + 2], 16) for i in (1, 3, 5))
+        assert max(r, g, b) - min(r, g, b) <= 12, f"{mid} is not neutral"
+
+
+# --- reference lines are not series ---------------------------------------
+
+
+def test_the_goal_target_line_is_not_a_categorical_hue():
+    """It was SERIES_LIGHT[1] - orange, which is "bond" on the Portfolio page
+    and reads as a warning. A target is a rule, not a second series."""
+    from src.web_app.charts import SERIES_DARK, SERIES_LIGHT, projection_area
+
+    for dark in (False, True):
+        fig = projection_area([1, 2, 3], [10.0, 20.0, 30.0], 25.0, dark=dark)
+        line = fig.layout.shapes[0].line.color
+        assert line not in SERIES_LIGHT and line not in SERIES_DARK
+
+
+# --- dark mode is wired, not merely defined -------------------------------
+
+
+def test_the_schemes_actually_differ_in_a_built_figure():
+    """SERIES_DARK existed for a while as a constant no figure ever read."""
+    from src.web_app.charts import price_with_averages
+
+    light = price_with_averages(["a", "b"], [1.0, 2.0], [None, 1.5], [None, None])
+    dark = price_with_averages(["a", "b"], [1.0, 2.0], [None, 1.5], [None, None],
+                               dark=True)
+    assert light.data[2].line.color != dark.data[2].line.color
+    assert light.layout.font.color != dark.layout.font.color
+
+
+def test_views_ask_for_the_theme_rather_than_assuming_light():
+    """A Plotly figure cannot inherit the page theme the way CSS can."""
+    src = (ROOT / "src" / "web_app" / "views" / "workspace.py").read_text(encoding="utf-8")
+    assert "is_dark()" in src
+    for call in ("allocation_bar", "correlation_heatmap", "price_with_averages",
+                 "rebased_comparison", "projection_area"):
+        start = src.index(f"charts.{call}(")
+        assert "dark=" in src[start:start + 400], f"{call} is built without a scheme"
+
+
+# --- machine names never reach the screen ---------------------------------
+
+
+def test_asset_class_labels_are_human():
+    from src.web_app.labels import asset_class
+
+    assert asset_class("single_stock") == "Single stock"
+    assert asset_class("reit") == "REITs"
+    assert "_" not in asset_class("single_stock")
+
+
+def test_an_unknown_asset_class_still_reads_as_words():
+    from src.web_app.labels import asset_class
+
+    assert asset_class("private_credit") == "Private credit"
+
+
+def test_no_dataframe_column_key_is_a_machine_name():
+    """`single_stock` was a cell value and `assumed_return_pct` a column header.
+
+    A reader who sees an underscore knows they are looking at a database dump.
+    """
+    import ast
+
+    src = (ROOT / "src" / "web_app" / "views" / "workspace.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key in node.keys:
+            if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                assert "_" not in key.value, (
+                    f"{key.value!r} reads as a field name, not a column header")
+
+
+def test_every_table_configures_its_columns():
+    """The Goals table had no literal keys at ALL - it handed `proj["scenarios"]`
+    straight to st.dataframe, so quant.py's field names became the headers and a
+    bool became a checkbox that looked clickable.
+
+    Requiring column_config is what catches that shape: it is impossible to pass
+    a domain dict through untouched and still satisfy this.
+    """
+    import ast
+
+    src = (ROOT / "src" / "web_app" / "views" / "workspace.py").read_text(encoding="utf-8")
+    calls = [
+        node for node in ast.walk(ast.parse(src))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "dataframe"
+    ]
+    assert calls, "expected st.dataframe calls in workspace.py"
+    for call in calls:
+        kwargs = {kw.arg for kw in call.keywords}
+        assert "column_config" in kwargs, (
+            f"st.dataframe at line {call.lineno} ships raw field names as headers")

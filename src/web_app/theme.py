@@ -249,12 +249,19 @@ h1 { font-size: 1.72rem; }
 }
 .fin-cite { font-size: var(--fs-sm); color: var(--fin-muted); }
 
-/* Dark theme is token-level: every component already styles through the tokens,
-   so redefining them here is the whole change. --fin-ink and --fin-paper were the
-   gap before - near-black text and a near-white card ground both survived into
-   dark mode because they were not tokenised. */
-@media (prefers-color-scheme: dark) {
-  :root {
+/* THEME_RULES is appended here at import time: the light and dark token blocks
+   under :root[data-theme="..."], which theme_probe() keeps in sync. Every
+   component already styles through the tokens, so swapping them is the whole of
+   dark mode. */
+</style>
+"""
+
+
+# The dark palette, as a single block. Every colour token in :root is restated
+# here; tests/test_theme.py fails if one is missed, because a token that is only
+# defined once survives into dark mode unchanged - which is how near-black text
+# and a near-white card ground shipped on a dark ground once already.
+DARK_TOKENS = """
   --fin-ink: #e7ebe6;
   --fin-muted: #9aa5a0;      /* 7.1:1 on #121714 */
   --fin-line: #333b37;
@@ -266,22 +273,9 @@ h1 { font-size: 1.72rem; }
   --dot-live: #5bbfa2;
   --dot-cached: #7d8884;
   --dot-attention: #d2a248;
-  }
-}
-:root[data-theme="dark"] {
-  --fin-ink: #e7ebe6;
-  --fin-muted: #9aa5a0;      /* 7.1:1 on #121714 */
-  --fin-line: #333b37;
-  --fin-accent: #5bbfa2;
-  --fin-warn: #d2a248;
-  --fin-paper: #1b211e;
-  --tab-workspace: rgba(91, 191, 162, 0.14);
-  --tab-reference: rgba(154, 165, 160, 0.12);
-  --dot-live: #5bbfa2;
-  --dot-cached: #7d8884;
-  --dot-attention: #d2a248;
-}
-:root[data-theme="light"] {
+"""
+
+LIGHT_TOKENS = """
   --fin-ink: #17211d;
   --fin-muted: #55605b;
   --fin-line: #e2ded4;
@@ -293,15 +287,105 @@ h1 { font-size: 1.72rem; }
   --dot-live: #1f6f5c;
   --dot-cached: #8a948f;
   --dot-attention: #c07c12;
-}
-</style>
+"""
+
+# Both are explicit and both are attribute-scoped, so whichever one the probe
+# selects outranks the plain `:root` block below on specificity - including the
+# dark block the server emitted for the first paint.
+THEME_RULES = (f':root[data-theme="dark"] {{{DARK_TOKENS}}}\n'
+               f':root[data-theme="light"] {{{LIGHT_TOKENS}}}\n')
+CSS = CSS.replace("</style>", THEME_RULES + "</style>")
+
+DARK_CSS = f"<style>:root {{{DARK_TOKENS}}}</style>"
+
+# Streamlit's theme menu repaints the page WITHOUT rerunning the script, so
+# anything the server decided is stale until the next interaction. Measured:
+# switching Dark -> Light left black cards with dark text on a light page, and
+# pressing Escape did not fix it. Streamlit also stamps no theme attribute and
+# exposes no CSS variables - but the colour it paints on [data-testid="stApp"]
+# is always current, so the browser reads that and stamps the attribute itself.
+#
+# st.components.v1.html rather than st.markdown: markdown strips <script>. The
+# iframe is same-origin, so window.parent.document is reachable, and height=0
+# keeps it out of the layout.
+THEME_PROBE = """
+<script>
+(function () {
+  var doc = window.parent.document;
+  var app = doc.querySelector('[data-testid="stApp"]');
+  if (!app) { return; }
+  function stamp() {
+    var m = getComputedStyle(app).backgroundColor.match(/\\d+/g);
+    if (!m) { return; }
+    var l = 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2];
+    var want = l < 128 ? 'dark' : 'light';
+    if (doc.documentElement.getAttribute('data-theme') !== want) {
+      doc.documentElement.setAttribute('data-theme', want);
+    }
+  }
+  stamp();
+  new MutationObserver(stamp).observe(app, {attributes: true});
+  // The observer catches the class swap; the interval is the belt-and-braces
+  // for a repaint that happens without touching stApp's own attributes.
+  setInterval(stamp, 500);
+})();
+</script>
 """
 
 
+def theme_probe() -> None:
+    """Keep :root[data-theme] in step with whatever Streamlit has painted."""
+    import streamlit.components.v1 as components
+
+    components.html(THEME_PROBE, height=0)
+
+
 def inject() -> None:
+    """Base tokens, then the dark swap when the viewer is in dark mode.
+
+    The theme is decided in PYTHON, not in CSS, and that is not a stylistic
+    preference - it is the only signal that is correct. Measured in the browser:
+
+      * `@media (prefers-color-scheme: dark)` follows the OPERATING SYSTEM. A
+        viewer on a light OS who picks "Dark" in Streamlit's own menu gets a dark
+        page with the light tokens still in force - a near-white card ground
+        under Streamlit's light-on-dark text, which is invisible. It is wrong in
+        the other direction too: a dark OS plus "Light" darkens the tokens under
+        a light page.
+      * `:root[data-theme="dark"]` never matches. Streamlit stamps nothing on
+        `<html>` or `<body>` and exposes no CSS custom properties - that selector
+        is an Artifacts convention that was carried here on the assumption it
+        applied, and it never did.
+
+    `st.context.theme.type` is the one thing that actually knows, so the server
+    emits the block rather than asking the browser to work it out.
+    """
     st.markdown(CSS, unsafe_allow_html=True)
+    if is_dark():
+        # First-paint accuracy only. The probe's attribute-scoped rules outrank
+        # this the moment they land, so a stale value here cannot persist.
+        st.markdown(DARK_CSS, unsafe_allow_html=True)
+    theme_probe()
 
 
 def chip(label: str, kind: str = "") -> str:
     cls = {"accent": "fin-chip fin-chip-accent", "warn": "fin-chip fin-chip-warn"}.get(kind, "fin-chip")
     return f'<span class="{cls}">{label}</span>'
+
+
+def is_dark() -> bool:
+    """Whether the viewer is currently in dark mode.
+
+    `config.toml` deliberately omits `base`, so the palette follows the viewer's
+    preference rather than being pinned. CSS handles that through media queries,
+    but Plotly figures are built in Python and have to be *told* - without this
+    the charts keep their light hues on a dark page.
+
+    Defaults to light on anything unexpected: `st.context` is unavailable outside
+    a script run (tests, the fonts generator), and a wrong guess here is a
+    cosmetic miss, never an error worth raising.
+    """
+    try:
+        return st.context.theme.type == "dark"
+    except Exception:  # noqa: BLE001 - no script context, or an older Streamlit
+        return False
