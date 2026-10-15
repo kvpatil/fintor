@@ -10,11 +10,24 @@ from src.core.config import ROOT
 from src.web_app.state import get_deps
 
 
-def _mermaid(code: str, height: str = "360px") -> None:
+def _mermaid(code: str) -> None:
+    """Render a Mermaid diagram at the size it actually is.
+
+    No `height` argument, deliberately. Every call site used to pass a
+    hand-guessed pixel string and every one of them was wrong - measured in the
+    browser, two diagrams were clipped (the caching one lost 453px of 1027) and
+    four wasted 142-354px of dead space. `st_mermaid` already defaults to
+    `height="auto"`, and its frontend calls `setFrameHeight(bbox.height + 16)`
+    after rendering, so the component sizes its own frame from the real SVG.
+    Passing a number was overriding a mechanism that already worked.
+
+    Controls off: these are static figures, and the pan/zoom/RESET overlay sat
+    on top of the `__end__` node in the generated graph.
+    """
     try:
         import streamlit_mermaid as stmd
 
-        stmd.st_mermaid(code, height=height)
+        stmd.st_mermaid(code, pan=False, zoom=False, show_controls=False)
     except Exception:  # noqa: BLE001
         st.code(code, language="mermaid")
 
@@ -91,27 +104,27 @@ def architecture() -> None:
 
     st.subheader("1 · Workflow graph (generated)")
     st.caption("`compiled.get_graph().draw_mermaid()`")
-    _mermaid(FintorWorkflow(deps).mermaid(), "340px")
+    _mermaid(FintorWorkflow(deps).mermaid())
 
     st.subheader("2 · System architecture")
-    _mermaid(SYSTEM_DIAGRAM, "420px")
+    _mermaid(SYSTEM_DIAGRAM)
 
     st.subheader("3 · Module dependency rule")
     st.caption("One-way only. `tests/test_architecture.py::test_no_upward_imports` fails the "
                "build if any module imports from a layer above it.")
-    _mermaid(MODULE_DIAGRAM, "200px")
+    _mermaid(MODULE_DIAGRAM)
 
     st.subheader("4 · Retrieval pipeline")
-    _mermaid(RAG_DIAGRAM, "300px")
+    _mermaid(RAG_DIAGRAM)
 
     st.subheader("5 · Caching and cost control")
-    _mermaid(CACHE_DIAGRAM, "420px")
+    _mermaid(CACHE_DIAGRAM)
 
     st.subheader("6 · Persona conditioning")
-    _mermaid(PERSONA_DIAGRAM, "260px")
+    _mermaid(PERSONA_DIAGRAM)
 
     st.subheader("7 · Deployment topology (planned)")
-    _mermaid(DEPLOY_DIAGRAM, "240px")
+    _mermaid(DEPLOY_DIAGRAM)
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:

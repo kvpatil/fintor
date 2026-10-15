@@ -813,3 +813,94 @@ def test_direction_colours_are_legible_on_their_card(name, ground):
     source = DARK_TOKENS if ground == "dark" else _light_root()
     ratio = _contrast(_token(source, name), _token(source, "--fin-paper"))
     assert ratio >= 4.5, f"{name} on the {ground} card is {ratio:.2f}:1"
+
+
+# --- the active tab, and the gate action bar, are the same problem ---------
+
+
+@pytest.mark.parametrize("ground", ["light", "dark"])
+def test_accent_surfaces_carry_a_legible_label(ground):
+    """Both the active nav tab and the gate action bar are paper-on-accent.
+
+    Measured on the active tab BEFORE the fix: rgb(23,33,29) on rgb(31,111,92),
+    2.74:1. The colour was never wrong - theme.py already said
+    `color: var(--fin-paper)` on the link - it just never reached the label.
+    """
+    from src.web_app.theme import DARK_TOKENS
+
+    source = DARK_TOKENS if ground == "dark" else _light_root()
+    ratio = _contrast(_token(source, "--fin-accent"), _token(source, "--fin-paper"))
+    assert ratio >= 4.5, f"{ground}: paper on accent is {ratio:.2f}:1"
+
+
+def test_the_active_nav_label_has_its_own_rule():
+    """Streamlit puts the label in a <p> inside stMarkdownContainer and colours
+    that element directly. A direct declaration on a child beats an inherited
+    one, !important or not - so the parent rule alone did nothing, which is
+    exactly why the icon already had a descendant rule and the text did not.
+    """
+    active = r'\[data-testid="stTopNavLink"\]\[aria-current="page"\]'
+    assert re.search(active + r'\s+\[data-testid="stMarkdownContainer"\]', CSS), \
+        "the active label has no descendant rule; the colour will not reach it"
+
+
+def test_the_gate_action_bar_colours_its_own_label():
+    """Same trap, same fix: colour AND weight land on the inner <p>."""
+    block = re.search(r'\[class\*="st-key-gate-tile-"\] \.stButton > button p \{([^}]*)\}', CSS)
+    assert block, "no rule targets the action-bar label"
+    assert "var(--fin-paper)" in block.group(1)
+    assert "font-weight" in block.group(1), "weight inherits no better than colour does"
+
+
+def test_no_dead_selector_for_the_about_section():
+    """Measured: the collapsed stTopNavSection exposes no aria-current while one
+    of its pages is open, so a :has([aria-current]) rule can never match. Dead
+    CSS reads as a working feature - this is the data-theme lesson again."""
+    assert 'stTopNavSection"]:has(' not in CSS
+
+
+# --- the gate ------------------------------------------------------------
+
+
+def test_gate_text_is_not_held_to_a_reading_measure():
+    """The subline and the disclaimer bracket a ~960px card grid. At 60ch/72ch
+    they wrapped at 555px and 666px, and the ragged edge above a full-width
+    grid is what made the screen look unfinished."""
+    for cls in (".gate-subline", ".gate-foot"):
+        rule = re.search(re.escape(cls) + r"\s*\{([^}]*)\}", CSS)
+        assert rule, f"no rule for {cls}"
+        found = re.search(r"max-width:\s*(\d+)ch", rule.group(1))
+        assert found and int(found.group(1)) >= 90, (
+            f"{cls} is capped at {found.group(1) if found else '?'}ch, "
+            "which wraps it narrower than the grid it sits above")
+
+
+def test_the_gate_takes_a_wider_measure_than_the_reading_pages():
+    """A 3-up card grid is not running prose and does not want a reading
+    measure; the About pages still do."""
+    from src.web_app.gate import GATE_WIDTH_CSS
+
+    gate = int(re.search(r"--fin-measure-gate:\s*(\d+)px", CSS).group(1))
+    page = int(re.search(r"--fin-measure:\s*(\d+)px", CSS).group(1))
+    assert gate > page, "the gate measure must be wider than the page measure"
+    assert "--fin-measure-gate" in GATE_WIDTH_CSS, "the gate never applies it"
+
+
+def test_the_persona_tile_is_one_object_not_two():
+    """Card and button used to be sibling blocks with Streamlit's 16px gap
+    between them, and the button was white, 400-weight and 20%-border -
+    nothing said the pair was one clickable choice."""
+    tile = re.search(r'\[class\*="st-key-gate-tile-"\] \{([^}]*)\}', CSS)
+    assert tile, "no tile rule"
+    assert "var(--fin-line)" in tile.group(1), "the border must sit on the tile"
+    assert re.search(r'\[class\*="st-key-gate-tile-"\][^{]*\{[^}]*gap: 0', CSS), \
+        "the inter-element gap must be collapsed or the pair reads as two things"
+    bar = re.search(r'\[class\*="st-key-gate-tile-"\] \.stButton > button \{([^}]*)\}', CSS)
+    assert bar and "var(--fin-accent)" in bar.group(1), "the action bar is not solid accent"
+
+
+def test_the_tile_css_uses_no_octal_trap():
+    """`content: "\\2192"` is read as OCTAL by Python before CSS sees it, and the
+    button rendered the literal text 92. The glyph avoids both layers."""
+    assert chr(0o21) not in CSS, "an octal escape artefact is in the CSS"
+    assert 'content: "→"' in CSS

@@ -10,6 +10,7 @@ for every path. Everything here goes through `app.py`.
 from __future__ import annotations
 
 import ast
+import re
 import pathlib
 
 import pytest
@@ -383,3 +384,119 @@ def test_every_render_of_answer_text_goes_through_the_escape():
             if '"text"' in rendered or "'text'" in rendered:
                 assert rendered.startswith("escape_dollars("), \
                     f"unescaped answer text at line {node.lineno}: {rendered}"
+
+
+# --- diagrams size themselves ---------------------------------------------
+
+
+def test_no_view_hardcodes_a_diagram_height():
+    """Measured in the browser with the old fixed heights: two of seven
+    diagrams were clipped (the caching one lost 453px of 1027) and four wasted
+    142-354px of dead space. Not one of the seven guesses was right.
+
+    `st_mermaid` already defaults to height="auto" and its frontend calls
+    setFrameHeight(bbox.height + 16) after rendering, so passing a number was
+    overriding a mechanism that already worked. Swept over every view, because
+    the previous pass fixed one page and left the same defect in another.
+    """
+    import ast
+
+    offenders = []
+    for path in (ROOT / "src" / "web_app" / "views").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            name = getattr(node.func, "attr", getattr(node.func, "id", ""))
+            if name not in {"st_mermaid", "_mermaid"}:
+                continue
+            for kw in node.keywords:
+                if kw.arg == "height":
+                    offenders.append(f"{path.name}:{node.lineno}")
+            for arg in node.args[1:]:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str) \
+                        and arg.value.endswith("px"):
+                    offenders.append(f"{path.name}:{node.lineno} (positional)")
+    assert not offenders, "hardcoded diagram height at " + ", ".join(offenders)
+
+
+def test_the_mermaid_wrapper_takes_no_height_argument():
+    """The guard above only works if there is no parameter to pass."""
+    import inspect
+
+    from src.web_app.views.about import _mermaid
+
+    assert "height" not in inspect.signature(_mermaid).parameters
+
+
+def test_the_generated_graph_is_laid_out_horizontally():
+    """LangGraph emits top-down, which for this graph is a 157x616 ribbon -
+    16% of the width of the column it sits in, and 122px taller than its frame.
+    """
+    from src.workflow.graph import FintorWorkflow
+
+    # A stub, not container.build(): an earlier test patches build() to assert
+    # the gate never constructs the container, and that patch leaks here. The
+    # graph's SHAPE does not depend on deps anyway - only its nodes do.
+    class _Stub:
+        settings = type("S", (), {"workflow": {"agent_timeout_seconds": 5}})()
+        agents: dict = {}
+        router = None
+
+    code = FintorWorkflow(_Stub()).mermaid()
+    # draw_mermaid() opens with a --- config block, so the direction token is
+    # not on line 1; match it wherever it lands.
+    assert "graph TD" not in code and "flowchart TD" not in code
+    assert "graph LR" in code or "flowchart LR" in code, code.splitlines()[:6]
+    for node in ("guard", "router", "agent", "synthesize", "verify"):
+        assert node in code, f"{node} vanished from the generated diagram"
+
+
+# --- the mark has to survive at the size it is used ------------------------
+
+
+def test_the_mark_has_enough_weight_to_read_small():
+    """It renders at 34px in a 60px header, and before this at 24px. Three
+    2-unit hairlines on a 32-unit grid read as a smudge at that size."""
+    from src.web_app.brand import AXIS, BAR_LOWER, BAR_UPPER
+
+    assert AXIS[2] >= 4, f"the stem is {AXIS[2]}u wide; it disappears at 24px"
+    for bar in (BAR_UPPER, BAR_LOWER):
+        assert bar[3] >= 8, f"a {bar[3]}u bar is too thin to carry the mark"
+
+
+def test_the_bars_stay_detached_from_the_stem():
+    """The gap is what makes it a bar chart rather than only a letter."""
+    from src.web_app.brand import AXIS, BAR_LOWER, BAR_UPPER
+
+    stem_right = AXIS[0] + AXIS[2]
+    for bar in (BAR_UPPER, BAR_LOWER):
+        assert bar[0] - stem_right >= 2, "the gap closed; it reads as a solid F"
+
+
+def test_a_dark_wordmark_is_committed_and_differs():
+    """An <img> cannot inherit CSS colour, so the dark lockup is its own file."""
+    from src.web_app.brand import LOGO_DARK_PATH, LOGO_PATH
+
+    assert LOGO_DARK_PATH.exists() and LOGO_DARK_PATH.stat().st_size > 0
+    assert LOGO_DARK_PATH.read_text() != LOGO_PATH.read_text(), \
+        "the dark logo is identical to the light one"
+
+
+def test_the_header_is_fed_the_wordmark_not_the_bare_mark():  # noqa: D401
+    """With no sidebar Streamlit renders the icon_image slot. Passing MARK_PATH
+    there meant the header showed a 24px glyph and the wordmark never appeared
+    at all - which read as "the logo text is missing", because it was.
+    """
+    src = (ROOT / "src" / "web_app" / "app.py").read_text(encoding="utf-8")
+    call = re.search(r"st\.logo\(([^)]*)\)", src)
+    assert call, "no st.logo call"
+    assert "MARK_PATH" not in call.group(1), \
+        "the bare mark is back in the logo slot; the wordmark will not render"
+    assert "icon_image" in call.group(1), "icon_image is the slot that renders"
+
+
+def test_the_gate_wordmark_follows_the_theme_without_a_rerun():
+    """The gate inlines the SVG, so CSS reaches into it - unlike the header,
+    which goes through <img> and needs two files plus a rerun to swap."""
+    src = (ROOT / "src" / "web_app" / "gate.py").read_text(encoding="utf-8")
+    assert 'logo_svg(ink="currentColor")' in src

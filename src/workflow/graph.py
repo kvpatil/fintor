@@ -243,9 +243,23 @@ class FintorWorkflow:
         graph.add_edge("verify", END)
         return graph
 
-    def mermaid(self) -> str:
-        """Generated from the compiled graph, so the diagram cannot drift from the code."""
-        return self.compiled.get_graph().draw_mermaid()
+    def mermaid(self, direction: str = "LR") -> str:
+        """Generated from the compiled graph, so the diagram cannot drift from the code.
+
+        Re-oriented left-to-right. LangGraph emits top-down, which for this
+        graph is a 157x616 ribbon - measured in the browser, that is 16% of the
+        width of the column it sits in and 122px taller than the frame. The
+        same nodes laid out horizontally fill the space instead of overflowing
+        it. Only the direction token is rewritten; the nodes and edges are
+        still whatever the compiled graph says they are.
+        """
+        source = self.compiled.get_graph().draw_mermaid()
+        for keyword in ("graph", "flowchart"):
+            for orientation in ("TD", "TB"):
+                token = f"{keyword} {orientation}"
+                if token in source:
+                    return source.replace(token, f"{keyword} {direction}", 1)
+        return source
 
     async def ainvoke(self, question: str, *, persona: Persona | None = None,
                       thread_id: str | None = None, top_k: int = 3) -> dict:

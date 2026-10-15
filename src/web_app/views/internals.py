@@ -44,7 +44,10 @@ def _graph_section(deps) -> None:
         try:
             import streamlit_mermaid as stmd
 
-            stmd.st_mermaid(mermaid, height="320px")
+            # No height: the component measures its own SVG and calls
+            # setFrameHeight. The 320px that used to be here clipped a 616px
+            # diagram. See views/about.py::_mermaid.
+            stmd.st_mermaid(mermaid, pan=False, zoom=False, show_controls=False)
         except Exception:  # noqa: BLE001 - diagram is nice-to-have, never fatal
             st.code(mermaid, language="mermaid")
 

@@ -65,8 +65,16 @@ def _passcode_cleared() -> bool:
 
 
 def _persona_card(persona, column) -> None:
+    """One persona as a single selectable tile.
+
+    The card and the button sit inside ONE keyed container so the CSS can draw
+    a single bordered object with an accent action bar at its foot. They used
+    to be two sibling blocks with Streamlit's 16px gap between them, and the
+    button was a white, 400-weight, 20%-border rectangle - nothing about the
+    pair said "this is one choice you can click".
+    """
     risk, div, total = _scores(persona)
-    with column:
+    with column, st.container(key=f"gate-tile-{persona.id}"):
         st.markdown(
             f'<div class="gate-card">'
             f'<p class="gate-name">{persona.name}, {persona.age}</p>'
@@ -86,9 +94,24 @@ def _persona_card(persona, column) -> None:
             st.rerun()
 
 
+# The gate is a 3-up grid, not running prose, so it takes a wider measure than
+# the rest of the app. Scoped to this render rather than changing --fin-measure
+# globally, which the workspace and the About pages still want at 1120px.
+GATE_WIDTH_CSS = (
+    "<style>[data-testid='stMainBlockContainer']"
+    "{max-width:var(--fin-measure-gate);}</style>"
+)
+
+
 def render() -> None:
+    st.markdown(GATE_WIDTH_CSS, unsafe_allow_html=True)
     st.markdown('<div class="gate-wrap">', unsafe_allow_html=True)
-    st.markdown(f'<div class="gate-logo">{logo_svg()}</div>', unsafe_allow_html=True)
+    # `currentColor` for the wordmark, not a baked ink. The gate inlines the SVG
+    # rather than loading it through <img>, so CSS reaches inside it - which
+    # means the ink can follow --fin-ink and flip with the theme instantly,
+    # with none of the one-rerun lag the header logo has.
+    st.markdown(f'<div class="gate-logo">{logo_svg(ink="currentColor")}</div>',
+                unsafe_allow_html=True)
     st.markdown(f'<p class="gate-tagline">{TAGLINE}</p>', unsafe_allow_html=True)
     st.markdown(f'<p class="gate-subline">{SUBLINE}</p>', unsafe_allow_html=True)
 

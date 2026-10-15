@@ -22,8 +22,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.web_app import chrome, gate  # noqa: E402
-from src.web_app.brand import LOGO_PATH, MARK_PATH, favicon_data_uri  # noqa: E402
-from src.web_app.theme import inject  # noqa: E402
+from src.web_app.brand import (  # noqa: E402
+    LOGO_DARK_PATH, LOGO_PATH, favicon_data_uri,
+)
+from src.web_app.theme import inject, is_dark  # noqa: E402
 from src.web_app.views import about, chat, internals, workspace  # noqa: E402
 
 st.set_page_config(page_title="Fintor — finance, taught", page_icon=favicon_data_uri(),
@@ -67,7 +69,17 @@ for _section, _title, _path, _fn, _icon in PAGE_SPEC:
     # it cannot be used to look the group up again after navigation resolves.
     _group_of[_page] = _section
 
-st.logo(str(LOGO_PATH), icon_image=str(MARK_PATH), size="medium")
+# The WORDMARK goes in icon_image, which is counter-intuitive and deliberate:
+# with no sidebar Streamlit renders the icon_image slot, so passing the bare
+# mark there meant the header showed a 24px glyph and the wordmark never
+# appeared at all. Both slots get the lockup so either one is correct.
+#
+# Two files rather than one recoloured image: an <img> cannot inherit CSS
+# colour. Known limit, same as the Plotly figures - Streamlit's theme menu
+# repaints without rerunning the script, so the logo swaps one interaction
+# after the toggle.
+_logo = str(LOGO_DARK_PATH if is_dark() else LOGO_PATH)
+st.logo(_logo, icon_image=_logo, size="large")
 
 current = st.navigation(_pages, position="top")
 

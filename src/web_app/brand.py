@@ -20,19 +20,39 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 # and the dark one (#121714) - which rules out the theme-specific --accent values
 # the rest of the app switches between.
 MARK_GREEN = "#2f8f76"
+# Light-mode ink, and the reason there are two logo files: an <img>-loaded SVG
+# cannot inherit the page's colour, so the wordmark has to be baked per theme.
 WORDMARK_INK = "#17211d"
+WORDMARK_INK_DARK = "#e7ebe6"
 
 # Rectangles on a 32-unit grid: (x, y, w, h)
 #
-# A thin vertical axis with two detached bars beside it. The one-unit gap is what
-# makes it read as a bar chart rather than only a letter: the axis stays light, the
-# bars carry the weight. At favicon size that gap closes and the silhouette
-# collapses to a clean F - which is the right degradation, not a loss.
-AXIS = (6, 2, 2, 28)
-BAR_UPPER = (9, 5, 17, 6)
-BAR_LOWER = (9, 16, 11, 6)
+# A vertical axis with two detached bars beside it. The gap is what makes it read
+# as a bar chart rather than only a letter: at favicon size it closes and the
+# silhouette collapses to a clean F, which is the right degradation, not a loss.
+#
+# Weights doubled from the original 2u axis / 6u bars. At the 24px the header
+# actually renders, three hairlines read as a smudge - the mark needs mass to
+# survive at the size it is used, and the open, transparent character is kept by
+# widening the gap to 2u rather than by filling a badge behind it.
+AXIS = (5, 2, 4, 28)
+BAR_UPPER = (11, 4, 16, 8)
+BAR_LOWER = (11, 16, 11, 8)
 MARK_RECTS = (AXIS, BAR_UPPER, BAR_LOWER)
 GRID = 32
+
+# Wordmark layout. The mark now ends at x=27, so the text clears it at 36.
+WORDMARK_X = 36
+WORDMARK_SIZE = 25
+WORDMARK_BOX = (150, 32)
+# An <img>-loaded SVG is its own document: it cannot reach the page's @font-face,
+# so the self-hosted Source Serif is unavailable here and the face resolves
+# against whatever is installed. The stack is widened to keep the fallback in the
+# same transitional-serif family rather than dropping to a default.
+WORDMARK_STACK = (
+    "Georgia,'Iowan Old Style','Source Serif 4','Source Serif Pro',"
+    "'Charter','Times New Roman',serif"
+)
 
 
 def _rects_svg(fill: str, dx: int = 0, dy: int = 0) -> str:
@@ -52,17 +72,21 @@ def mark_svg(fill: str = MARK_GREEN) -> str:
 
 
 def logo_svg(fill: str = MARK_GREEN, ink: str = WORDMARK_INK) -> str:
-    """Mark plus wordmark, for the expanded logo slot.
+    """Mark plus wordmark - the lockup the header actually shows.
 
-    Georgia matches the app's display face (.streamlit/config.toml sets font =
-    "serif", and the type scale in theme.py is built on it).
+    A serif stack, to sit with the app's display face (`.streamlit/config.toml`
+    sets `headingFont = "Fintor Serif, Georgia, serif"`; body is Inter Tight).
+    It cannot BE Fintor Serif: see WORDMARK_STACK for why an <img> SVG has no
+    access to the page's self-hosted woff2.
     """
+    w, h = WORDMARK_BOX
     return (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 32" '
-        'width="132" height="32" role="img" aria-label="Fintor">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
+        f'width="{w}" height="{h}" role="img" aria-label="Fintor">'
         f"{_rects_svg(fill)}"
-        f'<text x="38" y="24" font-family="Georgia,\'Iowan Old Style\',serif" '
-        f'font-size="21" font-weight="700" letter-spacing="-0.3" fill="{ink}">Fintor</text>'
+        f'<text x="{WORDMARK_X}" y="25" font-family="{WORDMARK_STACK}" '
+        f'font-size="{WORDMARK_SIZE}" font-weight="700" letter-spacing="-0.4" '
+        f'fill="{ink}">Fintor</text>'
         "</svg>"
     )
 
@@ -110,7 +134,13 @@ def write_assets(target: Path | None = None) -> dict[str, Path]:
     out.mkdir(parents=True, exist_ok=True)
     written: dict[str, Path] = {}
 
-    for name, content in (("fintor-mark.svg", mark_svg()), ("fintor-logo.svg", logo_svg())):
+    for name, content in (
+        ("fintor-mark.svg", mark_svg()),
+        ("fintor-logo.svg", logo_svg()),
+        # The dark wordmark is a separate file because an <img> cannot be
+        # recoloured by CSS; app.py picks one with theme.is_dark().
+        ("fintor-logo-dark.svg", logo_svg(ink=WORDMARK_INK_DARK)),
+    ):
         path = out / name
         path.write_text(content, encoding="utf-8")
         written[name] = path
@@ -124,6 +154,7 @@ def write_assets(target: Path | None = None) -> dict[str, Path]:
 # Paths the app reads. Resolved here so no caller hardcodes a filename.
 MARK_PATH = ASSETS / "fintor-mark.svg"
 LOGO_PATH = ASSETS / "fintor-logo.svg"
+LOGO_DARK_PATH = ASSETS / "fintor-logo-dark.svg"
 FAVICON_PATH = ASSETS / "fintor-favicon.png"
 
 
