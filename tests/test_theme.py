@@ -716,28 +716,50 @@ def test_no_dataframe_column_key_is_a_machine_name():
                     f"{key.value!r} reads as a field name, not a column header")
 
 
-def test_every_table_configures_its_columns():
+@pytest.mark.parametrize("view", ["workspace.py", "internals.py", "chat.py", "about.py"])
+def test_every_table_configures_its_columns(view):
     """The Goals table had no literal keys at ALL - it handed `proj["scenarios"]`
-    straight to st.dataframe, so quant.py's field names became the headers and a
-    bool became a checkbox that looked clickable.
+    straight to st.dataframe, so quant.py's field names became the headers and
+    a bool became a checkbox that looked clickable.
 
-    Requiring column_config is what catches that shape: it is impossible to pass
-    a domain dict through untouched and still satisfy this.
+    Parametrised over EVERY view, not just the one that had the bug. Guarding
+    only workspace.py left the identical defect sitting in internals.py for
+    another three commits, because the test was written against the page
+    instead of against the pattern.
+
+    Requiring column_config is what catches that shape: it is impossible to
+    pass a domain dict straight through and still satisfy this.
     """
     import ast
 
-    src = (ROOT / "src" / "web_app" / "views" / "workspace.py").read_text(encoding="utf-8")
-    calls = [
-        node for node in ast.walk(ast.parse(src))
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "dataframe"
-    ]
-    assert calls, "expected st.dataframe calls in workspace.py"
-    for call in calls:
-        kwargs = {kw.arg for kw in call.keywords}
-        assert "column_config" in kwargs, (
-            f"st.dataframe at line {call.lineno} ships raw field names as headers")
+    path = ROOT / "src" / "web_app" / "views" / view
+    if not path.exists():
+        pytest.skip(f"{view} does not exist")
+    for call in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "dataframe"):
+            kwargs = {kw.arg for kw in call.keywords}
+            assert "column_config" in kwargs, (
+                f"{view}:{call.lineno} ships raw field names as headers")
+
+
+def test_no_view_prints_a_python_container_into_the_page():
+    """"Per-persona spend: {'unassigned': 0.0}" was on screen. An f-string that
+    interpolates a dict renders its repr, braces and quotes included."""
+    import ast
+
+    offenders = []
+    for path in (ROOT / "src" / "web_app" / "views").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.JoinedStr):
+                continue
+            for part in node.values:
+                if isinstance(part, ast.FormattedValue):
+                    rendered = ast.unparse(part.value)
+                    if any(h in rendered for h in
+                           ("by_persona()", "['signals']", '["signals"]')):
+                        offenders.append(f"{path.name}:{node.lineno} -> {rendered}")
+    assert not offenders, "rendered as a repr: " + "; ".join(offenders)
 
 
 # --- cards and the rail -------------------------------------------------
