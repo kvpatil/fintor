@@ -6,7 +6,7 @@ import re
 
 from src.agents.base import BaseAgent
 from src.agents.narration import narrate
-from src.core.contracts import AgentResult, DataStatus, Intent, Persona, Query
+from src.core.contracts import AgentResult, Intent, Persona, Query
 from src.core.safety import MARKET_DATA_NOTE, ensure_educational_disclaimer
 from src.data.news import extract_symbols
 

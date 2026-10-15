@@ -25,13 +25,12 @@ from langgraph.types import Send
 
 from src.agents.registry import SECTION_ORDER
 from src.core.contracts import (
-    AgentResult, DataStatus, Intent, Persona, Query, RouteDecision, RouterTier,
+    AgentResult, DataStatus, Intent, Persona, Query,
 )
 from src.core.safety import (
     ADVICE_REDIRECT, SELF_HARM_RESPONSE, detect_self_harm, ensure_educational_disclaimer,
     looks_like_injection, normalize_input,
 )
-from src.workflow.verify import verify_result
 
 SECTION_TITLES = {
     Intent.PORTFOLIO: "Your portfolio", Intent.GOAL_PLANNING: "Your goal",

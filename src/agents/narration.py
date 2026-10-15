@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from typing import Any
 
 from src.core.safety import ensure_educational_disclaimer
