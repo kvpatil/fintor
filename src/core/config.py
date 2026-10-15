@@ -47,6 +47,12 @@ class Settings:
     # Optional shared passcode for the entry gate. Blank means no passcode field is
     # shown at all, so a fresh clone is never locked out of its own checkout.
     passcode: str = field(default="", repr=False)
+    # Langfuse. The SDK would read these itself, but the house rule is that only
+    # this module touches the environment, so they are read here and passed
+    # explicitly. LANGFUSE_BASE_URL is the SDK's own current name.
+    langfuse_public_key: str = field(default="", repr=False)
+    langfuse_secret_key: str = field(default="", repr=False)
+    langfuse_base_url: str = field(default="", repr=False)
 
     # -- section accessors; sections are plain dicts straight from config.yaml ----
     @property
@@ -105,5 +111,9 @@ def load_settings(config_path: Path | None = None) -> Settings:
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", "").strip(),
         offline=os.environ.get("FINTOR_OFFLINE", "0").strip() in {"1", "true", "True", "yes"},
         passcode=os.environ.get("FINTOR_PASSCODE", "").strip(),
+        langfuse_public_key=os.environ.get("LANGFUSE_PUBLIC_KEY", "").strip(),
+        langfuse_secret_key=os.environ.get("LANGFUSE_SECRET_KEY", "").strip(),
+        langfuse_base_url=(os.environ.get("LANGFUSE_BASE_URL")
+                           or os.environ.get("LANGFUSE_HOST", "")).strip(),
         session_budget_usd=float(budget) if budget else float(raw.get("cost", {}).get("session_budget_usd", 0.50)),
     )

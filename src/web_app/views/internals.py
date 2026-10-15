@@ -135,6 +135,29 @@ def render() -> None:
             st.caption(f"**{t}** — {CACHE_NOTE.get(t, '')}")
     st.caption(f"Per-persona spend: {deps.meter.by_persona()}")
 
+    # -- observability ---------------------------------------------------
+    st.subheader("Trace")
+    from src.core import tracing
+
+    if tracing.enabled():
+        trace_id = st.session_state.get("last_trace_id")
+        st.caption("Spans for router, each agent, and every LLM call are sent to "
+                   "Langfuse, where they outlive this session - the cost meter "
+                   "above only knows about the current one.")
+        if trace_id:
+            url = tracing.trace_url(trace_id, deps.settings)
+            st.code(trace_id, language=None)
+            if url:
+                st.markdown(f"[Open this run in Langfuse]({url})")
+        else:
+            st.caption("Ask a question to produce a trace.")
+        st.caption("Known limit: prompts are scrubbed of API-key shapes and email "
+                   "addresses, but Fintor has no PII redaction layer yet, so a "
+                   "free-text question reaches Langfuse substantially intact.")
+    else:
+        st.caption("Tracing is off - no LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY "
+                   "configured. The app behaves identically either way.")
+
     # -- guardrails ------------------------------------------------------
     st.subheader("Guardrails")
     g1, g2, g3 = st.columns(3)

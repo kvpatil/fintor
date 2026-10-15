@@ -21,6 +21,7 @@ from src.core.cache import make_key
 from src.core.config import Settings
 from src.core.contracts import CacheTier, CostRecord, ModelTier
 from src.core.cost import CostMeter, price_call
+from src.core.tracing import observability_callbacks
 
 OFFLINE_MODEL = "offline-canned"
 
@@ -139,6 +140,12 @@ class LangChainChatProvider:
             raise ValueError(f"unknown provider {provider!r}")
 
     @staticmethod
+    def _trace_config() -> dict[str, Any]:
+        """Langfuse callbacks, or an empty list when tracing is off. Every LLM
+        call goes through here so no call site can be left un-traced."""
+        return {"callbacks": observability_callbacks()}
+
+    @staticmethod
     def _as_lc(messages: Sequence[dict[str, str]]) -> list[tuple[str, str]]:
         role_map = {"system": "system", "user": "human", "assistant": "ai"}
         return [(role_map.get(m.get("role", "user"), "human"), m.get("content", "")) for m in messages]
@@ -164,21 +171,23 @@ class LangChainChatProvider:
         self, messages: Sequence[dict[str, str]], *, max_tokens: int | None = None
     ) -> Completion:
         started = time.perf_counter()
-        msg = await self._client.ainvoke(self._as_lc(messages))
+        msg = await self._client.ainvoke(self._as_lc(messages), config=self._trace_config())
         text = msg.content if isinstance(msg.content, str) else str(msg.content)
         return Completion(text=text, cost=self._cost(msg, started, fallback_used=False))
 
     async def stream(
         self, messages: Sequence[dict[str, str]], *, max_tokens: int | None = None
     ) -> AsyncIterator[str]:
-        async for chunk in self._client.astream(self._as_lc(messages)):
+        async for chunk in self._client.astream(self._as_lc(messages),
+                                                config=self._trace_config()):
             piece = chunk.content
             if isinstance(piece, str) and piece:
                 yield piece
 
     async def structured(self, schema: type, messages: Sequence[dict[str, str]]) -> Any:
         """Schema enforced at the provider boundary, so callers never parse prose."""
-        return await self._client.with_structured_output(schema).ainvoke(self._as_lc(messages))
+        return await self._client.with_structured_output(schema).ainvoke(
+            self._as_lc(messages), config=self._trace_config())
 
 
 # --- the chain ----------------------------------------------------------

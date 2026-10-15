@@ -24,6 +24,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from src.agents.registry import SECTION_ORDER
+from src.core.tracing import flush as flush_traces
+from src.core.tracing import current_trace_id, pseudonym, trace_span, update_current_trace
 from src.core.contracts import (
     AgentResult, DataStatus, Intent, Persona, Query,
 )
@@ -255,8 +257,21 @@ class FintorWorkflow:
             "agent_results": [], "trace": [],
         }
         config = {"configurable": {"thread_id": thread_id or (persona.thread_id if persona else "default")}}
-        out = await self.compiled.ainvoke(state, config=config if self._checkpointer else None)
+        with trace_span("workflow.chat", persona=pseudonym(persona.id, "p") if persona else None):
+            out = await self.compiled.ainvoke(state, config=config if self._checkpointer else None)
+            route = out.get("route", {})
+            update_current_trace(
+                metadata={
+                    "router_tier": route.get("tier"),
+                    "intents": route.get("intents"),
+                    "agents": [r.get("agent") for r in out.get("agent_results", [])],
+                    "citations": out.get("final", {}).get("citations_verified"),
+                },
+            )
+        trace_id = current_trace_id()
+        flush_traces()
         return {
+            "trace_id": trace_id,
             "answer": out.get("final", {}).get("text", ""),
             "final": out.get("final", {}),
             "route": out.get("route", {}),

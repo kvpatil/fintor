@@ -21,6 +21,7 @@ from src.core.config import Settings, load_settings
 from src.core.contracts import ModelTier
 from src.core.cost import CostMeter
 from src.core.llm import build_chain
+from src.core.tracing import configure as configure_tracing
 from src.data.market import MarketService, MockProvider, YFinanceProvider
 from src.data.news import MockNews, NewsService, RssNews, YFinanceNews
 from src.rag.embedding import build_embedder
@@ -49,6 +50,9 @@ def build(settings: Settings | None = None, *, persona_id: str | None = None,
           tier: ModelTier = ModelTier.CHEAP) -> Deps:
     s = settings or load_settings()
     cache_dir = s.cache.get("dir", "data/cache")
+
+    # Before any provider is built, so the first call is already traced.
+    configure_tracing(s)
 
     meter = CostMeter(budget_usd=s.session_budget_usd,
                       warn_at_fraction=float(s.cost.get("warn_at_fraction", 0.75)))

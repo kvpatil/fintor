@@ -34,6 +34,9 @@ streamlit-flow-component>=1.2.0     # live LangGraph visualization
 streamlit-mermaid>=0.3.0            # architecture diagrams
 st-annotated-text>=4.0.2            # Phase 2 citation highlighting
 
+# --- Observability ------------------------------------------------------
+langfuse>=5.0.0                     # optional: absent keys mean tracing is off
+
 # --- Support ------------------------------------------------------------
 pydantic>=2.9.0
 pyyaml>=6.0.2

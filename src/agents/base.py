@@ -11,6 +11,7 @@ import time
 from abc import ABC, abstractmethod
 
 from src.core.contracts import AgentResult, Intent, Persona, Query
+from src.core.tracing import trace_span
 
 
 class BaseAgent(ABC):
@@ -30,7 +31,8 @@ class BaseAgent(ABC):
     async def run(self, query: Query, persona: Persona | None = None) -> AgentResult:
         started = time.perf_counter()
         try:
-            result = await self._execute(query, persona)
+            with trace_span(f"agent.{self.name}", intent=self.intent.value):
+                result = await self._execute(query, persona)
         except Exception as exc:  # noqa: BLE001 - containment is the point
             result = AgentResult(
                 agent=self.name,

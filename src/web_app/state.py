@@ -59,6 +59,8 @@ def record_turn(question: str, result: dict) -> None:
     st.session_state.setdefault(key, [])
     st.session_state[key].append({"q": question, "r": result})
     st.session_state["last_result"] = result
+    if result.get("trace_id"):
+        st.session_state["last_trace_id"] = result["trace_id"]
     st.session_state["last_question"] = question
 
 

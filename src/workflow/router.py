@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from src.core.contracts import Intent, RouteDecision, RouterTier
 from src.core.safety import looks_like_advice_request
+from src.core.tracing import trace_span
 
 ROUTABLE = [Intent.PORTFOLIO, Intent.GOAL_PLANNING, Intent.MARKET,
             Intent.NEWS, Intent.TAX, Intent.FINANCE_QA]
@@ -179,6 +180,10 @@ class Router:
         return [best_intent], best, margin
 
     async def route(self, text: str) -> RouteDecision:
+        with trace_span("workflow.route"):
+            return await self._route(text)
+
+    async def _route(self, text: str) -> RouteDecision:
         rules = heuristic_route(text)
         if rules.confident:
             return rules

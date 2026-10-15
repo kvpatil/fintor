@@ -44,6 +44,13 @@ be followed.**
 
 ## Traces and logs
 
+**Known limit, stated plainly.** Langfuse tracing is wired (`src/core/tracing.py`)
+and its `mask=` hook scrubs API-key shapes, email addresses, and long hex
+strings. It is **not** PII redaction: Fintor has no Presidio layer yet, so a
+user's free-text question reaches Langfuse substantially intact. Do not describe
+traces as "PII-masked" until that layer lands — an overstated guarantee is worse
+than the gap. The AI Internals page says the same thing to the user.
+
 - Mask at the transport boundary, not at the call site, so no call site can forget.
 - Pseudonymize identifiers (`sha256(value)[:16]` with a type prefix) — a user id may be an email.
 - Masking failure returns a redaction marker, never the raw payload.
