@@ -1,10 +1,21 @@
+# No `base` here on purpose: setting it pins the app to one palette and the
+# viewer's preference is ignored. With [theme.light] and [theme.dark] defined,
+# Streamlit follows the browser/OS setting and the CSS in theme.py lines up with
+# an actually-dark ground instead of flipping text colour over a light one.
 [theme]
-base = "light"
+font = "serif"
+
+[theme.light]
 primaryColor = "#1f6f5c"
 backgroundColor = "#fbfaf7"
 secondaryBackgroundColor = "#f2f0ea"
 textColor = "#17211d"
-font = "serif"
+
+[theme.dark]
+primaryColor = "#5bbfa2"
+backgroundColor = "#121714"
+secondaryBackgroundColor = "#1b211e"
+textColor = "#e7ebe6"
 
 [server]
 headless = true

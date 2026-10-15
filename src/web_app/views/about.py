@@ -114,6 +114,36 @@ def architecture() -> None:
     _mermaid(DEPLOY_DIAGRAM, "240px")
 
 
+def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """Separate YAML frontmatter from the body.
+
+    Required because Markdown reads the closing `---` as a setext underline and
+    turns the whole frontmatter block into an H1 - so the Governance page rendered
+    "name: ai-grounding description: ..." as a headline.
+    """
+    if not text.startswith("---"):
+        return {}, text
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}, text
+    meta: dict[str, str] = {}
+    for line in parts[1].strip().splitlines():
+        key, sep, value = line.partition(":")
+        if sep:
+            meta[key.strip()] = value.strip().strip("'\"")
+    return meta, parts[2].lstrip()
+
+
+def _render_skill(path: Path) -> None:
+    """A skill file: its frontmatter as a header, its body as prose."""
+    meta, body = split_frontmatter(path.read_text(encoding="utf-8"))
+    if meta.get("name"):
+        st.subheader(meta["name"])
+    if meta.get("description"):
+        st.caption(meta["description"])
+    st.markdown(body)
+
+
 def _render_markdown_file(path: Path, *, download_label: str) -> None:
     if not path.exists():
         st.info(f"`{path.name}` has not been written yet.")
@@ -143,7 +173,7 @@ def governance() -> None:
     tabs = st.tabs([p.parent.name for p in skills] + ["copilot-instructions", "Traceability"])
     for tab, path in zip(tabs, skills, strict=False):
         with tab:
-            st.markdown(path.read_text(encoding="utf-8"))
+            _render_skill(path)
     with tabs[len(skills)]:
         _render_markdown_file(ROOT / ".github" / "copilot-instructions.md",
                              download_label="Download copilot-instructions.md")
