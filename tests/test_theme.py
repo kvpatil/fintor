@@ -503,3 +503,17 @@ def test_unknown_asset_class_falls_back_to_the_neutral():
     from src.web_app.charts import OTHER_HUE, hue_for_class
 
     assert hue_for_class("something_new") == OTHER_HUE
+
+
+def test_no_metric_value_contains_two_dollar_signs():
+    """Streamlit renders a value with two "$" as LaTeX.
+
+    "$189.80 - $239.24" came out as green maths instead of a range. Currency
+    belongs in the label when a value needs two of them.
+    """
+    import re as _re
+
+    src = (ROOT / "src" / "web_app" / "views" / "workspace.py").read_text(encoding="utf-8")
+    for call in _re.findall(r"\.metric\(([^\n]*)\)", src):
+        value = call.split(",", 1)[1] if "," in call else ""
+        assert value.count("$") < 2, f"two dollar signs will render as LaTeX: {call.strip()}"

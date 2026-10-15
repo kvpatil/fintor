@@ -123,7 +123,12 @@ def market() -> None:
     m1.metric(f"{period} change", f"{period_return(closes):+.2f}%")
     m2.metric("Largest drop", f"-{max_drawdown(closes):.1f}%",
               help="Worst peak-to-trough decline in the window")
-    m3.metric("Range", f"${min(closes):,.2f} – ${max(closes):,.2f}")
+    # Currency lives in the LABEL: two "$" in a metric value makes Streamlit
+    # render it as LaTeX, which turned this tile into green maths.
+    # Whole numbers: at the metric font size, "189.80 - 239.24" overflows the
+    # tile and Streamlit truncates it to "189.80 - ...". Cents add nothing to a
+    # six-month range.
+    m3.metric("Range (USD)", f"{min(closes):,.0f}–{max(closes):,.0f}")
     if len(closes) >= 10:
         m4.metric("Volatility", f"{volatility(closes):.1f}%", help="Annualised")
     st.markdown(data_status_chip(status.value), unsafe_allow_html=True)

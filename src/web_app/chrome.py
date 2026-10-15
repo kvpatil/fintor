@@ -92,7 +92,9 @@ def header(group: str, title: str) -> None:
     """Who you are and what it costs on the right; a breadcrumb only where there
     is depth to report."""
     persona = active_persona()
-    left, right = st.columns([3, 2], vertical_alignment="center")
+    # 2:3 not 3:2 - at the 1120px measure the identity side needs the room,
+    # otherwise "Dev, 31 · intermediate" wraps below the chips.
+    left, right = st.columns([2, 3], vertical_alignment="center")
 
     with left:
         # Workspace pages have no group, and "Fintor / Chat" beside a solid-green
