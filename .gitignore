@@ -2,6 +2,11 @@
 .env
 .env.local
 
+# Course material, not our work and not ours to publish. Removed from history
+# after it was pushed to a public repo in the initial scaffold.
+*.docx.pdf
+AI Finance Assistant - Problem Statement.docx.pdf
+
 # Python
 __pycache__/
 *.py[cod]
