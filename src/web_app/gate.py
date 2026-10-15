@@ -106,33 +106,49 @@ def _shared_prompts() -> dict[str, list[str]]:
     return {prompt: names for prompt, names in seen.items() if len(names) > 1}
 
 
-def _accounts_panel() -> None:
-    """The six demo accounts, so the journeys are visible before you choose."""
+def _account_cell(persona, shared: dict[str, list[str]]) -> str:
+    """One account as a grid cell.
+
+    The numbers sit UNDER the name rather than floating right: at a third of
+    the width there is no room for a right-aligned column, and they wrapped.
+    """
+    risk, div, total = _scores(persona)
+    prompt = persona.journey_prompts[0] if persona.journey_prompts else ""
+    others = [n for n in shared.get(prompt, []) if n != persona.name]
+    echo = (f'<span class="signin-echo">also asked by {" and ".join(others)}</span>'
+            if others else "")
+    return (
+        f'<div class="signin-account">'
+        f'<div class="signin-account-head">'
+        f'<code>{persona.id}</code>'
+        f'<span class="signin-account-name">{persona.name}, {persona.age}</span>'
+        f"</div>"
+        f'<p class="signin-account-head-line">{persona.headline}</p>'
+        f'<p class="signin-account-journey">“{prompt}”{echo}</p>'
+        f'<p class="signin-account-nums">risk {risk} · spread {div} · '
+        f"${total:,.0f}</p>"
+        f"</div>"
+    )
+
+
+def _accounts_band() -> None:
+    """The six accounts, three across and two down, below both panels.
+
+    They were a single stacked column in the right-hand panel, six deep, which
+    pushed the last two below the fold - so the screen that is supposed to
+    introduce the personas hid a third of them.
+    """
     shared = _shared_prompts()
-    rows = []
-    for persona in PERSONAS:
-        risk, div, total = _scores(persona)
-        prompt = persona.journey_prompts[0] if persona.journey_prompts else ""
-        others = [n for n in shared.get(prompt, []) if n != persona.name]
-        echo = (f'<span class="signin-echo">also asked by '
-                f'{" and ".join(others)}</span>') if others else ""
-        rows.append(
-            f'<div class="signin-account">'
-            f'<div class="signin-account-head">'
-            f'<code>{persona.id}</code>'
-            f'<span class="signin-account-name">{persona.name}, {persona.age}</span>'
-            f'<span class="signin-account-nums">risk {risk} · spread {div} · '
-            f"${total:,.0f}</span>"
-            f"</div>"
-            f'<p class="signin-account-head-line">{persona.headline}</p>'
-            f'<p class="signin-account-journey">“{prompt}”{echo}</p>'
-            f"</div>"
-        )
+    st.markdown('<p class="gate-ask">Demo accounts</p>', unsafe_allow_html=True)
+    for row_start in (0, 3):
+        for persona, column in zip(PERSONAS[row_start:row_start + 3], st.columns(3),
+                                   strict=False):
+            with column, st.container(key=f"signin-account-{persona.id}"):
+                st.markdown(_account_cell(persona, shared), unsafe_allow_html=True)
     st.markdown(
-        '<p class="gate-ask">Demo accounts</p>' + "".join(rows)
-        + '<p class="gate-foot">Every persona is a synthetic teaching example, not a '
-          "real account. Fintor explains concepts; it does not give personal "
-          "financial, investment, legal or tax advice.</p>",
+        '<p class="gate-foot">Every persona is a synthetic teaching example, not a '
+        "real account. Fintor explains concepts; it does not give personal "
+        "financial, investment, legal or tax advice.</p>",
         unsafe_allow_html=True,
     )
 
@@ -200,5 +216,6 @@ def render() -> None:
     with form:
         with st.container(key="signin-card"):
             _sign_in_form(known)
-        with st.container(key="signin-accounts"):
-            _accounts_panel()
+
+    # Full width, below both panels, so six accounts fit without scrolling.
+    _accounts_band()

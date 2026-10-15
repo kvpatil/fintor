@@ -13,18 +13,18 @@ import streamlit as st
 CSS = """
 <style>
 :root {
-  --fin-ink: #17211d;
+  --fin-ink: #1a1820;
   /* Darkened from #5f6b66: 5.3:1 -> 6.3:1 on the light ground. Size was the real
      legibility problem, but at 14px the extra presence costs nothing. */
-  --fin-muted: #55605b;
-  --fin-line: #e2ded4;
-  --fin-accent: #1f6f5c;
+  --fin-muted: #585461;
+  --fin-line: #d9d6e0;
+  --fin-accent: #521fcd;
   --fin-warn: #9a6a1b;
-  /* Card/chip ground. A token because it was hardcoded #fffefb in five rules,
+  /* Card/chip ground. A token because it was hardcoded #fdfdfd in five rules,
      every one of which would have stayed light-on-dark. */
-  --fin-paper: #fffefb;
+  --fin-paper: #fdfdfd;
   /* Ground for the "What this shows" panel: a tint of the page, not a new hue. */
-  --fin-note-ground: #f2f1ec;
+  --fin-note-ground: #eeedf1;
   /* Direction of a price move. Reserved status colours - never a series hue. */
   --fin-up: #1b7f4e;
   --fin-down: #b4332f;
@@ -39,13 +39,18 @@ CSS = """
   /* Navigation colour, in two layers. Layer one: a tint saying what KIND of page
      a tab is - workspace you operate, reference you consult. Layer two: a dot
      saying what the system is doing, painted from DataStatus and the budget.
-     The dot variables are overwritten per rerun by chrome.nav_state_style(). */
-  --tab-workspace: rgba(31, 111, 92, 0.08);
+     The dot variables are overwritten per rerun by chrome.nav_state_style().
+
+     The dots are SEMANTIC and deliberately not the brand colour: green means
+     live, grey means cached, amber means look at this. They are the same green
+     as --fin-up, because one app should have one green that means "good".
+     When the brand was green these collided with it; violet separates them. */
+  --tab-workspace: rgba(82, 31, 205, 0.08);
   --tab-reference: rgba(90, 104, 120, 0.10);
   /* Hover was hardcoded rgba(31,111,92,0.16) and so stayed a light-mode green
      on the dark ground. A token because every other nav colour is one. */
-  --tab-hover: rgba(31, 111, 92, 0.16);
-  --dot-live: #1f6f5c;
+  --tab-hover: rgba(82, 31, 205, 0.16);
+  --dot-live: #1b7f4e;
   --dot-cached: #8a948f;
   --dot-attention: #c07c12;
   --dot-market: transparent;
@@ -111,6 +116,11 @@ h1 { font-size: 1.72rem; }
   font-size: var(--fs-xs); color: var(--fin-muted); background: var(--fin-paper);
   font-variant-numeric: tabular-nums;
 }
+/* "live" is a STATE, so it wears the state green (--dot-live, the same green
+   as --fin-up), not the brand. When the brand was green these were the same
+   colour and the distinction did not matter; now it does, and the nav dot for
+   live data would otherwise disagree with the chip that says the same thing. */
+.fin-chip-good { border-color: var(--dot-live); color: var(--dot-live); }
 .fin-chip-accent { border-color: var(--fin-accent); color: var(--fin-accent); }
 .fin-chip-warn { border-color: var(--fin-warn); color: var(--fin-warn); }
 
@@ -183,27 +193,47 @@ h1 { font-size: 1.72rem; }
   background: var(--fin-note-ground); color: var(--fin-ink);
 }
 
-/* The demo accounts, listed so the journeys are visible before you pick one. */
-.st-key-signin-accounts { margin-top: 18px; }
-.signin-account {
-  border-top: 1px solid var(--fin-line);
-  padding: 10px 0 9px;
+/* The demo accounts: three across, two down, below both panels. Stacked six
+   deep in the right-hand column they pushed the last two below the fold, so
+   the screen that introduces the personas hid a third of them. */
+[class*="st-key-signin-account-"] {
+  border: 1px solid var(--fin-line);
+  border-radius: 10px;
+  background: var(--fin-paper);
+  padding: 11px 13px 10px;
+  flex: 1 1 auto;
 }
-.signin-account:first-of-type { border-top: none; }
+/* Equal-height cells. The row is already flex/stretch, but stColumn is
+   display:block, so a stretched column still hands its child a content
+   height - the same chain the persona tiles needed. Scoped with :has() so the
+   workspace main/rail columns keep Streamlit's default behaviour. */
+[data-testid="stHorizontalBlock"]:has([class*="st-key-signin-account-"])
+  [data-testid="stColumn"],
+[data-testid="stHorizontalBlock"]:has([class*="st-key-signin-account-"])
+  [data-testid="stColumn"] > *,
+[data-testid="stHorizontalBlock"]:has([class*="st-key-signin-account-"])
+  [data-testid="stLayoutWrapper"] {
+  display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+}
+.signin-account { display: flex; flex-direction: column; height: 100%; }
 .signin-account-head {
-  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
 }
 .signin-account-name { font-weight: 600; color: var(--fin-ink); }
+/* Under the name, not floating right: at a third of the width there is no
+   room for a right-aligned column and the figures wrapped. */
 .signin-account-nums {
-  margin-left: auto; color: var(--fin-muted); font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums lining-nums; white-space: nowrap;
+  margin: auto 0 0; padding-top: 8px; color: var(--fin-muted);
+  font-size: var(--fs-xs); font-variant-numeric: tabular-nums lining-nums;
+  border-top: 1px solid var(--fin-line);
 }
 .signin-account-head-line {
-  margin: 3px 0 2px; font-size: var(--fs-sm); color: var(--fin-muted);
+  margin: 4px 0 3px; font-size: var(--fs-sm); color: var(--fin-muted);
 }
 .signin-account-journey {
-  margin: 0; font-size: var(--fs-sm); color: var(--fin-ink);
+  margin: 0 0 6px; font-size: var(--fs-sm); color: var(--fin-ink);
   font-family: "Fintor Serif", Georgia, serif; font-style: italic;
+  line-height: 1.4;
 }
 /* Marks a question two personas share. Without it the repeat reads as a
    mistake instead of as the comparison it is. */
@@ -451,37 +481,37 @@ h1 { font-size: 1.72rem; }
 # defined once survives into dark mode unchanged - which is how near-black text
 # and a near-white card ground shipped on a dark ground once already.
 DARK_TOKENS = """
-  --fin-ink: #e7ebe6;
-  --fin-muted: #9aa5a0;      /* 7.1:1 on #121714 */
-  --fin-line: #333b37;
-  --fin-accent: #5bbfa2;
+  --fin-ink: #e7e6eb;
+  --fin-muted: #9d99a6;      /* 7.1:1 on #121714 */
+  --fin-line: #35323c;
+  --fin-accent: #9b7aeb;
   --fin-warn: #d2a248;
-  --fin-paper: #1b211e;
-  --fin-note-ground: #202723;
+  --fin-paper: #1d1b21;
+  --fin-note-ground: #221f28;
   --fin-up: #4fbf85;        /* 7.11:1 on the dark card */
   --fin-down: #e8786f;      /* 5.73:1 on the dark card */
-  --tab-workspace: rgba(91, 191, 162, 0.14);
+  --tab-workspace: rgba(155, 122, 235, 0.16);
   --tab-reference: rgba(154, 165, 160, 0.12);
-  --tab-hover: rgba(91, 191, 162, 0.26);
-  --dot-live: #5bbfa2;
+  --tab-hover: rgba(155, 122, 235, 0.28);
+  --dot-live: #4fbf85;
   --dot-cached: #7d8884;
   --dot-attention: #d2a248;
 """
 
 LIGHT_TOKENS = """
-  --fin-ink: #17211d;
-  --fin-muted: #55605b;
-  --fin-line: #e2ded4;
-  --fin-accent: #1f6f5c;
+  --fin-ink: #1a1820;
+  --fin-muted: #585461;
+  --fin-line: #d9d6e0;
+  --fin-accent: #521fcd;
   --fin-warn: #9a6a1b;
-  --fin-paper: #fffefb;
-  --fin-note-ground: #f2f1ec;
+  --fin-paper: #fdfdfd;
+  --fin-note-ground: #eeedf1;
   --fin-up: #1b7f4e;
   --fin-down: #b4332f;
-  --tab-workspace: rgba(31, 111, 92, 0.08);
+  --tab-workspace: rgba(82, 31, 205, 0.08);
   --tab-reference: rgba(90, 104, 120, 0.10);
-  --tab-hover: rgba(31, 111, 92, 0.16);
-  --dot-live: #1f6f5c;
+  --tab-hover: rgba(82, 31, 205, 0.16);
+  --dot-live: #1b7f4e;
   --dot-cached: #8a948f;
   --dot-attention: #c07c12;
 """
@@ -577,7 +607,9 @@ def inject() -> None:
 
 
 def chip(label: str, kind: str = "") -> str:
-    cls = {"accent": "fin-chip fin-chip-accent", "warn": "fin-chip fin-chip-warn"}.get(kind, "fin-chip")
+    cls = {"good": "fin-chip fin-chip-good",
+           "accent": "fin-chip fin-chip-accent",
+           "warn": "fin-chip fin-chip-warn"}.get(kind, "fin-chip")
     return f'<span class="{cls}">{label}</span>'
 
 

@@ -519,15 +519,23 @@ def test_no_chart_paints_an_opaque_background():
     assert fig.layout.plot_bgcolor == "rgba(0,0,0,0)"
 
 
-def test_allocation_uses_only_the_validated_four_hues():
-    """scripts/validate_palette.js --pairs all: blue/orange/aqua/violet passes on
-    #fbfaf7; every five-hue set tried FAILS the normal-vision floor (magenta vs
-    orange at dE 12.9, below 15). That is a hard fail - direct labels do not
-    excuse it - so the chart caps at four and folds the rest."""
+def test_allocation_caps_at_the_validated_hue_count():
+    """scripts/validate_palette.js --pairs all: blue/orange/aqua/magenta passes
+    on #f9f8fa; every five-hue set tried FAILS the normal-vision floor (dE 12.9,
+    below 15). That is a hard fail - direct labels do not excuse it - so the
+    chart caps at four and folds the rest.
+
+    The hues themselves are NOT asserted as a literal list here. Slot 4 moved
+    once already when the brand turned violet, and a test that pins the exact
+    hex just has to be edited to match whatever the code now says, which proves
+    nothing. The properties that matter are checked instead: how many, that they
+    are distinct, and (below) that none of them impersonates the brand.
+    """
     from src.web_app.charts import ALLOCATION_HUES, MAX_CLASSES, fold_to_max_classes
 
-    assert ALLOCATION_HUES == ["#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7"]
     assert MAX_CLASSES == 4
+    assert len(ALLOCATION_HUES) == MAX_CLASSES
+    assert len(set(ALLOCATION_HUES)) == MAX_CLASSES, "a hue is repeated"
 
     five = {"a": 40.0, "b": 25.0, "c": 20.0, "d": 10.0, "e": 5.0}
     folded = fold_to_max_classes(five)
@@ -909,3 +917,105 @@ def test_no_octal_artefact_survives_into_the_css():
     for code in range(1, 32):
         assert chr(code) not in CSS.replace("\n", ""), \
             f"control character {code} in CSS - probably a mangled escape"
+
+
+# --- the brand must not be mistakable for data ---------------------------
+
+
+def _hue_degrees(hex_colour: str) -> float:
+    import colorsys
+
+    h = hex_colour.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    return colorsys.rgb_to_hls(r, g, b)[0] * 360
+
+
+def _hue_distance(a: str, b: str) -> float:
+    d = abs(_hue_degrees(a) - _hue_degrees(b))
+    return min(d, 360 - d)
+
+
+@pytest.mark.parametrize("ground", ["light", "dark"])
+def test_no_categorical_hue_impersonates_the_brand(ground):
+    """Slot 4 was violet #4a3aa7 when the brand turned violet - 8.8 degrees
+    apart, so "single stock" in the allocation bar was painted almost exactly
+    the accent. A category wearing the brand colour reads as emphasis rather
+    than as a category.
+
+    A standing guard, not a one-off fix: the next brand change has to notice.
+    """
+    from src.web_app.charts import SERIES_DARK, SERIES_LIGHT
+    from src.web_app.theme import DARK_TOKENS
+
+    source = DARK_TOKENS if ground == "dark" else _light_root()
+    accent = _token(source, "--fin-accent")
+    series = SERIES_DARK if ground == "dark" else SERIES_LIGHT
+    for hue in series:
+        distance = _hue_distance(hue, accent)
+        assert distance >= 30, (
+            f"{ground}: series hue {hue} is {distance:.1f} deg from the accent "
+            f"{accent}; it will read as the brand")
+
+
+def test_the_mark_reads_on_both_grounds():
+    """st.logo takes ONE image and cannot respond to the theme, which is why
+    the mark is a mid-tone rather than either --fin-accent value."""
+    import tomllib
+
+    from src.web_app.brand import MARK_INK
+
+    config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
+    for mode in ("light", "dark"):
+        ground = config["theme"][mode]["backgroundColor"]
+        ratio = _contrast(MARK_INK, ground)
+        assert ratio >= 3.0, f"the mark is {ratio:.2f}:1 on the {mode} ground"
+
+
+def test_no_colour_token_is_named_for_a_colour_it_is_not():
+    """`MARK_GREEN = "#7a52db"` would be a lie a grep goes looking for and
+    believes. Names say role, or they say the truth."""
+    import re as _re
+
+    from src.web_app import brand, charts
+
+    for module in (brand, charts):
+        src = (ROOT / "src" / "web_app" / f"{module.__name__.split('.')[-1]}.py")
+        for name, value in _re.findall(r'^([A-Z][A-Z_0-9]*)\s*=\s*"(#[0-9a-fA-F]{6})"',
+                                       src.read_text(encoding="utf-8"), _re.M):
+            hue = _hue_degrees(value)
+            for word, lo, hi in (("GREEN", 75, 170), ("BLUE", 185, 265),
+                                 ("RED", 345, 15), ("VIOLET", 255, 295)):
+                if word not in name:
+                    continue
+                ok = (lo <= hue <= hi) if lo < hi else (hue >= lo or hue <= hi)
+                assert ok, f"{name} = {value} is at hue {hue:.0f}, not {word.lower()}"
+
+
+def test_the_status_dots_did_not_follow_the_brand():
+    """Live/cached/attention are MEANING, not brand. When the brand was green
+    the live dot was the same green; the violet move must not have dragged it
+    along, because then "live" would just mean "Fintor"."""
+    from src.web_app.theme import DARK_TOKENS
+
+    for source, mode in ((_light_root(), "light"), (DARK_TOKENS, "dark")):
+        accent = _token(source, "--fin-accent")
+        live = _token(source, "--dot-live")
+        assert live != accent, f"{mode}: the live dot is the brand colour"
+        assert _hue_distance(live, accent) >= 30, (
+            f"{mode}: the live dot {live} is too close to the accent {accent}")
+        # It should still be the same green the app uses for "up".
+        assert live == _token(source, "--fin-up"), (
+            f"{mode}: one app, one green that means good")
+
+
+def test_the_live_chip_and_the_live_dot_agree():
+    """Both say "the data is live". When the brand was green they happened to
+    be the same colour; after the violet move the chip stayed on --fin-accent
+    and the dot on the state green, so one screen showed two colours for one
+    meaning."""
+    from src.web_app.components import STATUS_LABEL
+
+    assert STATUS_LABEL["live"][1] == "good", "the live chip is back on the brand"
+    rule = re.search(r"\.fin-chip-good \{([^}]*)\}", CSS)
+    assert rule, "no good-state chip rule"
+    assert "var(--dot-live)" in rule.group(1), "the chip must reuse the state green"

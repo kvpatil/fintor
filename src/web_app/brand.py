@@ -15,11 +15,15 @@ from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parent / "assets"
 
-# A mid-tone green. st.logo() takes a single image and cannot respond to the
-# viewer's theme, so this has to hold contrast on both the light ground (#fbfaf7)
-# and the dark one (#121714) - which rules out the theme-specific --accent values
-# the rest of the app switches between.
-MARK_GREEN = "#2f8f76"
+# A mid-tone violet. st.logo() takes a single image and cannot respond to the
+# viewer's theme, so this has to hold contrast on BOTH grounds - which rules out
+# the theme-specific --fin-accent values the rest of the app switches between.
+# Measured: 4.89:1 on the light ground #f9f8fa, 3.60:1 on the dark one #131217.
+#
+# Named for its role, not its hue. It was MARK_INK, and when the brand moved
+# to violet that name would have been actively misleading - the kind of lie a
+# grep goes looking for and believes.
+MARK_INK = "#7a52db"
 # Light-mode ink, and the reason there are two logo files: an <img>-loaded SVG
 # cannot inherit the page's colour, so the wordmark has to be baked per theme.
 WORDMARK_INK = "#17211d"
@@ -62,7 +66,7 @@ def _rects_svg(fill: str, dx: int = 0, dy: int = 0) -> str:
     )
 
 
-def mark_svg(fill: str = MARK_GREEN) -> str:
+def mark_svg(fill: str = MARK_INK) -> str:
     """Square, mark only. Used for st.logo(icon_image=...) and the collapsed slot."""
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {GRID} {GRID}" '
@@ -71,7 +75,7 @@ def mark_svg(fill: str = MARK_GREEN) -> str:
     )
 
 
-def logo_svg(fill: str = MARK_GREEN, ink: str = WORDMARK_INK) -> str:
+def logo_svg(fill: str = MARK_INK, ink: str = WORDMARK_INK) -> str:
     """Mark plus wordmark - the lockup the header actually shows.
 
     A serif stack, to sit with the app's display face (`.streamlit/config.toml`
@@ -108,7 +112,7 @@ def favicon_png(size: int = 64) -> bytes:
         draw.rectangle(
             [round(x * scale), round(y * scale),
              round((x + w) * scale) - 1, round((y + h) * scale) - 1],
-            fill=MARK_GREEN,
+            fill=MARK_INK,
         )
     buf = BytesIO()
     img.save(buf, format="PNG")

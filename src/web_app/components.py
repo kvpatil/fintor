@@ -16,7 +16,9 @@ from src.web_app.theme import chip
 # it never competes with the main column for attention.
 RAIL_RATIO = [7, 3]
 
-STATUS_LABEL = {"live": ("Live data", "accent"), "cached": ("Saved copy", ""),
+# "live" is a state, not the brand: it takes the same green as the nav dot and
+# as --fin-up, so one app has one green that means "good".
+STATUS_LABEL = {"live": ("Live data", "good"), "cached": ("Saved copy", ""),
                 "stale": ("Last known", "warn"), "sample": ("SAMPLE DATA", "warn")}
 
 

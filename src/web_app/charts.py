@@ -9,10 +9,10 @@ The palette is the validated reference instance from the dataviz skill, checked
 with `scripts/validate_palette.js` against Fintor's own surfaces rather than
 assumed:
 
-    light #fbfaf7 — all checks pass, with one WARN: three hues fall under 3:1
+    light #f9f8fa — all checks pass, with one WARN: three hues fall under 3:1
                     contrast, which obligates visible labels or a table view.
                     Hence direct labels on segments, and the holdings table.
-    dark  #121714 — all checks pass, contrast included.
+    dark  #131217 — all checks pass, contrast included.
 
 Three deliberate departures from what ClarityFI does:
 
@@ -35,41 +35,45 @@ from src.web_app.labels import asset_class
 
 # Validated categorical order. Assigned in fixed order, never cycled: a given
 # asset class keeps its hue even when the set of classes changes.
-SERIES_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300",
-                "#4a3aa7", "#e34948"]
-SERIES_DARK = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300",
-               "#9085e9", "#e66767"]
+SERIES_LIGHT = ["#2a78d6", "#eb6834", "#1baf7a", "#c2379a", "#eda100", "#008300",
+                "#8a5a2b", "#e34948"]
+SERIES_DARK = ["#3987e5", "#d95926", "#199e70", "#d161ad", "#c98500", "#008300",
+               "#b07a44", "#e66767"]
 
 # Diverging pair for correlation: warm/cool poles with a GREY midpoint, so zero
 # reads as "nothing" rather than as another category.
 #
 # The poles are LIGHTER than the categorical blue and red, and that is the whole
 # point: every cell carries its value as text, so the deepest fill still has to
-# clear 4.5:1 against the label. Measured, not guessed -
-#   #2a78d6 (categorical blue) vs ink  -> 3.74:1  FAIL
-#   #4689d9 (this pole)        vs ink  -> 4.59:1  pass
-#   #d03b3b (categorical red)  vs ink  -> below   FAIL
-#   #d76160 (this pole)        vs ink  -> 4.54:1  pass
-# Those are the deepest steps toward each hue that still pass, so the ramp gives
-# up as little saturation as the contrast requirement allows.
-# The dark ramp is NOT the light one inverted - it is stepped from the dark
-# surface outward and measured the same way, against light ink:
-#   #396ba7 vs #e8eae8 -> 4.53:1   #9d5352 vs #e8eae8 -> 4.58:1
-DIVERGING = [[0.0, "#d76160"], [0.5, "#f0efec"], [1.0, "#4689d9"]]
-DIVERGING_DARK = [[0.0, "#9d5352"], [0.5, "#383835"], [1.0, "#396ba7"]]
+# clear 4.5:1 against the label. Measured, never guessed - an earlier version
+# flipped the label to white above |r| 0.55 on a hunch, and at r=0.57 that put
+# white on #7fabdf at 2.39:1 where ink scored 6.91:1.
+#
+# Re-derived when the brand moved to violet. The neutrals were retinted at the
+# SAME lightness, which held every other contrast in the app - but these poles
+# had been fitted against the old ink, and the dark label came out at 4.484:1.
+# A 0.016 miss no eye would ever catch, and the test caught it. Each pole is
+# now the deepest step toward its hue whose label still clears the floor:
+#   light  #3e84d9 / #d65d5d  vs ink #1a1820  ->  4.61 / 4.67
+#   dark   #3869a5 / #9a5253  vs ink #e9e8ea  ->  4.61 / 4.64
+#
+# The dark ramp is NOT the light one inverted: it is stepped outward from the
+# dark surface and measured there.
+DIVERGING = [[0.0, "#d65d5d"], [0.5, "#edecf0"], [1.0, "#3e84d9"]]
+DIVERGING_DARK = [[0.0, "#9a5253"], [0.5, "#363538"], [1.0, "#3869a5"]]
 
-INK = "#17211d"
-MUTED = "#55605b"
-GRID = "rgba(23, 33, 29, 0.08)"
-CONTEXT = "#9aa5a0"          # the grey that carries "context, not subject"
+INK = "#1a1820"
+MUTED = "#585461"
+GRID = "rgba(26, 24, 32, 0.08)"
+CONTEXT = "#9d99a6"          # the grey that carries "context, not subject"
 SURFACE = "rgba(0,0,0,0)"    # inherit the page, never paint a white box
 
-INK_DARK = "#e8eae8"
-MUTED_DARK = "#9aa5a0"
-GRID_DARK = "rgba(232, 234, 232, 0.10)"
-CONTEXT_DARK = "#6b746f"
-PAPER_LIGHT = "#fbfaf7"      # used only for the hairline between adjacent fills
-PAPER_DARK = "#121714"
+INK_DARK = "#e9e8ea"
+MUTED_DARK = "#9d99a6"
+GRID_DARK = "rgba(233, 232, 234, 0.10)"
+CONTEXT_DARK = "#6d6a75"
+PAPER_LIGHT = "#f9f8fa"      # used only for the hairline between adjacent fills
+PAPER_DARK = "#131217"
 
 BODY_FONT = "Inter Tight, system-ui, sans-serif"
 
@@ -80,8 +84,14 @@ CLASS_ORDER = ["equity", "bond", "cash", "international", "single_stock",
                "crypto", "reit"]
 
 # Only FOUR categorical hues, and specifically these four. Measured with
-# scripts/validate_palette.js --pairs all on #fbfaf7:
-#   blue/orange/aqua/violet          -> ALL CHECKS PASS
+# scripts/validate_palette.js --pairs all on #f9f8fa:
+#   blue/orange/aqua/magenta         -> ALL CHECKS PASS, worst normal pair 20.9
+#
+# Slot 4 was violet #c2379a until the brand became violet. At 8.8 degrees from
+# the accent hue it meant "single stock" in the allocation bar was painted
+# almost exactly the brand colour - a category wearing the brand reads as
+# emphasis rather than as a category. Magenta sits 59.7 degrees away and
+# actually improves the worst normal-vision pair (16.3 -> 20.9).
 #   any five-hue set tried           -> FAILED
 #   the default first-five           -> magenta vs orange normal-vision dE 12.9,
 #                                       below the 15 floor. That is a hard fail;
@@ -89,12 +99,12 @@ CLASS_ORDER = ["equity", "bond", "cash", "international", "single_stock",
 #                                       texture do NOT excuse it.
 # Adjacency in a stacked bar shifts with the weights, so all-pairs is the honest
 # test rather than the adjacent pairlist.
-ALLOCATION_HUES = ["#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7"]
+ALLOCATION_HUES = ["#2a78d6", "#eb6834", "#1baf7a", "#c2379a"]
 MAX_CLASSES = len(ALLOCATION_HUES)
 
 # "Other" is a bucket, not an identity, so it takes a neutral rather than a
 # categorical slot - it must not read as a fifth competing class.
-OTHER_HUE = "#8a948f"
+OTHER_HUE = "#8d8995"
 OTHER_LABEL = "other"
 
 
