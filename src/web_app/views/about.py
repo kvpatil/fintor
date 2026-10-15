@@ -141,16 +141,18 @@ def _render_skill(path: Path) -> None:
         st.subheader(meta["name"])
     if meta.get("description"):
         st.caption(meta["description"])
-    st.markdown(body)
+    st.markdown(f'<div class="fin-prose">\n\n{body}\n\n</div>', unsafe_allow_html=True)
 
 
 def _render_markdown_file(path: Path, *, download_label: str) -> None:
+    """Rendered inside .fin-prose: these pages are read top to bottom, and the
+    1120px content measure is still too wide for running text."""
     if not path.exists():
         st.info(f"`{path.name}` has not been written yet.")
         return
     text = path.read_text(encoding="utf-8")
     st.download_button(download_label, text, file_name=path.name, mime="text/markdown")
-    st.markdown(text)
+    st.markdown(f'<div class="fin-prose">\n\n{text}\n\n</div>', unsafe_allow_html=True)
 
 
 def design() -> None:

@@ -316,3 +316,69 @@ def test_nav_state_is_painted_after_the_page_body():
     assert names.index("paint_nav_state") > names.index("run"), (
         "paint_nav_state must come after current.run(), or the dots lag an interaction"
     )
+
+
+# --- layout measure -----------------------------------------------------
+
+
+def test_content_measure_is_constrained():
+    """Without this the app is full-bleed and prose runs at an unreadable measure.
+
+    Note the constraint must live on stMainBlockContainer: a max-width on a div we
+    emit does nothing, because Streamlit renders its columns outside it. That is
+    why the old .gate-wrap rule never worked.
+    """
+    assert "--fin-measure:" in CSS and "--fin-prose:" in CSS
+    block = re.search(r'\[data-testid="stMainBlockContainer"\]\s*\{([^}]*)\}', CSS)
+    assert block, "no container rule"
+    body = block.group(1)
+    assert "max-width: var(--fin-measure)" in body
+    assert "margin-left: auto" in body and "margin-right: auto" in body
+
+
+# --- self-hosted fonts --------------------------------------------------
+
+
+def _font_faces():
+    config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
+    return config["theme"]["fontFaces"]
+
+
+def test_fonts_are_not_fetched_from_a_cdn():
+    """A Google Fonts link would break offline mode and add a third-party request
+    on first paint."""
+    for face in _font_faces():
+        assert "fonts.googleapis.com" not in face["url"]
+        assert "fonts.gstatic.com" not in face["url"]
+        assert face["url"].startswith("data:font/woff2;base64,"), face["family"]
+
+
+def test_embedded_fonts_decode_to_real_woff2():
+    """Catches a truncated or error-page payload, which would fall back silently."""
+    import base64
+
+    for face in _font_faces():
+        raw = base64.b64decode(face["url"].split(",", 1)[1])
+        assert raw[:4] == b"wOF2", f"{face['family']} is not valid woff2"
+        assert len(raw) > 20_000, f"{face['family']} looks truncated"
+
+
+def test_font_source_files_are_committed():
+    """The data URIs are generated output; the woff2 files are the source of truth."""
+    fonts = sorted((ROOT / "src" / "web_app" / "static" / "fonts").glob("*.woff2"))
+    assert len(fonts) == 2, f"expected 2 variable fonts, found {[f.name for f in fonts]}"
+    for f in fonts:
+        assert f.read_bytes()[:4] == b"wOF2"
+
+
+def test_serif_family_avoids_streamlit_collision():
+    """Streamlit bundles a family called "Source Serif" and SILENTLY DROPS a
+    declared fontFace whose name collides - the face never reaches document.fonts.
+
+    Verified in the browser: declared as "Source Serif 4" it was absent entirely;
+    renamed, it registers and loads. Hence the alias.
+    """
+    families = {f["family"] for f in _font_faces()}
+    assert "Source Serif 4" not in families, "this name collides and gets dropped"
+    assert "Fintor Serif" in families
+    assert "Fintor Serif" in CSS, "the CSS must reference the aliased name"

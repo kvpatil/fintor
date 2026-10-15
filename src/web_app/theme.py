@@ -44,6 +44,13 @@ CSS = """
   --dot-portfolio: transparent;
   --dot-internals: transparent;
 
+  /* Content measure. Without this the app is full-bleed: at 1500px the prompt
+     buttons stretch ~1370px and running prose hits an unreadable measure. The
+     .gate-wrap max-width that was supposed to do this never applied, because
+     Streamlit renders its columns outside any wrapper div we emit. */
+  --fin-measure: 1120px;
+  --fin-prose: 72ch;
+
   /* Distance from the top of the viewport to the first thing on the page.
      Streamlit's top nav is a FIXED 60px header that overlays the content - the
      main container starts at y=0 behind it - so this has to clear 60px before it
@@ -57,6 +64,9 @@ CSS = """
    which is the dead band between the tabs and the content. */
 [data-testid="stMainBlockContainer"] {
   padding-top: var(--fin-top-gap);
+  max-width: var(--fin-measure);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 html, body, [class*="st-"] { font-feature-settings: "kern" 1; }
@@ -68,7 +78,11 @@ html, body, [class*="st-"] { font-feature-settings: "kern" 1; }
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
-h1, h2, h3 { letter-spacing: -0.01em; font-weight: 600; }
+/* "Fintor Serif" IS Source Serif 4. It is aliased because Streamlit bundles a
+   family called "Source Serif" and silently DROPS a declared fontFace whose
+   name collides with it - the face never reached document.fonts at all. */
+h1, h2, h3, h4 { font-family: "Fintor Serif", Georgia, serif;
+                 letter-spacing: -0.012em; font-weight: 650; }
 h1 { font-size: 1.72rem; }
 
 /* Hairline rules instead of drop shadows - restraint reads as considered. */
@@ -97,11 +111,13 @@ h1 { font-size: 1.72rem; }
 .fin-persona span { color: var(--fin-muted); font-size: var(--fs-sm); }
 
 /* ---- entry gate ---- */
-.gate-wrap { max-width: 980px; margin: 0 auto; }
+/* .gate-wrap is a no-op for layout - Streamlit's columns render outside it.
+   The real constraint is --fin-measure on stMainBlockContainer above. */
+.gate-wrap { margin: 0 auto; }
 .gate-logo { margin: 18px 0 2px; }
 .gate-logo svg { height: 38px; width: auto; }
 .gate-tagline {
-  font-family: Georgia, "Iowan Old Style", serif;
+  font-family: "Fintor Serif", Georgia, serif;
   font-size: 1.55rem; font-weight: 700; letter-spacing: -0.015em;
   margin: 2px 0 6px;
 }
@@ -113,9 +129,13 @@ h1 { font-size: 1.72rem; }
 .gate-card {
   border: 1px solid var(--fin-line); border-radius: 8px;
   background: var(--fin-paper); padding: 14px 15px 12px; margin-bottom: 8px;
-  min-height: 146px;
+  min-height: 172px;
+  display: flex; flex-direction: column;
 }
-.gate-name { font-family: Georgia, serif; font-size: 1.1rem; font-weight: 700; margin: 0; }
+/* Push the figures to the bottom so every card's rule line agrees, however
+   many lines the headline takes. */
+.gate-card .gate-nums { margin-top: auto; }
+.gate-name { font-family: "Fintor Serif", Georgia, serif; font-size: 1.1rem; font-weight: 700; margin: 0; }
 .gate-head { margin: 2px 0 8px; font-size: var(--fs-md); }
 .gate-meta { color: var(--fin-muted); font-size: var(--fs-sm); margin: 0 0 10px; }
 .gate-nums {
@@ -126,6 +146,10 @@ h1 { font-size: 1.72rem; }
 .gate-nums b { color: var(--fin-ink); font-weight: 650; }
 .gate-foot { color: var(--fin-muted); font-size: var(--fs-sm); margin: 22px 0 0; max-width: 72ch; }
 
+
+/* Reference pages are read, not scanned, so they take a narrower measure.
+   Headings and figures stay full width; only running text is constrained. */
+.fin-prose p, .fin-prose li { max-width: var(--fin-prose); }
 
 /* ---- top navigation ----------------------------------------------------
    Targeted via aria-current and href, never Streamlit's generated emotion class
