@@ -52,9 +52,6 @@ def render() -> None:
     persona = active_persona()
 
     st.title("Ask Fintor")
-    st.caption("Six specialist agents, grounded in a cited knowledge base. "
-               "Education only — never buy or sell advice.")
-
     persona_card(persona)
 
     # The journey prompts moved out of the sidebar into the body, but they still
@@ -80,8 +77,6 @@ def render() -> None:
     question = typed or st.session_state.pop("pending_q", None)
 
     if not question:
-        if not turns():
-            st.info("Ask a question above, or tap one of the suggested prompts.")
         return
 
     with st.chat_message("user"):

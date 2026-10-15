@@ -74,3 +74,7 @@ current = st.navigation(_pages, position="top")
 # --- chrome, then the page ---------------------------------------------
 chrome.header(_group_of.get(current, ""), current.title)
 current.run()
+
+# After the page body, not before: the dots report what this page just observed.
+# Emitted earlier they would lag an interaction behind.
+chrome.paint_nav_state()

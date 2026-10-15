@@ -8,7 +8,47 @@ from __future__ import annotations
 
 import streamlit as st
 
+from src.core.contracts import DataStatus
 from src.web_app.state import active_persona, get_deps
+
+# Nav dot colour by data provenance. Grey for cached is deliberate: a cached
+# answer is honest, not a problem - only unreachable providers and synthetic
+# data earn amber.
+DOT_FOR_STATUS = {
+    DataStatus.LIVE: "var(--dot-live)",
+    DataStatus.CACHED: "var(--dot-cached)",
+    DataStatus.STALE: "var(--dot-attention)",
+    DataStatus.SAMPLE: "var(--dot-attention)",
+}
+NO_DOT = "transparent"
+
+
+def dot_for(status: DataStatus | None, *, observed: bool = True) -> str:
+    """Colour for a nav status dot. Transparent until something was observed."""
+    if not observed or status is None:
+        return NO_DOT
+    return DOT_FOR_STATUS.get(status, NO_DOT)
+
+
+def nav_state_style(deps) -> str:
+    """A <style> block painting the nav dots from live system state.
+
+    MUST be emitted AFTER the page body runs. The header renders first, and at
+    that point the page has not fetched anything yet - so painting here made the
+    dots lag a full interaction behind: visiting Market showed nothing, and the
+    dot only appeared once you navigated away. See paint_nav_state().
+    """
+    observed = bool(getattr(deps.market, "observed", False))
+    status = getattr(deps.market, "last_status", None)
+    data_dot = dot_for(status, observed=observed)
+    budget_dot = "var(--dot-attention)" if deps.meter.near_limit else NO_DOT
+    return (
+        "<style>:root{"
+        f"--dot-market:{data_dot};"
+        f"--dot-portfolio:{data_dot};"
+        f"--dot-internals:{budget_dot};"
+        "}</style>"
+    )
 
 
 def breadcrumb(group: str, title: str) -> str:
@@ -49,12 +89,17 @@ def _mode_chip() -> str:
 
 
 def header(group: str, title: str) -> None:
-    """Breadcrumb on the left; who you are and what it costs on the right."""
+    """Who you are and what it costs on the right; a breadcrumb only where there
+    is depth to report."""
     persona = active_persona()
     left, right = st.columns([3, 2], vertical_alignment="center")
 
     with left:
-        st.markdown(breadcrumb(group, title), unsafe_allow_html=True)
+        # Workspace pages have no group, and "Fintor / Chat" beside a solid-green
+        # Chat tab is the same fact twice. About pages have real depth, so they
+        # keep the trail.
+        if group:
+            st.markdown(breadcrumb(group, title), unsafe_allow_html=True)
 
     with right:
         ident, switch = st.columns([3, 1], vertical_alignment="center")
@@ -78,3 +123,12 @@ def header(group: str, title: str) -> None:
                 st.rerun()
 
     st.markdown('<div class="chrome-rule"></div>', unsafe_allow_html=True)
+
+
+def paint_nav_state() -> None:
+    """Paint the nav status dots. Call AFTER the page body has run.
+
+    Custom properties set by a later <style> at equal specificity win, so this
+    overrides the defaults in theme.py with what the page actually observed.
+    """
+    st.markdown(nav_state_style(get_deps()), unsafe_allow_html=True)

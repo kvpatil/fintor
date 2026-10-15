@@ -31,6 +31,19 @@ CSS = """
   --fs-sm: 0.9375rem;   /* 15px - secondary text, breadcrumb, identity */
   --fs-md: 1rem;        /* 16px - body */
 
+  /* Navigation colour, in two layers. Layer one: a tint saying what KIND of page
+     a tab is - workspace you operate, reference you consult. Layer two: a dot
+     saying what the system is doing, painted from DataStatus and the budget.
+     The dot variables are overwritten per rerun by chrome.nav_state_style(). */
+  --tab-workspace: rgba(31, 111, 92, 0.08);
+  --tab-reference: rgba(90, 104, 120, 0.10);
+  --dot-live: #1f6f5c;
+  --dot-cached: #8a948f;
+  --dot-attention: #c07c12;
+  --dot-market: transparent;
+  --dot-portfolio: transparent;
+  --dot-internals: transparent;
+
   /* Distance from the top of the viewport to the first thing on the page.
      Streamlit's top nav is a FIXED 60px header that overlays the content - the
      main container starts at y=0 behind it - so this has to clear 60px before it
@@ -113,6 +126,63 @@ h1 { font-size: 1.72rem; }
 .gate-nums b { color: var(--fin-ink); font-weight: 650; }
 .gate-foot { color: var(--fin-muted); font-size: var(--fs-sm); margin: 22px 0 0; max-width: 72ch; }
 
+
+/* ---- top navigation ----------------------------------------------------
+   Targeted via aria-current and href, never Streamlit's generated emotion class
+   hashes, which change between builds. The icons are Material font ligatures, so
+   font-size is what sizes them. */
+
+[data-testid="stTopNavLink"] {
+  font-size: var(--fs-md) !important;
+  font-weight: 500;
+  min-height: 38px;
+  padding: 6px 14px !important;
+  border-radius: 8px;
+  gap: 8px;
+  background: var(--tab-workspace);
+  position: relative;
+}
+[data-testid="stTopNavLink"] [data-testid="stIconMaterial"] {
+  font-size: 20px !important;
+  width: 20px; height: 20px;
+}
+[data-testid="stTopNavLink"]:hover { background: rgba(31, 111, 92, 0.16); }
+
+/* The page you are on: solid, not a wash. */
+[data-testid="stTopNavLink"][aria-current="page"] {
+  background: var(--fin-accent) !important;
+  color: var(--fin-paper) !important;
+  font-weight: 600;
+}
+[data-testid="stTopNavLink"][aria-current="page"] [data-testid="stIconMaterial"] {
+  color: var(--fin-paper) !important;
+}
+
+/* Reference material reads as a different family from your workspace. */
+[data-testid="stTopNavSection"] {
+  background: var(--tab-reference);
+  border-radius: 8px;
+  font-size: var(--fs-md) !important;
+  font-weight: 500;
+  min-height: 38px;
+  padding: 6px 12px !important;
+}
+[data-testid="stTopNavSection"] [data-testid="stIconMaterial"] { font-size: 20px !important; }
+
+/* State dots. Colour comes from chrome.nav_state_style(), computed server-side
+   from DataStatus and the cost meter - transparent until a real observation,
+   so the nav can never claim "live" on a cold load. */
+[data-testid="stTopNavLink"][href$="/market"]::after,
+[data-testid="stTopNavLink"][href$="/portfolio"]::after,
+[data-testid="stTopNavLink"][href$="/internals"]::after {
+  content: "";
+  width: 7px; height: 7px; border-radius: 50%;
+  display: inline-block; margin-left: 2px;
+}
+[data-testid="stTopNavLink"][href$="/market"]::after { background: var(--dot-market); }
+[data-testid="stTopNavLink"][href$="/portfolio"]::after { background: var(--dot-portfolio); }
+[data-testid="stTopNavLink"][href$="/internals"]::after { background: var(--dot-internals); }
+
 /* ---- top chrome ---- */
 .bc { margin: 0; }
 .bc ol { list-style: none; display: flex; flex-wrap: wrap; gap: 6px;
@@ -167,6 +237,11 @@ h1 { font-size: 1.72rem; }
   --fin-accent: #5bbfa2;
   --fin-warn: #d2a248;
   --fin-paper: #1b211e;
+  --tab-workspace: rgba(91, 191, 162, 0.14);
+  --tab-reference: rgba(154, 165, 160, 0.12);
+  --dot-live: #5bbfa2;
+  --dot-cached: #7d8884;
+  --dot-attention: #d2a248;
   }
 }
 :root[data-theme="dark"] {
@@ -176,6 +251,11 @@ h1 { font-size: 1.72rem; }
   --fin-accent: #5bbfa2;
   --fin-warn: #d2a248;
   --fin-paper: #1b211e;
+  --tab-workspace: rgba(91, 191, 162, 0.14);
+  --tab-reference: rgba(154, 165, 160, 0.12);
+  --dot-live: #5bbfa2;
+  --dot-cached: #7d8884;
+  --dot-attention: #d2a248;
 }
 :root[data-theme="light"] {
   --fin-ink: #17211d;
@@ -184,6 +264,11 @@ h1 { font-size: 1.72rem; }
   --fin-accent: #1f6f5c;
   --fin-warn: #9a6a1b;
   --fin-paper: #fffefb;
+  --tab-workspace: rgba(31, 111, 92, 0.08);
+  --tab-reference: rgba(90, 104, 120, 0.10);
+  --dot-live: #1f6f5c;
+  --dot-cached: #8a948f;
+  --dot-attention: #c07c12;
 }
 </style>
 """

@@ -208,3 +208,111 @@ def test_every_shipped_skill_has_parseable_frontmatter():
         assert meta.get("name"), f"{path.parent.name} has no name in frontmatter"
         assert meta.get("description"), f"{path.parent.name} has no description"
         assert body and not body.startswith("---"), f"{path.parent.name} body not split"
+
+
+# --- top navigation -----------------------------------------------------
+
+
+def test_nav_text_is_at_least_16px():
+    """The nav was the one surface the body type floor never reached.
+
+    It is Streamlit's own markup, so it stayed at the default 14px while
+    everything around it grew. This stops it drifting back.
+    """
+    block = re.search(r'\[data-testid="stTopNavLink"\]\s*\{([^}]*)\}', CSS)
+    assert block, "no stTopNavLink rule - the nav is back at Streamlit's default"
+    assert "var(--fs-md)" in block.group(1), "nav label should use the 16px token"
+
+
+def test_nav_icons_are_sized_explicitly():
+    """Material icons are font ligatures: without a font-size they inherit 14px."""
+    rule = re.search(
+        r'\[data-testid="stTopNavLink"\] \[data-testid="stIconMaterial"\]\s*\{([^}]*)\}', CSS)
+    assert rule, "nav icons have no explicit size rule"
+    assert "font-size: 20px" in rule.group(1)
+
+
+def test_nav_styles_target_stable_hooks():
+    """Styling off Streamlit's generated class hashes breaks on every upgrade."""
+    assert "st-emotion-cache-" not in CSS, "CSS depends on a generated emotion class"
+    assert '[aria-current="page"]' in CSS, "active tab should key off aria-current"
+    assert CSS.count("href$=") >= 3, "state dots should key off stable hrefs"
+
+
+def test_nav_colour_tokens_are_defined_for_both_themes():
+    for token in ("--tab-workspace", "--tab-reference", "--dot-live",
+                  "--dot-cached", "--dot-attention"):
+        assert f"{token}:" in CSS, f"{token} undefined"
+        dark = re.search(r':root\[data-theme="dark"\]\s*\{([^}]*)\}', CSS)
+        assert token in dark.group(1), f"{token} not redefined for dark"
+
+
+# --- nav state dots -----------------------------------------------------
+
+
+def test_dot_colour_mapping():
+    """Cached is grey on purpose: a cached answer is honest, not a warning."""
+    from src.core.contracts import DataStatus
+    from src.web_app.chrome import dot_for
+
+    assert dot_for(DataStatus.LIVE) == "var(--dot-live)"
+    assert dot_for(DataStatus.CACHED) == "var(--dot-cached)"
+    assert dot_for(DataStatus.STALE) == "var(--dot-attention)"
+    assert dot_for(DataStatus.SAMPLE) == "var(--dot-attention)"
+
+
+def test_no_dot_before_a_real_observation():
+    """A green "live" dot that no provider earned is a lie.
+
+    MarketService initialises last_status to LIVE so callers always have something
+    to read; the nav must check `observed` instead of trusting it.
+    """
+    from src.core.contracts import DataStatus
+    from src.web_app.chrome import dot_for
+
+    assert dot_for(DataStatus.LIVE, observed=False) == "transparent"
+    assert dot_for(None) == "transparent"
+
+
+def test_market_service_starts_unobserved():
+    from src.core.cache import MemoryCache
+    from src.data.market import MarketService, MockProvider
+
+    svc = MarketService([MockProvider()], MemoryCache())
+    assert svc.observed is False, "a cold service must not claim an observation"
+    svc.quotes(["AAPL"])
+    assert svc.observed is True, "fetching quotes is an observation"
+
+
+# --- text density -------------------------------------------------------
+
+
+def test_chat_page_has_no_redundant_caption_or_info():
+    """Both repeated something already on screen: the gate's subline, and the four
+    prompt buttons directly above."""
+    src = (ROOT / "src" / "web_app" / "views" / "chat.py").read_text(encoding="utf-8")
+    assert "Six specialist agents, grounded" not in src, "the caption is back"
+    assert "st.info(" not in src, "the redundant info box is back"
+
+
+def test_nav_state_is_painted_after_the_page_body():
+    """The dots must reflect what the page just did, not what was true before it ran.
+
+    Painting inside header() - which renders before current.run() - made visiting
+    Market show no dot, with the dot only appearing after navigating away.
+    """
+    import ast
+
+    src = (ROOT / "src" / "web_app" / "app.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    order = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr in {"run", "paint_nav_state", "header"}:
+                order.append((node.lineno, node.func.attr))
+    order.sort()
+    names = [n for _, n in order]
+    assert "paint_nav_state" in names, "nav state is never painted"
+    assert names.index("paint_nav_state") > names.index("run"), (
+        "paint_nav_state must come after current.run(), or the dots lag an interaction"
+    )

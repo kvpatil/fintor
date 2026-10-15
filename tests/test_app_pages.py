@@ -166,7 +166,10 @@ def test_gate_passes_once_persona_set():
     assert [t.value for t in at.title] == ["Ask Fintor"], "Chat should be the default page"
     body = "\n".join(m.value for m in at.markdown)
     assert "Who are you today?" not in body, "the gate should be gone"
-    assert "Fintor" in body and "Chat" in body, "breadcrumb missing"
+    # Chat is a workspace page, so it deliberately has NO breadcrumb - the solid
+    # green Chat tab already says where you are.
+    assert 'class="bc"' not in body, "workspace pages should not render a breadcrumb"
+    assert "ident-who" in body, "the identity readout should be in the header"
 
 
 @pytest.mark.slow
@@ -201,18 +204,28 @@ def test_app_entrypoint_runs_without_exception():
 # --- breadcrumb ---------------------------------------------------------
 
 
-def test_breadcrumb_depth_follows_real_structure():
-    """Workspace pages have no group, so they get two segments - not an invented
-    middle one."""
-    from src.web_app.chrome import breadcrumb
+def test_breadcrumb_only_renders_where_there_is_depth():
+    """Workspace pages no longer show a breadcrumb at all.
 
-    flat = breadcrumb("", "Chat")
-    assert flat.count("<li>") == 2, "Fintor / Chat is two segments"
-    assert 'aria-current="page"' in flat and "Chat" in flat
+    "Fintor / Chat" beside a solid-green Chat tab states the same fact twice. The
+    About group has real depth the tabs do not show, so it keeps the trail.
+    """
+    import ast
+
+    from src.web_app.chrome import breadcrumb
 
     grouped = breadcrumb("About Fintor", "Governance")
     assert grouped.count("<li>") == 3, "Fintor / About Fintor / Governance is three"
     assert "About Fintor" in grouped
+    assert 'aria-current="page"' in grouped
+
+    # header() must gate on the group rather than always rendering.
+    src = (WEB_APP / "chrome.py").read_text(encoding="utf-8")
+    header = next(n for n in ast.walk(ast.parse(src))
+                  if isinstance(n, ast.FunctionDef) and n.name == "header")
+    guards = [n for n in ast.walk(header)
+              if isinstance(n, ast.If) and isinstance(n.test, ast.Name) and n.test.id == "group"]
+    assert guards, "header() renders the breadcrumb unconditionally"
 
 
 def test_breadcrumb_ancestors_are_not_links():

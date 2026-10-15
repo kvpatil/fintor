@@ -146,12 +146,18 @@ class MarketService:
         self._history_ttl = history_ttl
         self._stale_max = stale_max_age
         self.last_status: DataStatus = DataStatus.LIVE
+        # last_status defaults to LIVE so callers have something to read, but on a
+        # cold process nothing has actually been fetched. The nav paints a status
+        # dot from this, and a green "live" dot that no provider earned is a lie -
+        # so consumers must check `observed` before trusting last_status.
+        self.observed: bool = False
         self.health: dict[str, str] = {}
 
     def quotes(self, symbols: Sequence[str]) -> dict[str, Quote]:
         wanted = [s.upper() for s in symbols if s]
         if not wanted:
             return {}
+        self.observed = True
         key = make_key("market:quotes", ",".join(sorted(wanted)))
 
         fresh = self._cache.get(key, self._quote_ttl)
