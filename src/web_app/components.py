@@ -20,6 +20,31 @@ STATUS_LABEL = {"live": ("Live data", "accent"), "cached": ("Saved copy", ""),
                 "stale": ("Last known", "warn"), "sample": ("SAMPLE DATA", "warn")}
 
 
+# --- rendering model output ---------------------------------------------
+
+
+def escape_dollars(text: str) -> str:
+    r"""Escape bare dollar signs so Streamlit stops reading money as maths.
+
+    Use this for ANY string with two currency amounts that reaches st.markdown,
+    st.progress(text=...) or a chat message - it has now bitten three separate
+    surfaces (a metric value, an answer, and the budget bar).
+
+    Observed live, in an answer about a portfolio:
+
+        "worth about $90,184, including $12,000 in cash"
+
+    Streamlit's markdown treats a `$...$` pair as inline LaTeX, so everything
+    between the two amounts rendered as a maths span - the figures came out in
+    a serif italic and the sentence broke apart. Any answer quoting two
+    currency amounts hits this, which for a finance assistant is most of them.
+
+    Escaping is safe here because Fintor's agents write prose and currency, not
+    TeX; an already-escaped `\$` is left alone so this stays idempotent.
+    """
+    return re.sub(r"(?<!\\)\$", r"\\$", text)
+
+
 def persona_card(persona) -> None:
     """The active reader, shown in the page body that needs it.
 
@@ -79,30 +104,10 @@ def cost_bar(meter) -> None:
     c2.metric("Budget left", f"${s['remaining_usd']:.5f}")
     c3.metric("Model calls", s["calls"])
     c4.metric("Cache hits", f"{s['cache_hits']} ({s['hit_rate']:.0%})")
-    st.progress(frac, text=f"${spent:.5f} of ${budget:.2f} session budget")
+    st.progress(frac,
+                text=escape_dollars(f"${spent:.5f} of ${budget:.2f} session budget"))
     if meter.near_limit:
         st.warning("Approaching the session budget. Set FINTOR_OFFLINE=1 to keep working for free.")
-
-
-# --- rendering model output ---------------------------------------------
-
-
-def answer_markdown(text: str) -> str:
-    r"""Escape bare dollar signs so Streamlit stops reading money as maths.
-
-    Observed live, in an answer about a portfolio:
-
-        "worth about $90,184, including $12,000 in cash"
-
-    Streamlit's markdown treats a `$...$` pair as inline LaTeX, so everything
-    between the two amounts rendered as a maths span - the figures came out in
-    a serif italic and the sentence broke apart. Any answer quoting two
-    currency amounts hits this, which for a finance assistant is most of them.
-
-    Escaping is safe here because Fintor's agents write prose and currency, not
-    TeX; an already-escaped `\$` is left alone so this stays idempotent.
-    """
-    return re.sub(r"(?<!\\)\$", r"\\$", text)
 
 
 # --- surfaces -----------------------------------------------------------

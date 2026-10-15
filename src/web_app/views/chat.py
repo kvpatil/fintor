@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.web_app.components import (
-    answer_markdown, card, citations_block, data_status_chip, main_and_rail,
+    card, citations_block, data_status_chip, escape_dollars, main_and_rail,
     persona_card, rail_stat,
 )
 from src.web_app.state import active_persona, checkpoint_path, get_deps, record_turn, run_async, turns
@@ -22,7 +22,7 @@ NODE_LABEL = {
 
 def _collect(deps, question: str, persona, status) -> dict:
     """Drive the graph and surface each node as it completes."""
-    from src.workflow.graph import stream_query
+    from src.workflow.graph import TRACE_EVENT, stream_query
 
     final: dict = {"final": {}, "route": {}, "trace": [], "agent_results": []}
 
@@ -32,6 +32,11 @@ def _collect(deps, question: str, persona, status) -> dict:
             checkpoint_path=checkpoint_path(),
         ):
             if not isinstance(payload, dict):
+                continue
+            if node == TRACE_EVENT:
+                # Terminal, and not a graph node: carries the Langfuse trace id
+                # so the Internals page can link to this exact run.
+                final["trace_id"] = payload.get("trace_id")
                 continue
             for key in ("final", "route"):
                 if payload.get(key):
@@ -113,7 +118,7 @@ def render() -> None:
             with st.chat_message("user"):
                 st.write(turn["q"])
             with st.chat_message("assistant"):
-                st.markdown(answer_markdown(turn["r"].get("final", {}).get("text", "")))
+                st.markdown(escape_dollars(turn["r"].get("final", {}).get("text", "")))
 
         # Inside a container chat_input renders inline rather than pinned to the
         # viewport bottom, which is what we want: it reads as the foot of the
@@ -133,7 +138,7 @@ def render() -> None:
                 status.update(label="Done", state="complete", expanded=False)
 
             final = result.get("final", {})
-            st.markdown(answer_markdown(final.get("text", "_No answer produced._")))
+            st.markdown(escape_dollars(final.get("text", "_No answer produced._")))
 
             bits = [data_status_chip(final.get("data_status", "live"))]
             route = result.get("route", {})

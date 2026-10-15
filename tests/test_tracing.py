@@ -200,3 +200,45 @@ def test_observations_are_typed():
     base = inspect.getsource(__import__("src.agents.base", fromlist=["x"]))
     assert 'as_type="chain"' in graph, "the workflow should be a chain"
     assert 'as_type="agent"' in base, "an agent run should be an agent observation"
+
+
+# --- the path the UI actually uses --------------------------------------
+
+
+def test_the_streaming_path_opens_the_chain_span_too():
+    """Tracing was added to ainvoke and verified there, but the Chat page only
+    ever calls stream_query - so every question asked through the app produced
+    a trace with no root chain, no routing metadata, and no id to link to.
+    """
+    import inspect
+
+    from src.workflow import graph
+
+    src = inspect.getsource(graph.stream_query)
+    assert 'trace_span("workflow.chat", as_type="chain"' in src
+    assert "current_trace_id()" in src, "no id means no link on the Internals page"
+    assert "update_current_trace" in src, "the trace would carry no routing metadata"
+
+
+def test_the_streaming_path_emits_the_trace_id_to_its_consumer():
+    """The id only exists while the span is open; the UI needs it afterwards."""
+    import inspect
+
+    from src.workflow import graph
+
+    assert graph.TRACE_EVENT.startswith("__"), "must not collide with a node name"
+    src = inspect.getsource(graph.stream_query)
+    assert f"yield TRACE_EVENT" in src
+
+    chat = inspect.getsource(__import__("src.web_app.views.chat", fromlist=["x"]))
+    assert "TRACE_EVENT" in chat, "the view drops the trace id on the floor"
+    assert '"trace_id"' in chat
+
+
+def test_the_sentinel_is_not_treated_as_a_graph_node():
+    """Falling through to the node handling would append a bogus trace row."""
+    import inspect
+
+    chat = inspect.getsource(__import__("src.web_app.views.chat", fromlist=["x"]))
+    marker = chat.index("if node == TRACE_EVENT:")
+    assert "continue" in chat[marker:marker + 400]

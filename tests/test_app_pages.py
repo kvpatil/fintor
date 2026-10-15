@@ -356,19 +356,19 @@ def test_answer_text_escapes_currency_so_it_is_not_read_as_latex():
     the span between the two amounts as inline maths. For a finance assistant,
     two currency amounts in a sentence is the common case, not the edge case.
     """
-    from src.web_app.components import answer_markdown
+    from src.web_app.components import escape_dollars
 
-    out = answer_markdown("worth about $90,184, including $12,000 in cash")
+    out = escape_dollars("worth about $90,184, including $12,000 in cash")
     assert out.count(r"\$") == 2
     assert "$9" not in out.replace(r"\$", "")
 
 
 def test_escaping_currency_is_idempotent():
     """It runs on stored turns on every rerun, so it must not accumulate."""
-    from src.web_app.components import answer_markdown
+    from src.web_app.components import escape_dollars
 
-    once = answer_markdown("$5 and $6")
-    assert answer_markdown(once) == once
+    once = escape_dollars("$5 and $6")
+    assert escape_dollars(once) == once
 
 
 def test_every_render_of_answer_text_goes_through_the_escape():
@@ -381,5 +381,5 @@ def test_every_render_of_answer_text_goes_through_the_escape():
                 and node.func.attr == "markdown" and node.args):
             rendered = ast.unparse(node.args[0])
             if '"text"' in rendered or "'text'" in rendered:
-                assert rendered.startswith("answer_markdown("), \
+                assert rendered.startswith("escape_dollars("), \
                     f"unescaped answer text at line {node.lineno}: {rendered}"

@@ -319,13 +319,25 @@ async def thread_history(checkpoint_path: str, thread_id: str) -> dict:
         return dict(tup.checkpoint.get("channel_values", {})) if tup else {}
 
 
+# Sentinel node name for the terminal event. Not a graph node: the trace id
+# only exists while the chain span is open, and the UI needs it afterwards.
+TRACE_EVENT = "__trace__"
+
+
 async def stream_query(deps, question: str, *, persona: Persona | None = None,
                        thread_id: str | None = None, top_k: int = 3,
                        checkpoint_path: str | None = None):
-    """Yield (node_name, payload) as each node completes.
+    """Yield (node_name, payload) as each node completes, then one TRACE_EVENT.
 
     Real graph streaming via compiled.astream(stream_mode="updates"), which is what
     lets the UI show the agent hand-off as it happens rather than after the fact.
+
+    The whole stream runs inside the same `workflow.chat` chain span that
+    `ainvoke` opens. It did not, for a while: tracing was added to `ainvoke` and
+    verified there, but the UI only ever calls THIS function, so every question
+    asked through the app produced a trace with no root chain, no routing
+    metadata, and no id for the Internals page to link to. Verifying the path
+    the app does not use is not verification.
     """
     import aiosqlite
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -338,19 +350,47 @@ async def stream_query(deps, question: str, *, persona: Persona | None = None,
         "agent_results": [], "trace": [],
     }
     tid = thread_id or (persona.thread_id if persona else "default")
+    seen: dict = {"route": {}, "agents": [], "citations": None}
 
-    if not checkpoint_path:
-        wf = FintorWorkflow(deps)
-        async for chunk in wf.compiled.astream(state, stream_mode="updates"):
-            for node, payload in chunk.items():
-                yield node, payload
-        return
+    def observe(payload) -> None:
+        if not isinstance(payload, dict):
+            return
+        if payload.get("route"):
+            seen["route"] = payload["route"]
+        for result in payload.get("agent_results") or []:
+            seen["agents"].append(result.get("agent"))
+        if payload.get("final"):
+            seen["citations"] = payload["final"].get("citations_verified")
 
-    async with aiosqlite.connect(checkpoint_path) as conn:
-        saver = AsyncSqliteSaver(conn)
-        await saver.setup()
-        wf = FintorWorkflow(deps, checkpointer=saver)
-        config = {"configurable": {"thread_id": tid}}
-        async for chunk in wf.compiled.astream(state, config=config, stream_mode="updates"):
-            for node, payload in chunk.items():
-                yield node, payload
+    trace_id = None
+    with trace_span("workflow.chat", as_type="chain",
+                    persona=pseudonym(persona.id, "p") if persona else None):
+        if not checkpoint_path:
+            wf = FintorWorkflow(deps)
+            async for chunk in wf.compiled.astream(state, stream_mode="updates"):
+                for node, payload in chunk.items():
+                    observe(payload)
+                    yield node, payload
+        else:
+            async with aiosqlite.connect(checkpoint_path) as conn:
+                saver = AsyncSqliteSaver(conn)
+                await saver.setup()
+                wf = FintorWorkflow(deps, checkpointer=saver)
+                config = {"configurable": {"thread_id": tid}}
+                async for chunk in wf.compiled.astream(state, config=config,
+                                                       stream_mode="updates"):
+                    for node, payload in chunk.items():
+                        observe(payload)
+                        yield node, payload
+
+        # Read it INSIDE the span; outside, the context is already gone.
+        trace_id = current_trace_id()
+        update_current_trace(metadata={
+            "router_tier": seen["route"].get("tier"),
+            "intents": seen["route"].get("intents"),
+            "agents": seen["agents"],
+            "citations": seen["citations"],
+            "streamed": True,
+        })
+    flush_traces()
+    yield TRACE_EVENT, {"trace_id": trace_id}
