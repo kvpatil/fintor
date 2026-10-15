@@ -122,25 +122,27 @@ def observability_callbacks() -> list[Any]:
 
 
 @contextmanager
-def trace_span(name: str, **metadata: Any) -> Iterator[Any]:
-    """Span around a unit of work. A no-op when tracing is off, and it yields
-    None rather than raising so call sites need no branching."""
+def trace_span(name: str, as_type: str = "span", **metadata: Any) -> Iterator[Any]:
+    """Span around a unit of work. No-op when tracing is off, and it yields None
+    rather than raising so call sites need no branching.
+
+    Uses start_as_current_observation, NOT start_span: the latter creates a span
+    without making it current, so nothing nests under it and get_current_trace_id
+    returns None. The symptom was a log line reading "No active span in current
+    context" and a null trace id on every turn.
+    """
     if _client is None:
         yield None
         return
-    span = None
     try:
-        span = _client.start_span(name=name, metadata=mask_payload(metadata))
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("could not start span %s: %s", name, exc)
-    try:
-        yield span
-    finally:
-        try:
-            if span is not None:
-                span.end()
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("could not end span %s: %s", name, exc)
+        with _client.start_as_current_observation(
+            name=name, as_type=as_type, metadata=mask_payload(metadata)
+        ) as span:
+            yield span
+        return
+    except Exception as exc:  # noqa: BLE001 - tracing must never break answering
+        logger.debug("span %s failed: %s", name, exc)
+    yield None
 
 
 def update_current_trace(**fields: Any) -> None:

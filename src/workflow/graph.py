@@ -257,9 +257,13 @@ class FintorWorkflow:
             "agent_results": [], "trace": [],
         }
         config = {"configurable": {"thread_id": thread_id or (persona.thread_id if persona else "default")}}
-        with trace_span("workflow.chat", persona=pseudonym(persona.id, "p") if persona else None):
+        trace_id = None
+        with trace_span("workflow.chat", as_type="chain",
+                        persona=pseudonym(persona.id, "p") if persona else None):
             out = await self.compiled.ainvoke(state, config=config if self._checkpointer else None)
             route = out.get("route", {})
+            # Read it inside the span: outside, the context is already gone.
+            trace_id = current_trace_id()
             update_current_trace(
                 metadata={
                     "router_tier": route.get("tier"),
@@ -268,7 +272,6 @@ class FintorWorkflow:
                     "citations": out.get("final", {}).get("citations_verified"),
                 },
             )
-        trace_id = current_trace_id()
         flush_traces()
         return {
             "trace_id": trace_id,

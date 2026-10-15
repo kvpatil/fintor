@@ -175,3 +175,28 @@ def test_all_provider_call_sites_attach_callbacks():
     for method in ("complete", "stream", "structured"):
         src = inspect.getsource(getattr(LangChainChatProvider, method))
         assert "_trace_config()" in src, f"{method} is not traced"
+
+
+def test_span_uses_the_context_propagating_api():
+    """start_span() creates a span without making it CURRENT.
+
+    Observed live: nothing nested under it, get_current_trace_id() returned None,
+    and the SDK logged "No active span in current context". The fix is
+    start_as_current_observation, and this pins it.
+    """
+    import inspect
+
+    src = inspect.getsource(tracing.trace_span)
+    assert "start_as_current_observation" in src
+    assert "_client.start_span(" not in src, "start_span does not propagate context"
+
+
+def test_observations_are_typed():
+    """A chain, a span and an agent read differently in the Langfuse UI; typing
+    them is what makes the trace legible rather than a flat list."""
+    import inspect
+
+    graph = inspect.getsource(__import__("src.workflow.graph", fromlist=["x"]))
+    base = inspect.getsource(__import__("src.agents.base", fromlist=["x"]))
+    assert 'as_type="chain"' in graph, "the workflow should be a chain"
+    assert 'as_type="agent"' in base, "an agent run should be an agent observation"

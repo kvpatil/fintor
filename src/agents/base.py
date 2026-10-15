@@ -31,7 +31,7 @@ class BaseAgent(ABC):
     async def run(self, query: Query, persona: Persona | None = None) -> AgentResult:
         started = time.perf_counter()
         try:
-            with trace_span(f"agent.{self.name}", intent=self.intent.value):
+            with trace_span(f"agent.{self.name}", as_type="agent", intent=self.intent.value):
                 result = await self._execute(query, persona)
         except Exception as exc:  # noqa: BLE001 - containment is the point
             result = AgentResult(
