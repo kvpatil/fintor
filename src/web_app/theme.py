@@ -23,6 +23,11 @@ CSS = """
   /* Card/chip ground. A token because it was hardcoded #fffefb in five rules,
      every one of which would have stayed light-on-dark. */
   --fin-paper: #fffefb;
+  /* Ground for the "What this shows" panel: a tint of the page, not a new hue. */
+  --fin-note-ground: #f2f1ec;
+  /* Direction of a price move. Reserved status colours - never a series hue. */
+  --fin-up: #1b7f4e;
+  --fin-down: #b4332f;
 
   /* Type scale. These exist because the small sizes drifted down to 11.5px by
      being hand-picked one rule at a time. Nothing goes below --fs-xs, and
@@ -249,6 +254,102 @@ h1 { font-size: 1.72rem; }
 }
 .fin-cite { font-size: var(--fs-sm); color: var(--fin-muted); }
 
+
+/* --- cards and the rail ------------------------------------------------
+   The selector is an attribute-substring match on the st-key-* class that
+   st.container(key=...) emits, because the exact element Streamlit hangs it
+   on is an implementation detail and a data-testid would pin the version. */
+[class*="st-key-card-"] {
+  background: var(--fin-paper);
+  border: 1px solid var(--fin-line);
+  border-radius: 12px;
+  padding: 1.25rem 1.375rem 1.125rem;
+}
+/* Streamlit's own border on the container would double up with ours. */
+[class*="st-key-card-"] > div { border: none; }
+
+/* The probe is machinery, not content: out of the flex flow so it costs no
+   gap, but still laid out so the iframe actually loads and runs. */
+.st-key-theme-probe {
+  position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none;
+}
+
+.fin-card-tag { margin-bottom: 0.5rem; }
+.fin-card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1.5rem; margin-bottom: 0.875rem;
+}
+.fin-card-title {
+  font-family: "Fintor Serif", Georgia, serif;
+  font-size: 1.125rem; font-weight: 600; color: var(--fin-ink);
+  line-height: 1.25;
+}
+.fin-card-sub {
+  font-size: var(--fs-sm); color: var(--fin-muted); margin-top: 0.25rem;
+  max-width: 62ch;
+}
+.fin-card-meta { text-align: right; white-space: nowrap; }
+.fin-card-meta span {
+  display: block; font-size: var(--fs-xs); color: var(--fin-muted);
+}
+.fin-card-meta b {
+  font-size: 1.625rem; font-weight: 600; color: var(--fin-ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* "What this shows": the notes under a figure, including what it ignores. */
+.fin-note {
+  margin-top: 0.875rem; padding: 0.875rem 1rem;
+  border-radius: 8px; background: var(--fin-note-ground);
+}
+.fin-note-title {
+  font-size: var(--fs-xs); font-weight: 600; color: var(--fin-ink);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem;
+}
+.fin-note ul { margin: 0; padding-left: 1.1rem; }
+.fin-note li {
+  font-size: var(--fs-sm); color: var(--fin-muted); line-height: 1.55;
+  margin-bottom: 0.2rem;
+}
+/* The limitation is set apart on purpose - it is the line most likely to be
+   skimmed and the one most worth reading. */
+.fin-note-limit {
+  margin-top: 0.45rem; padding-top: 0.45rem;
+  border-top: 1px solid var(--fin-line); list-style: none; margin-left: -1.1rem;
+  font-style: italic;
+}
+
+.fin-rail-label {
+  font-size: var(--fs-xs); color: var(--fin-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.fin-rail-value {
+  font-size: 2rem; font-weight: 600; color: var(--fin-ink); line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums; margin-top: 0.15rem;
+}
+.fin-rail-note {
+  font-size: var(--fs-sm); color: var(--fin-muted); margin-top: 0.4rem;
+  line-height: 1.5;
+}
+.fin-rail-rows { display: flex; flex-direction: column; gap: 0.5rem; }
+.fin-rail-row {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: baseline;
+  gap: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--fin-line);
+}
+.fin-rail-row:last-child { border-bottom: none; padding-bottom: 0; }
+.fin-rail-row span { font-size: var(--fs-sm); color: var(--fin-muted); }
+.fin-rail-row b {
+  font-size: var(--fs-md); color: var(--fin-ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.fin-delta {
+  font-size: var(--fs-xs); font-style: normal; min-width: 4.25rem;
+  text-align: right; font-variant-numeric: tabular-nums lining-nums;
+  color: var(--fin-muted);
+}
+.fin-delta.fin-up { color: var(--fin-up); }
+.fin-delta.fin-down { color: var(--fin-down); }
+
 /* THEME_RULES is appended here at import time: the light and dark token blocks
    under :root[data-theme="..."], which theme_probe() keeps in sync. Every
    component already styles through the tokens, so swapping them is the whole of
@@ -268,6 +369,9 @@ DARK_TOKENS = """
   --fin-accent: #5bbfa2;
   --fin-warn: #d2a248;
   --fin-paper: #1b211e;
+  --fin-note-ground: #202723;
+  --fin-up: #4fbf85;        /* 7.11:1 on the dark card */
+  --fin-down: #e8786f;      /* 5.73:1 on the dark card */
   --tab-workspace: rgba(91, 191, 162, 0.14);
   --tab-reference: rgba(154, 165, 160, 0.12);
   --dot-live: #5bbfa2;
@@ -282,6 +386,9 @@ LIGHT_TOKENS = """
   --fin-accent: #1f6f5c;
   --fin-warn: #9a6a1b;
   --fin-paper: #fffefb;
+  --fin-note-ground: #f2f1ec;
+  --fin-up: #1b7f4e;
+  --fin-down: #b4332f;
   --tab-workspace: rgba(31, 111, 92, 0.08);
   --tab-reference: rgba(90, 104, 120, 0.10);
   --dot-live: #1f6f5c;
@@ -334,10 +441,21 @@ THEME_PROBE = """
 
 
 def theme_probe() -> None:
-    """Keep :root[data-theme] in step with whatever Streamlit has painted."""
+    """Keep :root[data-theme] in step with whatever Streamlit has painted.
+
+    Wrapped in a keyed container so the CSS has a `st-key-theme-probe` hook.
+    Without it the zero-height iframe still consumes one 16px flex `gap` from
+    Streamlit's vertical block, which pushed every page down by 16px and undid
+    the measured --fin-top-gap.
+
+    Taken out of flow with `position: absolute`, NOT `display: none`: a browser
+    is free to skip loading an iframe inside a display:none subtree, and an
+    unloaded probe means no theme at all.
+    """
     import streamlit.components.v1 as components
 
-    components.html(THEME_PROBE, height=0)
+    with st.container(key="theme-probe"):
+        components.html(THEME_PROBE, height=0)
 
 
 def inject() -> None:

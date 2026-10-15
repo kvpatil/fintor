@@ -285,3 +285,101 @@ def test_gate_does_not_build_the_container():
     assert not at.exception, at.exception[0].value if at.exception else ""
     body = "\n".join(m.value for m in at.markdown)
     assert "Who are you today?" in body, "gate did not render with the container disabled"
+
+
+# --- the workspace is a workspace, not a document -----------------------
+
+
+def _workspace_src() -> str:
+    return (ROOT / "src" / "web_app" / "views" / "workspace.py").read_text(encoding="utf-8")
+
+
+def test_every_workspace_page_uses_the_main_and_rail_split():
+    """A single stacked column reads as a document. The rail is the structural
+    difference that no amount of chart polish was going to close."""
+    src = _workspace_src()
+    assert src.count("main_and_rail()") == 3, "all three pages need the split"
+
+
+def test_every_figure_sits_inside_a_card():
+    """A chart floating on the page with a bare heading above it was the
+    "surfaces" gap. Each plotly_chart must be lexically inside a `with card(`.
+    """
+    import ast
+
+    src = _workspace_src()
+    tree = ast.parse(src)
+    charted: list[int] = []
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "plotly_chart"):
+            charted.append(node.lineno)
+    assert charted, "expected charts in workspace.py"
+
+    card_spans = [
+        (item.context_expr.lineno, node.end_lineno)
+        for node in ast.walk(tree) if isinstance(node, ast.With)
+        for item in node.items
+        if isinstance(item.context_expr, ast.Call)
+        and getattr(item.context_expr.func, "id", "") == "card"
+    ]
+    for line in charted:
+        assert any(start <= line <= end for start, end in card_spans), \
+            f"the chart at line {line} is not inside a card"
+
+
+def test_what_this_shows_requires_a_stated_limitation():
+    """The keyword-only `ignores` is a forcing function: a figure that explains
+    itself but not its limits is the more dangerous of the two."""
+    import inspect
+
+    from src.web_app.components import what_this_shows
+
+    params = inspect.signature(what_this_shows).parameters
+    assert params["ignores"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["ignores"].default is inspect.Parameter.empty, "must be required"
+
+    with pytest.raises(ValueError, match="ignores"):
+        what_this_shows("a point", ignores="   ")
+
+
+def test_every_chart_card_carries_a_what_this_shows():
+    """Three figures explain themselves; the allocation bar is self-labelling
+    and sits under a titled card, so it is the deliberate exception."""
+    src = _workspace_src()
+    assert src.count("what_this_shows(") == 4, \
+        "a figure was added or removed without its explanation block"
+
+
+def test_answer_text_escapes_currency_so_it_is_not_read_as_latex():
+    """Observed live: "worth about $90,184, including $12,000 in cash" rendered
+    the span between the two amounts as inline maths. For a finance assistant,
+    two currency amounts in a sentence is the common case, not the edge case.
+    """
+    from src.web_app.components import answer_markdown
+
+    out = answer_markdown("worth about $90,184, including $12,000 in cash")
+    assert out.count(r"\$") == 2
+    assert "$9" not in out.replace(r"\$", "")
+
+
+def test_escaping_currency_is_idempotent():
+    """It runs on stored turns on every rerun, so it must not accumulate."""
+    from src.web_app.components import answer_markdown
+
+    once = answer_markdown("$5 and $6")
+    assert answer_markdown(once) == once
+
+
+def test_every_render_of_answer_text_goes_through_the_escape():
+    """A second render path that skips it brings the bug straight back."""
+    import ast
+
+    src = (ROOT / "src" / "web_app" / "views" / "chat.py").read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(src)):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "markdown" and node.args):
+            rendered = ast.unparse(node.args[0])
+            if '"text"' in rendered or "'text'" in rendered:
+                assert rendered.startswith("answer_markdown("), \
+                    f"unescaped answer text at line {node.lineno}: {rendered}"

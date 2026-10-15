@@ -738,3 +738,56 @@ def test_every_table_configures_its_columns():
         kwargs = {kw.arg for kw in call.keywords}
         assert "column_config" in kwargs, (
             f"st.dataframe at line {call.lineno} ships raw field names as headers")
+
+
+# --- cards and the rail -------------------------------------------------
+
+
+def test_cards_style_through_tokens_so_they_survive_dark_mode():
+    """A hardcoded #fffefb card ground is exactly the bug that shipped before."""
+    block = re.search(r'\[class\*="st-key-card-"\] \{([^}]*)\}', CSS)
+    assert block, "no card rule"
+    body = block.group(1)
+    assert "var(--fin-paper)" in body, "card ground must be a token"
+    assert "var(--fin-line)" in body, "card border must be a token"
+    assert not re.search(r"#[0-9a-fA-F]{6}", body), f"literal colour in card rule: {body}"
+
+
+def test_the_card_hook_is_a_key_class_not_a_streamlit_testid():
+    """st.container(key=...) emits st-key-*, which is a documented contract.
+    A data-testid is an implementation detail that moves between versions."""
+    assert 'st-key-card-' in CSS
+    assert 'data-testid="stVerticalBlockBorderWrapper"' not in CSS
+
+
+def test_the_probe_container_is_out_of_flow_but_not_hidden():
+    """A zero-height iframe still eats one 16px flex gap, which pushed every
+    page down. display:none would fix the gap but a browser may then never load
+    the iframe, and an unloaded probe means no theme switching at all.
+    """
+    block = re.search(r"\.st-key-theme-probe \{([^}]*)\}", CSS)
+    assert block, "the probe container is not styled"
+    body = block.group(1)
+    assert "position: absolute" in body
+    assert "display: none" not in body, "a hidden iframe may never run"
+
+
+@pytest.mark.parametrize("token", ["--fin-note-ground", "--fin-up", "--fin-down"])
+def test_card_era_tokens_exist_in_both_themes(token):
+    from src.web_app.theme import DARK_TOKENS
+
+    assert token in _light_root(), f"{token} missing from the light root"
+    assert token in DARK_TOKENS, f"{token} missing from dark"
+
+
+@pytest.mark.parametrize("name,ground", [
+    ("--fin-up", "light"), ("--fin-down", "light"),
+    ("--fin-up", "dark"), ("--fin-down", "dark"),
+])
+def test_direction_colours_are_legible_on_their_card(name, ground):
+    """These sit on the CARD, not the page, so the card is the background."""
+    from src.web_app.theme import DARK_TOKENS
+
+    source = DARK_TOKENS if ground == "dark" else _light_root()
+    ratio = _contrast(_token(source, name), _token(source, "--fin-paper"))
+    assert ratio >= 4.5, f"{name} on the {ground} card is {ratio:.2f}:1"
