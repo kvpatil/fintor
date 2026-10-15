@@ -44,9 +44,10 @@ class Settings:
     anthropic_api_key: str = field(default="", repr=False)
     offline: bool = False
     session_budget_usd: float = 0.50
-    # Optional shared passcode for the entry gate. Blank means no passcode field is
-    # shown at all, so a fresh clone is never locked out of its own checkout.
-    passcode: str = field(default="", repr=False)
+    # Shared password for the six demo accounts on the sign-in screen. Blank
+    # means sign-in is disabled and the screen says how to enable it - see
+    # core/auth.py, which fails closed rather than waving everyone through.
+    demo_password: str = field(default="", repr=False)
     # Langfuse. The SDK would read these itself, but the house rule is that only
     # this module touches the environment, so they are read here and passed
     # explicitly. LANGFUSE_BASE_URL is the SDK's own current name.
@@ -110,7 +111,7 @@ def load_settings(config_path: Path | None = None) -> Settings:
         openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip(),
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", "").strip(),
         offline=os.environ.get("FINTOR_OFFLINE", "0").strip() in {"1", "true", "True", "yes"},
-        passcode=os.environ.get("FINTOR_PASSCODE", "").strip(),
+        demo_password=os.environ.get("FINTOR_DEMO_PASSWORD", "").strip(),
         langfuse_public_key=os.environ.get("LANGFUSE_PUBLIC_KEY", "").strip(),
         langfuse_secret_key=os.environ.get("LANGFUSE_SECRET_KEY", "").strip(),
         langfuse_base_url=(os.environ.get("LANGFUSE_BASE_URL")

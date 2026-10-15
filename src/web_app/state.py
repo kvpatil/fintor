@@ -18,9 +18,10 @@ from src.data import personas as persona_store
 def app_settings():
     """Config only - no container.
 
-    The gate needs the passcode and the offline flag, and nothing else. Routing it
-    through get_deps() would load model2vec and the retrieval index just to paint a
-    sign-in screen, which is a slow first impression for no benefit.
+    The sign-in screen needs the demo password and the offline flag, and nothing
+    else. Routing it through get_deps() would load model2vec and the retrieval
+    index just to paint a sign-in screen, which is a slow first impression for no
+    benefit - and would hand the container to a caller who is not authenticated.
     """
     from src.core.config import load_settings
 

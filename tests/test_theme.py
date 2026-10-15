@@ -50,7 +50,8 @@ def test_scale_tokens_are_defined_and_used():
 
 
 @pytest.mark.parametrize("selector", [
-    ".chip", ".fin-chip", ".gate-ask", ".gate-nums", ".gate-meta",
+    ".chip", ".fin-chip", ".gate-ask", ".signin-account-nums",
+    ".signin-account-head-line", ".signin-help", ".signin-pillar",
     ".gate-foot", ".prompt-hint", ".fin-cite", ".ident-who",
 ])
 def test_small_text_rules_use_a_token(selector):
@@ -844,12 +845,16 @@ def test_the_active_nav_label_has_its_own_rule():
         "the active label has no descendant rule; the colour will not reach it"
 
 
-def test_the_gate_action_bar_colours_its_own_label():
-    """Same trap, same fix: colour AND weight land on the inner <p>."""
-    block = re.search(r'\[class\*="st-key-gate-tile-"\] \.stButton > button p \{([^}]*)\}', CSS)
-    assert block, "no rule targets the action-bar label"
+def test_the_sign_in_button_colours_its_own_label():
+    """Streamlit styles the inner <p> of a button directly, so colour and weight
+    set on the button element alone never reach the text. The active nav tab
+    sat at 2.74:1 for exactly this reason."""
+    block = re.search(
+        r"\.st-key-signin-card \[data-testid=\"stFormSubmitButton\"\] > button p,?"
+        r"[^{]*\{([^}]*)\}", CSS)
+    assert block, "no rule targets the sign-in button label"
     assert "var(--fin-paper)" in block.group(1)
-    assert "font-weight" in block.group(1), "weight inherits no better than colour does"
+    assert "font-weight" in block.group(1), "weight inherits no better than colour"
 
 
 def test_no_dead_selector_for_the_about_section():
@@ -862,45 +867,45 @@ def test_no_dead_selector_for_the_about_section():
 # --- the gate ------------------------------------------------------------
 
 
-def test_gate_text_is_not_held_to_a_reading_measure():
-    """The subline and the disclaimer bracket a ~960px card grid. At 60ch/72ch
-    they wrapped at 555px and 666px, and the ragged edge above a full-width
-    grid is what made the screen look unfinished."""
-    for cls in (".gate-subline", ".gate-foot"):
-        rule = re.search(re.escape(cls) + r"\s*\{([^}]*)\}", CSS)
-        assert rule, f"no rule for {cls}"
-        found = re.search(r"max-width:\s*(\d+)ch", rule.group(1))
-        assert found and int(found.group(1)) >= 90, (
-            f"{cls} is capped at {found.group(1) if found else '?'}ch, "
-            "which wraps it narrower than the grid it sits above")
+def test_the_disclaimer_is_not_held_to_a_narrow_measure():
+    """It spans the whole right-hand panel. At 72ch it wrapped at 666px inside a
+    960px row, and that ragged edge is what read as unfinished.
+
+    The brand subline is NOT checked here any more: it now sits in a ~600px
+    panel, so a narrower measure is correct rather than a bug.
+    """
+    rule = re.search(r"\.gate-foot\s*\{([^}]*)\}", CSS)
+    assert rule, "no rule for .gate-foot"
+    found = re.search(r"max-width:\s*(\d+)ch", rule.group(1))
+    assert found and int(found.group(1)) >= 90, (
+        f".gate-foot is capped at {found.group(1) if found else '?'}ch")
 
 
 def test_the_gate_takes_a_wider_measure_than_the_reading_pages():
     """A 3-up card grid is not running prose and does not want a reading
     measure; the About pages still do."""
-    from src.web_app.gate import GATE_WIDTH_CSS
+    from src.web_app.gate import GATE_CHROME_CSS
 
     gate = int(re.search(r"--fin-measure-gate:\s*(\d+)px", CSS).group(1))
     page = int(re.search(r"--fin-measure:\s*(\d+)px", CSS).group(1))
     assert gate > page, "the gate measure must be wider than the page measure"
-    assert "--fin-measure-gate" in GATE_WIDTH_CSS, "the gate never applies it"
+    assert "--fin-measure-gate" in GATE_CHROME_CSS, "the gate never applies it"
 
 
-def test_the_persona_tile_is_one_object_not_two():
-    """Card and button used to be sibling blocks with Streamlit's 16px gap
-    between them, and the button was white, 400-weight and 20%-border -
-    nothing said the pair was one clickable choice."""
-    tile = re.search(r'\[class\*="st-key-gate-tile-"\] \{([^}]*)\}', CSS)
-    assert tile, "no tile rule"
-    assert "var(--fin-line)" in tile.group(1), "the border must sit on the tile"
-    assert re.search(r'\[class\*="st-key-gate-tile-"\][^{]*\{[^}]*gap: 0', CSS), \
-        "the inter-element gap must be collapsed or the pair reads as two things"
-    bar = re.search(r'\[class\*="st-key-gate-tile-"\] \.stButton > button \{([^}]*)\}', CSS)
-    assert bar and "var(--fin-accent)" in bar.group(1), "the action bar is not solid accent"
+def test_the_sign_in_card_is_a_keyed_container():
+    """A wrapper div would not work: Streamlit renders its elements outside any
+    HTML we emit, which is why the old .gate-wrap constrained nothing for weeks.
+    st.container(key=...) emits a st-key-* class, which is a real hook."""
+    block = re.search(r"\.st-key-signin-card \{([^}]*)\}", CSS)
+    assert block, "no sign-in card rule"
+    assert "var(--fin-line)" in block.group(1)
+    assert "var(--fin-paper)" in block.group(1)
 
 
-def test_the_tile_css_uses_no_octal_trap():
-    """`content: "\\2192"` is read as OCTAL by Python before CSS sees it, and the
-    button rendered the literal text 92. The glyph avoids both layers."""
-    assert chr(0o21) not in CSS, "an octal escape artefact is in the CSS"
-    assert 'content: "→"' in CSS
+def test_no_octal_artefact_survives_into_the_css():
+    """`content: "\\2192"` in a plain Python triple-quoted string is read as
+    OCTAL before CSS sees it, and a button once rendered the literal text 92.
+    Kept as a general guard now that the arrow itself is gone."""
+    for code in range(1, 32):
+        assert chr(code) not in CSS.replace("\n", ""), \
+            f"control character {code} in CSS - probably a mangled escape"

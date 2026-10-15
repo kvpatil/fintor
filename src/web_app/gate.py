@@ -1,20 +1,23 @@
-"""The entry gate: signing in is choosing who you are.
+"""The sign-in screen.
 
-Fintor has no accounts and no passwords by design - auth earns nothing here, and a
-credential wall would slow the thing this app is for. What it does have is a first
-screen that makes the persona choice deliberate and informative, which is also how
-persona selection stays out of the top chrome entirely.
+Fintor's accounts are the six synthetic personas: the username says who you
+are, so authenticating and choosing a reader are one step rather than two. The
+password is shared and set by the operator in `FINTOR_DEMO_PASSWORD`; see
+`core/auth.py` for what that does and does not protect.
 
-`app.py` calls `render()` and then `st.stop()` when no persona is set, so the tabs,
-breadcrumb, and logo chrome do not exist until you are through.
+Two panels. The left is brand - the mark at a size it can actually be read at.
+The right is the form, with the six accounts listed under it so the journeys
+each persona demonstrates are visible before you pick one.
+
+`app.py` calls `render()` and then `st.stop()` while nobody is signed in, so the
+tabs, breadcrumb and logo chrome do not exist until you are through.
 """
 
 from __future__ import annotations
 
-import hmac
-
 import streamlit as st
 
+from src.core import auth
 from src.core.quant import diversification_score, portfolio_value, risk_score, weights
 from src.data.personas import PERSONAS
 from src.web_app.brand import logo_svg
@@ -23,15 +26,44 @@ from src.web_app.state import app_settings
 TAGLINE = "Finance, taught."
 SUBLINE = (
     "Six specialist agents answer money questions in plain English, grounded in a cited "
-    "knowledge base. Choose a reader and the answers change with them."
+    "knowledge base. Sign in as one of six readers and the answers change with them."
 )
+PILLARS = (
+    ("Hybrid retrieval", "Dense vectors and BM25, fused by reciprocal rank."),
+    ("Every claim cited", "A citation that does not resolve is stripped, not shown."),
+    ("Costed and traced", "Token spend per answer, and a Langfuse span for every run."),
+)
+
+# Scoped to this render only. Two jobs:
+#
+# 1. A wider measure - the sign-in screen is two panels, not running prose, so
+#    it does not want the reading width the rest of the app uses.
+# 2. Hide the stale top nav. On sign-out `st.rerun()` re-runs the script, the
+#    gate calls `st.stop()` BEFORE `st.navigation()`, and because navigation is
+#    never reached Streamlit sends nothing to replace it - so the tabs from the
+#    previous run stay painted above the sign-in screen. Verified this is
+#    cosmetic and not a bypass: clicking a stale tab highlights it and renders
+#    no page, because st.stop() still runs. It looks broken all the same, and a
+#    login screen wearing the app's navigation implies you are half way in.
+#    The toolbar is left alone so the theme switcher still works here.
+GATE_CHROME_CSS = (
+    "<style>"
+    "[data-testid='stMainBlockContainer']{max-width:var(--fin-measure-gate);}"
+    "[data-testid='stTopNavLinkContainer'],"
+    "[data-testid='stTopNavSection'],"
+    "[data-testid='stLogoLink']{display:none !important;}"
+    "</style>"
+)
+
+_ATTEMPTS_KEY = "signin_attempts"
 
 
 def _scores(persona) -> tuple[int, int, float]:
     """Risk, diversification, and value from cost basis only.
 
-    No live quotes here on purpose: the gate must render instantly and work with no
-    network, so it must not trigger a market call before you are even signed in.
+    No live quotes here on purpose: the sign-in screen must render instantly and
+    work with no network, so it must not trigger a market call before you are
+    even through the door.
     """
     w = weights(persona.holdings, {}, persona.cash)
     total, _ = portfolio_value(persona.holdings, {}, persona.cash)
@@ -39,102 +71,134 @@ def _scores(persona) -> tuple[int, int, float]:
     return risk, diversification_score(persona.holdings, w), total
 
 
-def _passcode_cleared() -> bool:
-    """True when no passcode is configured, or the right one has been entered."""
-    expected = app_settings().passcode
-    if not expected:
-        return True
-    if st.session_state.get("gate_passcode_ok"):
-        return True
-
-    st.markdown('<p class="gate-ask">This demo is passcode protected.</p>',
-                unsafe_allow_html=True)
-    left, _ = st.columns([1, 1])
-    with left:
-        entered = st.text_input("Passcode", type="password", key="gate_passcode",
-                                label_visibility="collapsed", placeholder="Passcode")
-        if st.button("Continue", key="gate_passcode_submit", width="stretch"):
-            # compare_digest rather than == so the check does not leak length or
-            # prefix through timing. The value is never logged or echoed back.
-            if hmac.compare_digest(entered or "", expected):
-                st.session_state["gate_passcode_ok"] = True
-                st.rerun()
-            else:
-                st.error("That passcode is not right. Check the value of FINTOR_PASSCODE.")
-    return False
+def _brand_panel() -> None:
+    # `currentColor` for the wordmark: the gate inlines the SVG rather than
+    # loading it through <img>, so CSS reaches inside and the ink follows
+    # --fin-ink with no rerun lag.
+    st.markdown(
+        f'<div class="signin-brand">'
+        f'<div class="gate-logo">{logo_svg(ink="currentColor")}</div>'
+        f'<p class="gate-tagline">{TAGLINE}</p>'
+        f'<p class="gate-subline">{SUBLINE}</p>'
+        + "".join(
+            f'<div class="signin-pillar"><b>{title}</b><span>{body}</span></div>'
+            for title, body in PILLARS
+        )
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
-def _persona_card(persona, column) -> None:
-    """One persona as a single selectable tile.
+def _shared_prompts() -> dict[str, list[str]]:
+    """First prompts asked by more than one persona, mapped to who asks them.
 
-    The card and the button sit inside ONE keyed container so the CSS can draw
-    a single bordered object with an accent action bar at its foot. They used
-    to be two sibling blocks with Streamlit's 16px gap between them, and the
-    button was a white, 400-weight, 20%-border rectangle - nothing about the
-    pair said "this is one choice you can click".
+    Dev and Walter both open with "Should I buy more NVDA?" and that is the
+    point - personas.py calls it the clearest demonstration in the product,
+    because the same question produces materially different answers for a
+    31-year-old concentrated in one stock and a 61-year-old four years from
+    retirement. In a flat list it just looks like a copy-paste mistake, so the
+    repeat is detected and labelled rather than hidden or edited away.
     """
-    risk, div, total = _scores(persona)
-    with column, st.container(key=f"gate-tile-{persona.id}"):
+    seen: dict[str, list[str]] = {}
+    for persona in PERSONAS:
+        if persona.journey_prompts:
+            seen.setdefault(persona.journey_prompts[0], []).append(persona.name)
+    return {prompt: names for prompt, names in seen.items() if len(names) > 1}
+
+
+def _accounts_panel() -> None:
+    """The six demo accounts, so the journeys are visible before you choose."""
+    shared = _shared_prompts()
+    rows = []
+    for persona in PERSONAS:
+        risk, div, total = _scores(persona)
+        prompt = persona.journey_prompts[0] if persona.journey_prompts else ""
+        others = [n for n in shared.get(prompt, []) if n != persona.name]
+        echo = (f'<span class="signin-echo">also asked by '
+                f'{" and ".join(others)}</span>') if others else ""
+        rows.append(
+            f'<div class="signin-account">'
+            f'<div class="signin-account-head">'
+            f'<code>{persona.id}</code>'
+            f'<span class="signin-account-name">{persona.name}, {persona.age}</span>'
+            f'<span class="signin-account-nums">risk {risk} · spread {div} · '
+            f"${total:,.0f}</span>"
+            f"</div>"
+            f'<p class="signin-account-head-line">{persona.headline}</p>'
+            f'<p class="signin-account-journey">“{prompt}”{echo}</p>'
+            f"</div>"
+        )
+    st.markdown(
+        '<p class="gate-ask">Demo accounts</p>' + "".join(rows)
+        + '<p class="gate-foot">Every persona is a synthetic teaching example, not a '
+          "real account. Fintor explains concepts; it does not give personal "
+          "financial, investment, legal or tax advice.</p>",
+        unsafe_allow_html=True,
+    )
+
+
+def _sign_in_form(known: set[str]) -> None:
+    settings = app_settings()
+
+    if not auth.configured(settings):
+        # Fails closed. An auth screen that waves everyone past when it is
+        # misconfigured is worse than no auth screen, because it still looks
+        # like a door.
+        st.error("Sign-in is not configured.")
         st.markdown(
-            f'<div class="gate-card">'
-            f'<p class="gate-name">{persona.name}, {persona.age}</p>'
-            f'<p class="gate-head">{persona.headline}</p>'
-            f'<p class="gate-meta">{persona.experience_level.value} · '
-            f'{persona.risk_tolerance} · {persona.horizon_years}y horizon</p>'
-            f'<p class="gate-nums">'
-            f'<span>risk <b>{risk}</b></span>'
-            f'<span>spread <b>{div}</b></span>'
-            f'<span>${total:,.0f}</span>'
-            f"</p></div>",
+            '<p class="signin-help">Set <code>FINTOR_DEMO_PASSWORD</code> in your '
+            "<code>.env</code> and restart. Until then no password is accepted — "
+            "a blank one least of all.</p>",
             unsafe_allow_html=True,
         )
-        if st.button(f"Continue as {persona.name}", key=f"gate_{persona.id}",
-                     width="stretch"):
-            st.session_state["persona_id"] = persona.id
-            st.rerun()
+        return
 
+    attempts = st.session_state.get(_ATTEMPTS_KEY, 0)
+    if attempts >= auth.MAX_ATTEMPTS:
+        st.error(f"Too many attempts ({attempts}). Reload the page to try again.")
+        st.markdown(
+            '<p class="signin-help">This counter lives in the browser session, so a '
+            "reload clears it. It slows a person at the keyboard and nothing more — "
+            "stated here rather than dressed up as rate limiting.</p>",
+            unsafe_allow_html=True,
+        )
+        return
 
-# The gate is a 3-up grid, not running prose, so it takes a wider measure than
-# the rest of the app. Scoped to this render rather than changing --fin-measure
-# globally, which the workspace and the About pages still want at 1120px.
-GATE_WIDTH_CSS = (
-    "<style>[data-testid='stMainBlockContainer']"
-    "{max-width:var(--fin-measure-gate);}</style>"
-)
+    with st.form("signin", border=False):
+        st.markdown('<p class="gate-ask">Sign in</p>', unsafe_allow_html=True)
+        username = st.text_input("Username", key="signin_user",
+                                 placeholder="dev", autocomplete="username")
+        password = st.text_input("Password", key="signin_pass", type="password",
+                                 placeholder="••••••••",
+                                 autocomplete="current-password")
+        submitted = st.form_submit_button("Sign in", width="stretch", type="primary")
+
+    if not submitted:
+        return
+
+    who = auth.check(username, password, known_users=known,
+                     credential=auth.credential_for(settings))
+    if who:
+        st.session_state["persona_id"] = who
+        st.session_state[_ATTEMPTS_KEY] = 0
+        st.rerun()
+    else:
+        st.session_state[_ATTEMPTS_KEY] = attempts + 1
+        # One message for both failures. Saying which half was wrong would tell
+        # an attacker which usernames exist.
+        remaining = auth.MAX_ATTEMPTS - st.session_state[_ATTEMPTS_KEY]
+        st.error(f"That username and password do not match. {remaining} left.")
 
 
 def render() -> None:
-    st.markdown(GATE_WIDTH_CSS, unsafe_allow_html=True)
-    st.markdown('<div class="gate-wrap">', unsafe_allow_html=True)
-    # `currentColor` for the wordmark, not a baked ink. The gate inlines the SVG
-    # rather than loading it through <img>, so CSS reaches inside it - which
-    # means the ink can follow --fin-ink and flip with the theme instantly,
-    # with none of the one-rerun lag the header logo has.
-    st.markdown(f'<div class="gate-logo">{logo_svg(ink="currentColor")}</div>',
-                unsafe_allow_html=True)
-    st.markdown(f'<p class="gate-tagline">{TAGLINE}</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="gate-subline">{SUBLINE}</p>', unsafe_allow_html=True)
+    st.markdown(GATE_CHROME_CSS, unsafe_allow_html=True)
+    known = {p.id for p in PERSONAS}
 
-    if not _passcode_cleared():
-        st.markdown("</div>", unsafe_allow_html=True)
-        return
-
-    st.markdown('<p class="gate-ask">Who are you today?</p>', unsafe_allow_html=True)
-
-    # 3 x 2. The scores differ enough across these six that the grid doubles as a
-    # preview of what the app will say about each of them.
-    for row_start in (0, 3):
-        for persona, column in zip(PERSONAS[row_start:row_start + 3], st.columns(3),
-                                   strict=False):
-            _persona_card(persona, column)
-
-    st.markdown(
-        '<p class="gate-foot">Every persona is a synthetic teaching example, not a real '
-        "account. Fintor explains concepts; it does not give personal financial, "
-        "investment, legal or tax advice.</p>",
-        unsafe_allow_html=True,
-    )
-    if app_settings().offline:
-        st.markdown('<p class="gate-foot">Running in offline mode — deterministic canned '
-                    "answers, no network, no API spend.</p>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    brand, form = st.columns([5, 4], gap="large")
+    with brand:
+        _brand_panel()
+    with form:
+        with st.container(key="signin-card"):
+            _sign_in_form(known)
+        with st.container(key="signin-accounts"):
+            _accounts_panel()

@@ -147,10 +147,10 @@ def test_gate_blocks_until_persona_chosen():
     assert not at.exception, at.exception[0].value if at.exception else ""
 
     body = "\n".join(m.value for m in at.markdown)
-    assert "Who are you today?" in body, "the gate did not render"
+    assert "Sign in" in body or "not configured" in body, "the gate did not render"
     assert "Finance, taught." in body
     assert not at.title, "no page title should render behind the gate"
-    assert any("Continue as" in b.label for b in at.button), "no persona buttons"
+    assert "Demo accounts" in body or "not configured" in body
 
 
 @pytest.mark.slow
@@ -173,19 +173,20 @@ def test_gate_passes_once_persona_set():
     assert "ident-who" in body, "the identity readout should be in the header"
 
 
-@pytest.mark.slow
-def test_passcode_absent_means_no_prompt():
-    """An unset FINTOR_PASSCODE must not lock anyone out of their own checkout."""
-    import os
+def test_the_dead_passcode_setting_is_gone():
+    """FINTOR_PASSCODE was the old shared gate. The username+password sign-in
+    replaced it and nothing read it any more - but it was still a documented
+    setting, so an operator could set it, believe the app was protected, and be
+    wrong. A security control that silently does nothing is worse than none.
+    """
+    from src.core.config import Settings, load_settings
 
-    os.environ["FINTOR_OFFLINE"] = "1"
-    os.environ.pop("FINTOR_PASSCODE", None)
-    from streamlit.testing.v1 import AppTest
-
-    at = AppTest.from_file(str(APP), default_timeout=300)
-    at.run()
-    assert not at.exception, at.exception[0].value if at.exception else ""
-    assert not at.text_input, "no passcode field should render when none is configured"
+    assert not hasattr(load_settings(), "passcode")
+    assert "passcode" not in {f for f in Settings.__dataclass_fields__}
+    for path in (ROOT / "src").rglob("*.py"):
+        assert "FINTOR_PASSCODE" not in path.read_text(encoding="utf-8"), \
+            f"{path.name} still reads the removed passcode"
+    assert "FINTOR_PASSCODE" not in (ROOT / ".env.example").read_text(encoding="utf-8")
 
 
 @pytest.mark.slow
@@ -285,7 +286,7 @@ def test_gate_does_not_build_the_container():
     at.run()
     assert not at.exception, at.exception[0].value if at.exception else ""
     body = "\n".join(m.value for m in at.markdown)
-    assert "Who are you today?" in body, "gate did not render with the container disabled"
+    assert "Finance, taught." in body, "gate did not render with the container disabled"
 
 
 # --- the workspace is a workspace, not a document -----------------------
@@ -500,3 +501,21 @@ def test_the_gate_wordmark_follows_the_theme_without_a_rerun():
     which goes through <img> and needs two files plus a rerun to swap."""
     src = (ROOT / "src" / "web_app" / "gate.py").read_text(encoding="utf-8")
     assert 'logo_svg(ink="currentColor")' in src
+
+
+def test_the_sign_in_screen_hides_the_stale_top_nav():
+    """On sign-out the script reruns, the gate calls st.stop() before
+    st.navigation(), and Streamlit never sends an update to clear the tabs the
+    previous run painted - so the app's navigation sits above the login screen.
+
+    It is cosmetic, not a bypass: clicking a stale tab renders no page because
+    st.stop() still runs. But a login screen wearing the app's nav implies you
+    are already half way in, so the gate hides it.
+    """
+    from src.web_app.gate import GATE_CHROME_CSS
+
+    assert "stTopNavLinkContainer" in GATE_CHROME_CSS
+    assert "stTopNavSection" in GATE_CHROME_CSS
+    assert "stLogoLink" in GATE_CHROME_CSS
+    assert "stToolbar" not in GATE_CHROME_CSS, \
+        "leave the toolbar alone - the theme switcher lives there"

@@ -115,11 +115,14 @@ def header(group: str, title: str) -> None:
                     unsafe_allow_html=True,
                 )
         with switch:
-            # Clears identity only. The per-persona transcript and the checkpointer
-            # thread survive, so coming back restores the conversation rather than
-            # starting over - which is the durable-state feature made visible.
-            if st.button("Switch", key="chrome_switch", width="stretch",
-                         help="Return to the sign-in screen and choose another persona"):
+            # "Sign out", not "Switch": clearing persona_id returns you to the
+            # sign-in screen, and you have to authenticate again to get back in.
+            # Identity only, though - the per-persona transcript and the
+            # checkpointer thread survive, so signing back in restores the
+            # conversation rather than starting over, which is the durable-state
+            # feature made visible.
+            if st.button("Sign out", key="chrome_switch", width="stretch",
+                         help="Return to the sign-in screen"):
                 st.session_state.pop("persona_id", None)
                 st.session_state.pop("last_result", None)
                 st.rerun()

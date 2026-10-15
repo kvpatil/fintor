@@ -121,140 +121,101 @@ h1 { font-size: 1.72rem; }
 .fin-persona b { font-size: 0.96rem; }
 .fin-persona span { color: var(--fin-muted); font-size: var(--fs-sm); }
 
-/* ---- entry gate ---- */
-/* .gate-wrap is a no-op for layout - Streamlit's columns render outside it.
-   The real constraint is --fin-measure on stMainBlockContainer above, which
-   gate.render() widens to --fin-measure-gate for its own render. */
-.gate-wrap { margin: 0 auto; }
-.gate-logo { margin: 18px 0 2px; color: var(--fin-ink); }
-.gate-logo svg { height: 42px; width: auto; }
+/* ---- sign-in screen ----
+   Two panels: brand on the left, the form and the demo accounts on the right.
+   .gate-wrap is gone - Streamlit renders its columns outside any HTML we emit,
+   which is why that wrapper never constrained anything. */
+.signin-brand { padding: 8px 0 0; }
+.gate-logo { margin: 8px 0 14px; color: var(--fin-ink); }
+.gate-logo svg { height: 54px; width: auto; }
 .gate-tagline {
   font-family: "Fintor Serif", Georgia, serif;
-  font-size: 1.55rem; font-weight: 700; letter-spacing: -0.015em;
-  margin: 2px 0 6px;
+  font-size: 1.9rem; font-weight: 700; letter-spacing: -0.015em;
+  margin: 2px 0 8px;
 }
-/* No reading measure on these two. They are a display subline and a legal
-   line that bracket the card grid, and a 60ch cap set them 555px wide above a
-   960px grid - the ragged edge is what made the screen look unfinished. The
-   100ch cap only stops an absurd line on a very wide monitor. */
-.gate-subline { color: var(--fin-muted); max-width: 100ch; margin: 0 0 26px; }
+.gate-subline {
+  color: var(--fin-muted); max-width: 54ch; margin: 0 0 26px;
+  font-size: 1.02rem; line-height: 1.55;
+}
+.signin-pillar {
+  display: grid; grid-template-columns: 10.5rem 1fr; gap: 0.75rem;
+  padding: 9px 0; border-top: 1px solid var(--fin-line);
+  font-size: var(--fs-sm);
+}
+.signin-pillar b { color: var(--fin-ink); font-weight: 600; }
+.signin-pillar span { color: var(--fin-muted); }
+
 .gate-ask {
   font-size: var(--fs-xs); letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--fin-accent); margin: 10px 0 10px;
+  color: var(--fin-accent); margin: 0 0 12px;
 }
 
-/* ---- persona tiles ----
-   One selectable unit, not a card with a button under it. The border, ground
-   and radius live on the KEYED CONTAINER (st.container(key=...) emits
-   st-key-*), because Streamlit renders its elements outside any HTML we emit -
-   the same reason .gate-wrap above has never constrained anything. */
-/* Equal-height tiles across a row. Measured: Sam's headline wraps to two lines,
-   making his tile 229px against his neighbours' 208px, so his action bar sat
-   21px lower. The row is already flex/stretch - the blocker is that
-   [data-testid="stColumn"] is display:block, so a stretched column still gives
-   its child a content height. Scoped with :has() to the gate's own rows; the
-   workspace main/rail columns must keep Streamlit's default behaviour. */
-[data-testid="stHorizontalBlock"]:has([class*="st-key-gate-tile-"]) [data-testid="stColumn"],
-[data-testid="stHorizontalBlock"]:has([class*="st-key-gate-tile-"]) [data-testid="stColumn"] > *,
-[data-testid="stHorizontalBlock"]:has([class*="st-key-gate-tile-"]) [data-testid="stLayoutWrapper"] {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-[class*="st-key-gate-tile-"] {
-  /* flex:1, not height:100% - the two wrapper divs Streamlit puts between the
-     column and the tile are auto-height, so a percentage had nothing to
-     resolve against and the tile kept sizing to its content. */
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+/* The form card. Keyed container rather than a wrapper div, for the reason
+   above - st.container(key=...) emits a st-key-* class we can target. */
+.st-key-signin-card {
   border: 1px solid var(--fin-line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--fin-paper);
-  overflow: hidden;
-  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+  padding: 20px 22px 18px;
 }
-/* Collapse Streamlit's 16px inter-element gap so the card and its action bar
-   touch and read as one object. */
-/* The keyed class lands ON the vertical block, so this is the tile itself, not
-   a descendant - collapse Streamlit's 16px inter-element gap here. */
-[class*="st-key-gate-tile-"] { gap: 0; }
-/* The card absorbs the slack so the action bar sits on the floor of the tile.
-   Without this the tile stretched but the bar stayed at the card's natural
-   height, leaving a strip of empty card below it. */
-[class*="st-key-gate-tile-"] > [data-testid="stElementContainer"]:first-child {
-  flex: 1 1 auto;
-}
-[class*="st-key-gate-tile-"] > [data-testid="stElementContainer"]:first-child
-  [data-testid="stMarkdownContainer"],
-[class*="st-key-gate-tile-"] > [data-testid="stElementContainer"]:first-child
-  [data-testid="stMarkdown"] {
-  height: 100%;
-}
-[class*="st-key-gate-tile-"] > [data-testid="stElementContainer"]:last-child {
-  flex: 0 0 auto;
-}
-[class*="st-key-gate-tile-"]:hover {
-  border-color: var(--fin-accent);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 10px rgba(23, 33, 29, 0.07);
-}
-[class*="st-key-gate-tile-"] .gate-card {
-  border: none; background: none; margin: 0; border-radius: 0;
-  height: 100%;
-}
-/* The action bar: the affordance the white 400-weight button never had. */
-[class*="st-key-gate-tile-"] .stButton > button {
-  width: 100%;
-  border: none;
-  border-radius: 0;
+.st-key-signin-card .stButton > button,
+.st-key-signin-card [data-testid="stFormSubmitButton"] > button {
   background: var(--fin-accent);
-  color: var(--fin-paper);
-  font-weight: 600;
+  border: none;
+  border-radius: 8px;
   padding: 10px 14px;
-  justify-content: space-between;
+  margin-top: 4px;
 }
-[class*="st-key-gate-tile-"] .stButton > button::after {
-  /* The literal glyph, not a CSS hex escape. This CSS lives in a plain
-     Python triple-quoted string, where a backslash-digit sequence is read
-     as OCTAL before CSS ever sees it - the escape form rendered the button
-     label as the text 92. Two escaping layers for one character is a bad
-     trade; the glyph has no such problem. */
-  content: "→";
-  font-weight: 400;
-}
-/* Colour AND weight on the <p>, not just the button. Streamlit styles the
-   inner paragraph directly, and a direct declaration on the child beats an
-   inherited one - the same trap that left the active nav tab at 2.74:1. */
-[class*="st-key-gate-tile-"] .stButton > button p {
+/* Colour and weight on the inner <p>, not the button: Streamlit styles that
+   element directly, and a direct declaration on a child beats an inherited one
+   - the same trap that left the active nav tab at 2.74:1. */
+.st-key-signin-card [data-testid="stFormSubmitButton"] > button p,
+.st-key-signin-card .stButton > button p {
   color: var(--fin-paper) !important;
   font-weight: 600 !important;
 }
-[class*="st-key-gate-tile-"] .stButton > button:hover { filter: brightness(1.08); }
-[class*="st-key-gate-tile-"] .stButton > button:focus-visible {
-  outline: 2px solid var(--fin-ink); outline-offset: -3px;
+.signin-help {
+  font-size: var(--fs-sm); color: var(--fin-muted); margin: 8px 0 0;
+  line-height: 1.5;
+}
+.signin-help code, .signin-account code {
+  font-size: 0.86em; padding: 1px 5px; border-radius: 4px;
+  background: var(--fin-note-ground); color: var(--fin-ink);
 }
 
-.gate-card {
-  padding: 14px 15px 12px;
-  min-height: 160px;
-  display: flex; flex-direction: column;
+/* The demo accounts, listed so the journeys are visible before you pick one. */
+.st-key-signin-accounts { margin-top: 18px; }
+.signin-account {
+  border-top: 1px solid var(--fin-line);
+  padding: 10px 0 9px;
 }
-/* Push the figures to the bottom so every card's rule line agrees, however
-   many lines the headline takes. */
-.gate-card .gate-nums { margin-top: auto; }
-.gate-name { font-family: "Fintor Serif", Georgia, serif; font-size: 1.1rem; font-weight: 700; margin: 0; }
-.gate-head { margin: 2px 0 8px; font-size: var(--fs-md); }
-.gate-meta { color: var(--fin-muted); font-size: var(--fs-sm); margin: 0 0 10px; }
-.gate-nums {
-  display: flex; gap: 14px; margin: 0; font-size: var(--fs-sm); color: var(--fin-muted);
-  font-variant-numeric: tabular-nums lining-nums;
-  border-top: 1px solid var(--fin-line); padding-top: 8px;
+.signin-account:first-of-type { border-top: none; }
+.signin-account-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
-.gate-nums b { color: var(--fin-ink); font-weight: 650; }
-.gate-foot { color: var(--fin-muted); font-size: var(--fs-sm); margin: 22px 0 0; max-width: 100ch; }
-
+.signin-account-name { font-weight: 600; color: var(--fin-ink); }
+.signin-account-nums {
+  margin-left: auto; color: var(--fin-muted); font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums lining-nums; white-space: nowrap;
+}
+.signin-account-head-line {
+  margin: 3px 0 2px; font-size: var(--fs-sm); color: var(--fin-muted);
+}
+.signin-account-journey {
+  margin: 0; font-size: var(--fs-sm); color: var(--fin-ink);
+  font-family: "Fintor Serif", Georgia, serif; font-style: italic;
+}
+/* Marks a question two personas share. Without it the repeat reads as a
+   mistake instead of as the comparison it is. */
+.signin-echo {
+  display: block; font-family: "Inter Tight", system-ui, sans-serif;
+  font-style: normal; font-size: var(--fs-xs); color: var(--fin-accent);
+  margin-top: 2px;
+}
+.gate-foot {
+  color: var(--fin-muted); font-size: var(--fs-sm); margin: 18px 0 0;
+  max-width: 100ch; border-top: 1px solid var(--fin-line); padding-top: 12px;
+}
 
 /* Reference pages are read, not scanned, so they take a narrower measure.
    Headings and figures stay full width; only running text is constrained. */
