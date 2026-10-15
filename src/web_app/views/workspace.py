@@ -7,13 +7,16 @@ the maths that justifies it.
 from __future__ import annotations
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
+from src.core.market_calc import (
+    correlation_matrix, max_drawdown, moving_average, period_return, rebase, volatility,
+)
 from src.core.quant import (
     class_weights, concentration_flags, diversification_score, portfolio_value, project_goal,
     risk_score, weights,
 )
+from src.web_app import charts
 from src.web_app.components import data_status_chip, persona_line
 from src.web_app.state import active_persona, get_deps
 
@@ -34,18 +37,26 @@ def portfolio() -> None:
                 "a deliberate starting point. Try another persona to see a funded portfolio.")
         return
 
-    quotes = deps.market.quotes([h.symbol for h in persona.holdings])
+    symbols = [h.symbol for h in persona.holdings]
+    quotes = deps.market.quotes(symbols)
     total, unpriced = portfolio_value(persona.holdings, quotes, persona.cash)
     w = weights(persona.holdings, quotes, persona.cash)
     div = diversification_score(persona.holdings, w)
     risk, label = risk_score(persona.holdings, w)
 
     st.markdown(data_status_chip(deps.market.last_status.value), unsafe_allow_html=True)
+
+    # The total is a hero figure rather than a number in the middle of a donut:
+    # it is the one number this page leads with.
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total value", f"${total:,.0f}")
     c2.metric("Diversification", f"{div}/100")
     c3.metric("Risk score", f"{risk}/100", label)
     c4.metric("Stated tolerance", persona.risk_tolerance)
+
+    st.markdown("###### Allocation")
+    st.plotly_chart(charts.allocation_bar(class_weights(persona.holdings, w)),
+                    width="stretch", config={"displayModeBar": False})
 
     rows = [{
         "symbol": h.symbol, "shares": h.shares, "class": h.asset_class,
@@ -56,11 +67,20 @@ def portfolio() -> None:
                  column_config={"weight %": st.column_config.ProgressColumn(
                      "weight %", min_value=0.0, max_value=100.0, format="%.1f%%")})
 
-    cls = class_weights(persona.holdings, w)
-    fig = px.pie(names=list(cls.keys()), values=list(cls.values()), hole=0.55,
-                 color_discrete_sequence=px.colors.sequential.Teal)
-    fig.update_layout(height=320, margin=dict(t=10, b=10, l=10, r=10), showlegend=True)
-    st.plotly_chart(fig, width="stretch")
+    # --- the figure ClarityFI has no equivalent of ------------------------
+    histories = {}
+    for symbol in symbols[:6]:
+        series, _status = deps.market.history(symbol, "6mo")
+        if len(series) > 20:
+            histories[symbol] = [price for _date, price in series]
+    names, matrix = correlation_matrix(histories)
+    if len(names) >= 2:
+        st.markdown("###### How these holdings move together")
+        st.caption("Pairwise correlation of daily returns over six months. Diversification "
+                   "comes from combining holdings that do **not** move together, so a block "
+                   "of dark blue is concentration that the weights alone do not show.")
+        st.plotly_chart(charts.correlation_heatmap(names, matrix),
+                        width="stretch", config={"displayModeBar": False})
 
     for flag in concentration_flags(persona.holdings, w):
         st.warning(flag)
@@ -83,21 +103,45 @@ def market() -> None:
         cols[i % len(cols)].metric(sym, f"${q.price:,.2f}",
                                    f"{q.change_pct:+.2f}%" if q.change_pct is not None else None)
 
-    chart_for = st.selectbox("Price history", symbols, index=0)
-    period = st.radio("Period", ["1mo", "3mo", "6mo", "1y"], index=2, horizontal=True)
+    left, right = st.columns([2, 1])
+    chart_for = left.selectbox("Price history", symbols, index=0)
+    period = right.radio("Period", ["1mo", "3mo", "6mo", "1y"], index=2, horizontal=True)
     rows, status = deps.market.history(chart_for, period)
-    if rows:
-        df = pd.DataFrame(rows, columns=["date", "close"])
-        fig = px.line(df, x="date", y="close", color_discrete_sequence=["#1f6f5c"])
-        fig.update_layout(height=340, margin=dict(t=10, b=10, l=10, r=10),
-                          yaxis_title=None, xaxis_title=None)
-        st.plotly_chart(fig, width="stretch")
-        first, last = rows[0][1], rows[-1][1]
-        m1, m2, m3 = st.columns(3)
-        m1.metric(f"{period} change", f"{100.0 * (last - first) / first:+.2f}%")
-        m2.metric("Period low", f"${min(r[1] for r in rows):,.2f}")
-        m3.metric("Period high", f"${max(r[1] for r in rows):,.2f}")
-        st.markdown(data_status_chip(status.value), unsafe_allow_html=True)
+    if not rows:
+        return
+
+    dates = [d for d, _ in rows]
+    closes = [p for _, p in rows]
+
+    st.plotly_chart(
+        charts.price_with_averages(dates, closes, moving_average(closes, 20),
+                                   moving_average(closes, 50), label=chart_for),
+        width="stretch", config={"displayModeBar": False})
+
+    # Stat tiles: a handful of headline numbers is a KPI row, not a chart.
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(f"{period} change", f"{period_return(closes):+.2f}%")
+    m2.metric("Largest drop", f"-{max_drawdown(closes):.1f}%",
+              help="Worst peak-to-trough decline in the window")
+    m3.metric("Range", f"${min(closes):,.2f} – ${max(closes):,.2f}")
+    if len(closes) >= 10:
+        m4.metric("Volatility", f"{volatility(closes):.1f}%", help="Annualised")
+    st.markdown(data_status_chip(status.value), unsafe_allow_html=True)
+
+    # --- rebased comparison: one axis, never two ---------------------------
+    bench = st.selectbox("Compare with", ["SPY", "QQQ", "VTI", "BND"], index=0)
+    if bench != chart_for:
+        brows, _ = deps.market.history(bench, period)
+        n = min(len(rows), len(brows))
+        if n > 5:
+            st.markdown("###### Indexed comparison")
+            st.caption(f"Both series start at 100 on the same day, so {chart_for} and {bench} "
+                       "are comparable on one axis despite different prices.")
+            st.plotly_chart(
+                charts.rebased_comparison(
+                    dates[-n:],
+                    {chart_for: rebase(closes[-n:]), bench: rebase([p for _, p in brows[-n:]])}),
+                width="stretch", config={"displayModeBar": False})
 
 
 def goals() -> None:
@@ -120,11 +164,9 @@ def goals() -> None:
     m3.metric("Monthly needed", f"${central['monthly_needed']:,.0f}")
 
     st.dataframe(pd.DataFrame(proj["scenarios"]), hide_index=True, width="stretch")
-    path = pd.DataFrame(proj["yearly_path"], columns=["year", "value"])
-    fig = px.area(path, x="year", y="value", color_discrete_sequence=["#1f6f5c"])
-    fig.add_hline(y=target, line_dash="dash", annotation_text="target")
-    fig.update_layout(height=340, margin=dict(t=10, b=10, l=10, r=10),
-                      yaxis_title=None, xaxis_title="years")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(
+        charts.projection_area([y for y, _ in proj["yearly_path"]],
+                               [v for _, v in proj["yearly_path"]], target),
+        width="stretch", config={"displayModeBar": False})
     for note in proj["assumptions"]:
         st.caption(f"• {note}")

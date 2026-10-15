@@ -382,3 +382,124 @@ def test_serif_family_avoids_streamlit_collision():
     assert "Source Serif 4" not in families, "this name collides and gets dropped"
     assert "Fintor Serif" in families
     assert "Fintor Serif" in CSS, "the CSS must reference the aliased name"
+
+
+# --- charts -------------------------------------------------------------
+
+
+def test_views_never_build_a_figure_directly():
+    """One factory, or the pages drift off the palette.
+
+    A page that calls px./go.Figure itself loses the validated hues, the tabular
+    axis labels, and the recessive grid - and reintroduces default Plotly blue.
+    """
+    import ast
+
+    offenders = []
+    for path in (ROOT / "src" / "web_app" / "views").glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                if node.value.id in {"px", "go"}:
+                    offenders.append(f"{path.name}:{node.lineno} {node.value.id}.{node.attr}")
+    assert not offenders, "figures built outside charts.py: " + ", ".join(offenders)
+
+
+def test_chart_palette_is_the_validated_order():
+    """These exact hues passed scripts/validate_palette.js on Fintor's surfaces.
+
+    Reordering changes which pairs are adjacent, which is what the CVD check
+    measures - so the order is part of the validated artefact, not a preference.
+    """
+    from src.web_app.charts import SERIES_DARK, SERIES_LIGHT
+
+    assert SERIES_LIGHT[:3] == ["#2a78d6", "#eb6834", "#1baf7a"]
+    assert SERIES_DARK[:3] == ["#3987e5", "#d95926", "#199e70"]
+    assert len(SERIES_LIGHT) == len(SERIES_DARK) == 8
+
+
+def test_diverging_scale_has_a_neutral_midpoint():
+    """Zero correlation must read as "nothing", not as a third category."""
+    from src.web_app.charts import DIVERGING
+
+    midpoint = [c for stop, c in DIVERGING if stop == 0.5][0]
+    r, g, b = (int(midpoint[i:i + 2], 16) for i in (1, 3, 5))
+    assert max(r, g, b) - min(r, g, b) < 12, f"{midpoint} is not neutral"
+
+
+def test_charts_render_without_error():
+    """Smoke: every factory function produces a figure from plausible data."""
+    from src.web_app import charts
+
+    dates = [f"d{i}" for i in range(60)]
+    closes = [100 + i * 0.5 for i in range(60)]
+    from src.core.market_calc import moving_average
+
+    assert charts.allocation_bar({"equity": 60.0, "bond": 30.0, "cash": 10.0}).data
+    assert charts.price_with_averages(dates, closes, moving_average(closes, 20),
+                                      moving_average(closes, 50)).data
+    assert charts.rebased_comparison(dates, {"A": closes, "B": closes}).data
+    assert charts.projection_area([0, 1, 2], [100.0, 200.0, 300.0], 250.0).data
+    assert charts.correlation_heatmap(["AAA", "BBB"], [[1.0, 0.4], [0.4, 1.0]]).data
+
+
+def test_no_chart_paints_an_opaque_background():
+    """Charts inherit the page surface; a white box would break dark mode."""
+    from src.web_app import charts
+
+    fig = charts.projection_area([0, 1], [1.0, 2.0], 1.5)
+    assert fig.layout.paper_bgcolor == "rgba(0,0,0,0)"
+    assert fig.layout.plot_bgcolor == "rgba(0,0,0,0)"
+
+
+def test_allocation_uses_only_the_validated_four_hues():
+    """scripts/validate_palette.js --pairs all: blue/orange/aqua/violet passes on
+    #fbfaf7; every five-hue set tried FAILS the normal-vision floor (magenta vs
+    orange at dE 12.9, below 15). That is a hard fail - direct labels do not
+    excuse it - so the chart caps at four and folds the rest."""
+    from src.web_app.charts import ALLOCATION_HUES, MAX_CLASSES, fold_to_max_classes
+
+    assert ALLOCATION_HUES == ["#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7"]
+    assert MAX_CLASSES == 4
+
+    five = {"a": 40.0, "b": 25.0, "c": 20.0, "d": 10.0, "e": 5.0}
+    folded = fold_to_max_classes(five)
+    assert len(folded) == 4, "must never exceed the validated hue count"
+    assert folded["other"] == 15.0, "the tail is summed, not dropped"
+    assert sum(folded.values()) == sum(five.values()), "folding must conserve the total"
+
+
+def test_other_is_neutral_not_a_fifth_hue():
+    """"Other" is a bucket, not an identity; a categorical hue would make it
+    read as a competing class."""
+    from src.web_app.charts import ALLOCATION_HUES, OTHER_HUE, hue_for_class
+
+    assert OTHER_HUE not in ALLOCATION_HUES
+    assert hue_for_class("other") == OTHER_HUE
+    r, g, b = (int(OTHER_HUE[i:i + 2], 16) for i in (1, 3, 5))
+    assert max(r, g, b) - min(r, g, b) < 20, "the other bucket should be neutral"
+
+
+def test_hue_follows_the_entity_not_its_rank():
+    """Colour must identify the asset class, not its position in the sort.
+
+    Assigning by rank means re-weighting a portfolio repaints the classes, and
+    "the blue one" means something different on every persona.
+    """
+    from src.web_app.charts import hue_for_class
+
+    assert hue_for_class("equity") != hue_for_class("bond")
+
+    big = {"equity": 70.0, "bond": 30.0}
+    small = {"equity": 20.0, "bond": 80.0}
+
+    from src.web_app.charts import allocation_bar
+    hues_big = {tr.name: tr.marker.color for tr in allocation_bar(big).data}
+    hues_small = {tr.name: tr.marker.color for tr in allocation_bar(small).data}
+    assert hues_big == hues_small, "re-weighting repainted the classes"
+
+
+def test_unknown_asset_class_falls_back_to_the_neutral():
+    from src.web_app.charts import OTHER_HUE, hue_for_class
+
+    assert hue_for_class("something_new") == OTHER_HUE
