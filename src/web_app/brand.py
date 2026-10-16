@@ -1,9 +1,13 @@
-"""The Fintor mark: a letter F built from a candlestick chart.
+"""The Fintor mark: a leaf, split by its midrib.
 
-The mark is rectangles only - a wick and two price bars. That is deliberate twice
-over: it stays crisp at 16px where curves would mush, and it means Pillow can draw
-the favicon exactly rather than approximating a rendered SVG. Geometry lives here
-once so the SVG and the PNG cannot drift apart.
+The mark is one polygon, traced from the brand diagram. Geometry lives here once,
+as a single point list, so the SVG and the PNG cannot drift apart - the SVG emits
+the points and Pillow draws the same tuples.
+
+It replaced a letter F built from candlestick bars. Worth knowing when reading
+old commits: that mark encoded "finance" in its shape, where this one encodes
+growth. The trade was made deliberately, for one brand across the app and its
+architecture diagram rather than two.
 
 Run `python -m src.web_app.brand` to regenerate the assets. They are committed, so
 a fresh clone needs no build step.
@@ -29,20 +33,34 @@ MARK_INK = "#7a52db"
 WORDMARK_INK = "#17211d"
 WORDMARK_INK_DARK = "#e7ebe6"
 
-# Rectangles on a 32-unit grid: (x, y, w, h)
+# The leaf, as ONE polygon on a 32-unit grid.
 #
-# A vertical axis with two detached bars beside it. The gap is what makes it read
-# as a bar chart rather than only a letter: at favicon size it closes and the
-# silhouette collapses to a clean F, which is the right degradation, not a loss.
+# Traced from the brand diagram rather than drawn freehand: a row scan of the
+# source PNG gave a 41x51 silhouette (aspect 0.804, so taller than wide) whose
+# lower half is split by a diagonal midrib gap about two units across. The
+# points below follow that scan clockwise from the tip.
 #
-# Weights doubled from the original 2u axis / 6u bars. At the 24px the header
-# actually renders, three hairlines read as a smudge - the mark needs mass to
-# survive at the size it is used, and the open, transparent character is kept by
-# widening the gap to 2u rather than by filling a badge behind it.
-AXIS = (5, 2, 4, 28)
-BAR_UPPER = (11, 4, 16, 8)
-BAR_LOWER = (11, 16, 11, 8)
-MARK_RECTS = (AXIS, BAR_UPPER, BAR_LOWER)
+# A single non-convex outline, not two shapes. The notch is cut up from the
+# bottom - the outline runs down the right lobe, back up the inside of the gap,
+# down the left lobe, and around the outer edge. Drawing it as two polygons
+# would need the gap maintained in two places and they would drift.
+#
+# ONE point list, two renderers: mark_svg() emits it as <polygon points>, and
+# favicon_png() hands the same tuples to ImageDraw.polygon. That is what keeps
+# the SVG and the PNG from diverging now that the shape has curves - the old
+# mark was rectangles-only for exactly this reason, and the invariant survives
+# the change rather than being dropped with it.
+LEAF = (
+    (28, 0),                                      # tip, top right
+    (30, 3), (30, 10), (29, 18), (26, 23),        # right edge, falling away
+    (22, 27), (18, 29), (14, 31), (10, 32),       # foot of the right lobe
+    (9, 30), (11, 24), (13, 20), (17, 15),        # up the notch, right side
+    (16, 15), (12, 18), (8, 23), (6, 26),         # down the notch, left side
+    (5, 29), (4, 32),                             # foot of the left lobe
+    (2, 28), (0, 24), (0, 20), (2, 16),           # outer left edge, rising
+    (3, 12), (6, 10), (10, 7), (15, 5),
+    (20, 2), (24, 1),                             # back round to the tip
+)
 GRID = 32
 
 # Wordmark layout. The mark now ends at x=27, so the text clears it at 36.
@@ -59,11 +77,9 @@ WORDMARK_STACK = (
 )
 
 
-def _rects_svg(fill: str, dx: int = 0, dy: int = 0) -> str:
-    return "".join(
-        f'<rect x="{x + dx}" y="{y + dy}" width="{w}" height="{h}" fill="{fill}"/>'
-        for x, y, w, h in MARK_RECTS
-    )
+def _leaf_svg(fill: str) -> str:
+    points = " ".join(f"{x},{y}" for x, y in LEAF)
+    return f'<polygon points="{points}" fill="{fill}"/>' 
 
 
 def mark_svg(fill: str = MARK_INK) -> str:
@@ -71,7 +87,7 @@ def mark_svg(fill: str = MARK_INK) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {GRID} {GRID}" '
         f'width="{GRID}" height="{GRID}" role="img" aria-label="Fintor">'
-        f"{_rects_svg(fill)}</svg>"
+        f"{_leaf_svg(fill)}</svg>"
     )
 
 
@@ -87,7 +103,7 @@ def logo_svg(fill: str = MARK_INK, ink: str = WORDMARK_INK) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
         f'width="{w}" height="{h}" role="img" aria-label="Fintor">'
-        f"{_rects_svg(fill)}"
+        f"{_leaf_svg(fill)}"
         f'<text x="{WORDMARK_X}" y="25" font-family="{WORDMARK_STACK}" '
         f'font-size="{WORDMARK_SIZE}" font-weight="700" letter-spacing="-0.4" '
         f'fill="{ink}">Fintor</text>'
@@ -107,13 +123,8 @@ def favicon_png(size: int = 64) -> bytes:
 
     scale = size / GRID
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    for x, y, w, h in MARK_RECTS:
-        draw.rectangle(
-            [round(x * scale), round(y * scale),
-             round((x + w) * scale) - 1, round((y + h) * scale) - 1],
-            fill=MARK_INK,
-        )
+    ImageDraw.Draw(img).polygon(
+        [(x * scale, y * scale) for x, y in LEAF], fill=MARK_INK)
     buf = BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()

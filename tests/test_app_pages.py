@@ -117,13 +117,20 @@ def test_brand_assets_exist_and_are_committed():
 
 
 def test_favicon_matches_the_svg_geometry():
-    """The PNG and the SVG are generated from one geometry constant, so a change to
-    the mark cannot update one and leave the other behind."""
-    from src.web_app.brand import MARK_RECTS, favicon_png, mark_svg
+    """The PNG and the SVG come from one point list, so a change to the mark
+    cannot update one renderer and leave the other behind.
+
+    This used to compare rectangles. The mark is a leaf now, with curves, and
+    the easy thing would have been to delete the check along with the rects -
+    but the invariant it protects is renderer agreement, not rectangles, and
+    that still holds: the SVG emits LEAF as `points`, Pillow draws the same
+    tuples.
+    """
+    from src.web_app.brand import LEAF, favicon_png, mark_svg
 
     svg = mark_svg()
-    for x, y, w, h in MARK_RECTS:
-        assert f'x="{x}" y="{y}" width="{w}" height="{h}"' in svg
+    for x, y in LEAF:
+        assert f"{x},{y}" in svg, f"point ({x},{y}) is missing from the SVG"
     assert favicon_png(32)[:8] == b"\x89PNG\r\n\x1a\n"
 
 
@@ -455,23 +462,52 @@ def test_the_generated_graph_is_laid_out_horizontally():
 # --- the mark has to survive at the size it is used ------------------------
 
 
+def _render_mark(size: int = 32):
+    """The mark as a boolean grid, drawn exactly as favicon_png draws it."""
+    from PIL import Image, ImageDraw
+
+    from src.web_app.brand import GRID, LEAF
+
+    scale = size / GRID
+    img = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(img).polygon([(x * scale, y * scale) for x, y in LEAF], fill=255)
+    return [[img.getpixel((x, y)) > 127 for x in range(size)] for y in range(size)]
+
+
 def test_the_mark_has_enough_weight_to_read_small():
-    """It renders at 34px in a 60px header, and before this at 24px. Three
-    2-unit hairlines on a 32-unit grid read as a smudge at that size."""
-    from src.web_app.brand import AXIS, BAR_LOWER, BAR_UPPER
+    """It renders at 34px in the header and 24px before that. The old version
+    of this test asserted stem and bar widths, which mean nothing for a leaf -
+    but what those numbers were really protecting is that the mark has enough
+    mass to survive at the size it is actually used. Ink coverage says the same
+    thing about any shape.
+    """
+    grid = _render_mark(32)
+    ink = sum(row.count(True) for row in grid)
+    coverage = ink / (32 * 32)
+    assert coverage >= 0.35, f"the mark covers {coverage:.0%}; it will read as a smudge"
+    assert coverage <= 0.85, f"the mark covers {coverage:.0%}; it is a blob, not a mark"
 
-    assert AXIS[2] >= 4, f"the stem is {AXIS[2]}u wide; it disappears at 24px"
-    for bar in (BAR_UPPER, BAR_LOWER):
-        assert bar[3] >= 8, f"a {bar[3]}u bar is too thin to carry the mark"
 
+def test_the_midrib_gap_survives_at_favicon_size():
+    """The gap is what makes it a leaf rather than a blob. It is the first
+    feature to close when the shape is scaled down, so it is checked at the
+    smallest size the app actually renders.
 
-def test_the_bars_stay_detached_from_the_stem():
-    """The gap is what makes it a bar chart rather than only a letter."""
-    from src.web_app.brand import AXIS, BAR_LOWER, BAR_UPPER
-
-    stem_right = AXIS[0] + AXIS[2]
-    for bar in (BAR_UPPER, BAR_LOWER):
-        assert bar[0] - stem_right >= 2, "the gap closed; it reads as a solid F"
+    A row crossing the shape four times means ink, gap, ink - the midrib.
+    """
+    for size in (32, 16):
+        grid = _render_mark(size)
+        split_rows = 0
+        for row in grid:
+            runs, prev = 0, False
+            for cell in row:
+                if cell and not prev:
+                    runs += 1
+                prev = cell
+            if runs >= 2:
+                split_rows += 1
+        assert split_rows >= 2, (
+            f"at {size}px no row shows a midrib gap; the leaf has closed into a blob")
 
 
 def test_a_dark_wordmark_is_committed_and_differs():
