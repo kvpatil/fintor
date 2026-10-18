@@ -7,6 +7,10 @@
 *.docx.pdf
 AI Finance Assistant - Problem Statement.docx.pdf
 
+# Demo video intermediates: the raw webm and the per-beat narration clips.
+# The finished docs/demo.mp4 is handled separately - see scripts/mux_demo.py.
+build/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -33,3 +37,7 @@ data/market/
 
 # src/data/kb/index/ IS committed on purpose: it lets graders and Cloud Run run
 # the app without re-embedding. See docs/design.md, section 4.
+
+# Coverage artefacts
+.coverage
+htmlcov/

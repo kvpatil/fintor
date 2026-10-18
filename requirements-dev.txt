@@ -1,0 +1,11 @@
+# Development-only. NOT part of the app's runtime contract - requirements.txt is
+# what the app needs to run, and adding these to it would make every deployment
+# download a browser it never uses.
+#
+#   pip install -r requirements-dev.txt
+#   playwright install chromium
+#
+# ffmpeg is also needed for scripts/mux_demo.py and is not a Python package:
+#   brew install ffmpeg
+
+playwright>=1.40          # records the demo walkthrough; see scripts/record_demo.py

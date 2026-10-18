@@ -1,0 +1,150 @@
+# Narration for the demo video. Text only - the driver in record_demo.py owns the
+# browser actions, and mux_demo.py owns the audio.
+#
+# Two rules the wording follows, both learned the hard way:
+#
+# 1. NEVER quote a number that comes out of a model. Live answers vary between
+#    takes, so "notice the sixty-five percent here" is a line that will be wrong
+#    on the take you keep. Figures are only quoted where they come from quant.py,
+#    which is deterministic.
+# 2. Short sentences. Alex is the oldest voice on the system and its age shows
+#    most on long unbroken clauses. Short lines also suit the register.
+#
+# LENGTH. The brief requires 5-10 minutes. Alex at 185 wpm runs about 2.6 words
+# per second, so the whole script needs roughly 1400 words to land near nine
+# minutes. The first draft came in at 610 words - four minutes - and had to be
+# doubled. Re-check with `record_demo.py --help`-free dry run after any edit;
+# it prints the total and warns if it falls outside the window.
+#
+# `pause_after` buys a beat of silence so the viewer can look at what was just
+# described. It is added to the measured clip length when the driver paces itself.
+
+voice = "Alex"
+rate = 185
+
+[[beat]]
+id = "01-signin"
+pause_after = 1.5
+text = """
+This is Fintor. A multi-agent finance assistant that explains rather than advises.
+It opens on a sign in screen, and that is not decoration. The account you choose is the single most important input to everything that follows.
+There are six readers. Maya is twenty four, with her first paycheck and nothing invested yet.
+Dev is thirty one, holding seventy percent of his portfolio in one employer stock after a public offering.
+Walter is sixty one and four years from retiring. Priya is saving for a house. Aisha holds crypto. Sam is optimising tax-advantaged accounts.
+Each card shows the question that reader actually asks. Two of them open with exactly the same question, and that is deliberate. Hold that thought.
+Sign in is real. Passwords are hashed with scrypt and compared in constant time, and if no password is configured the screen refuses everyone rather than waving them through.
+We will sign in as Dev.
+"""
+
+[[beat]]
+id = "02-first-answer"
+pause_after = 2.0
+text = """
+Every answer is built in the open, and you can watch it happen.
+A guard inspects the question first. Then a router decides which specialists should handle it.
+That router has three tiers. Tier one is regular expressions, which is free and instant. Tier two compares the question against intent centroids using embeddings, still with no model call. Only tier three asks a language model to classify, and most questions never reach it.
+The chosen agents run. Their findings are assembled into one answer, and then the whole thing is verified before you see it.
+Watch each step report itself as it completes.
+The answer that lands is grounded. Every claim traces back to a passage that was actually retrieved from the knowledge base.
+A citation that does not resolve to a real passage is stripped out rather than shown, and the number stripped is reported.
+Underneath the answer, chips tell you which router tier resolved it, which agents ran, and whether the data behind it was live or served from cache.
+"""
+
+[[beat]]
+id = "03-same-question"
+pause_after = 2.0
+text = """
+Now the part that matters most.
+We sign out, and sign back in as Walter.
+Walter is sixty one. Four years from retiring, holding mostly bonds, and describing himself as conservative.
+Dev is thirty one, aggressive, and concentrated in a single technology stock.
+We ask Walter the identical question Dev asked. Word for word. Should I buy more of this one stock.
+The agents are the same. The knowledge base is the same. The retrieval is the same. The only thing that has changed is who is asking.
+The persona sets a difficulty ceiling, which filters the corpus before ranking, so a beginner is never served an advanced passage.
+It sets the risk framing. It gives the agent a different portfolio to reason about. And it carries its own conversation thread, so each reader's history stays separate.
+Watch the answer change with the reader.
+"""
+
+[[beat]]
+id = "04-fanout"
+pause_after = 2.0
+text = """
+One question can need more than one specialist.
+This one asks about capital gains tax and about how an index is performing, in a single sentence.
+The router recognises both intents and fans out. The two agents run concurrently, not one after the other, using dynamic dispatch in the workflow graph.
+Each returns its own findings with its own citations.
+Those findings are merged into a single answer, and the citations are renumbered across the whole thing, so the result reads as one piece of writing rather than two responses stapled together.
+There are six specialists in total. Finance question answering, portfolio analysis, market data, tax education, goal planning, and news synthesis.
+The router picks only the ones a question actually needs, which is what keeps the cost down.
+"""
+
+[[beat]]
+id = "05-portfolio"
+pause_after = 2.0
+text = """
+The portfolio page computes in Python. The model never does the arithmetic.
+The total, the allocation across asset classes, and every holding with its weight.
+A diversification score, and a risk score computed from the asset mix, shown against the risk tolerance the reader claimed. When those two disagree, that is worth seeing.
+Where a concentration flag fires, it is stated plainly rather than buried.
+And underneath, the thing most tools in this category leave out entirely.
+This is a correlation matrix across the holdings. It asks a different question from the allocation chart.
+Allocation tells you what you own. Correlation tells you whether the things you own move together.
+Diversification does not come from owning several things. It comes from owning several things that do not move as one.
+A block of strong colour here is concentration that the weights alone will never show you.
+Every cell carries its number, so the reading never depends on colour alone, and the ramp is chosen so the label stays legible on every possible fill.
+"""
+
+[[beat]]
+id = "06-market"
+pause_after = 2.0
+text = """
+Market data is live, and keyless. No paid data vendor is required to run this.
+Prices are fetched on demand, and a visible marker always says whether what you are looking at is live, a saved copy, or the last known value.
+That matters more than it sounds. When a data source fails, this degrades through four stages rather than inventing a number or showing a blank.
+Price history, with twenty and fifty day moving averages drawn in grey as context, rather than as competing coloured lines. The price is the subject. The averages are reference.
+Change over the period. The largest peak to trough decline, which describes the experience of holding something better than volatility does. And annualised volatility itself.
+Then a comparison against a benchmark. Both series are indexed so they start at one hundred on the same day.
+That is deliberate. The alternative, a second vertical axis, is the single most common mistake in financial charting, because it lets either line be made to look like the winner just by choosing the scales.
+Indexing removes that choice.
+"""
+
+[[beat]]
+id = "07-goals"
+pause_after = 2.0
+text = """
+Goal planning. A target amount, what is already saved, what goes in each month, and an assumed annual return.
+The projection updates as those inputs change.
+It is compound arithmetic, not a simulation, and the page says so rather than implying more precision than it has.
+The dashed line is the target. Where the curve crosses it is the year the goal is met at this rate.
+The figures beside it say whether the plan is on track, and what monthly contribution would reach the target exactly.
+Underneath, the same plan run at two percentage points either side of the assumption.
+That table is the most important thing on this page. A single projection presented as a forecast is the most common way tools like this mislead people.
+Showing the spread makes the uncertainty visible instead of hiding it behind one confident-looking line.
+And the assumptions are listed out. Contributions at month end. A constant rate. No attempt to model the order returns arrive in, which changes the outcome even when the average is identical.
+"""
+
+[[beat]]
+id = "08-internals"
+pause_after = 2.0
+text = """
+All of that machinery is on screen rather than buried, and this page is where it lives.
+The routing decision, with the tier that resolved it and the signals that matched.
+The persona conditioning, including the difficulty ceiling and the conversation thread.
+A trace of the workflow graph, node by node, with the time each one took.
+Then retrieval. Every candidate passage, with its dense vector rank, its keyword rank, and the fused score that ordered them.
+Retrieval here is hybrid. Dense embeddings and classic keyword search run separately, then combine by reciprocal rank fusion.
+Keyword search alone misses paraphrases. Vectors alone miss exact terms, like a specific tax form number. Running both and fusing them covers each other's blind spots.
+Every model call is listed, with its token counts, its cost, and which cache tier served it.
+Ask the same question twice and the second one is served from disk at zero tokens and zero cost. There is an exact-match cache for completions, a separate one for embeddings, another for market data, and an offline mode that is never billed at all.
+And every run is traced to Langfuse, so a question answered last week can still be opened and inspected long after this session has ended.
+"""
+
+[[beat]]
+id = "09-close"
+pause_after = 1.0
+text = """
+The architecture diagrams are generated from the compiled workflow graph, so they cannot drift from the code that actually runs.
+Behind them sit the specifications, the governance skills, and a traceability matrix connecting each requirement to the code and the tests that satisfy it.
+Two hundred and thirty eight tests, all passing, offline and without touching a paid API.
+Fintor. Finance, taught.
+"""
