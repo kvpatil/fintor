@@ -204,8 +204,8 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 
 ## 5. Testing strategy
 
-47 tests. No network, no API spend — a session fixture replaces `socket.socket` so an
-accidental connection fails loudly instead of billing.
+254 tests, 73% line coverage. No network, no API spend — a session fixture replaces
+`socket.socket` so an accidental connection fails loudly instead of billing.
 
 | Layer | What is asserted |
 |---|---|
@@ -214,13 +214,59 @@ accidental connection fails loudly instead of billing.
 | Routing | 8 parametrized tier-1 cases, compound questions, comparison handling, all three tiers, fallback on tier-3 failure |
 | Workflow | Reducer merge, concurrency timing, citation renumbering, crisis short-circuit, tool-loop termination and its cap, error containment |
 | Cost | Zero-call cache hits, offline determinism, the budget kill switch, provider fallback, metered hits |
+| Views | Every page renders for every persona without raising — the blank-screen alarm nothing else catches |
+
+**Where the coverage is, and where it is not.** The logic is well covered: retriever 92%,
+router 93%, charts 99%, tools 89%. The remainder is concentrated in the Streamlit view
+layer, which needed `AppTest` to reach at all.
+
+That took two attempts, and the first one is worth recording because it looked like it
+worked. It drove the real `app.py` and set `query_params["page"]` to navigate.
+`st.navigation` ignores `query_params`, so all 21 tests rendered the same default Chat
+page — coverage did not move, and `views/about.py` actually *dropped* to 19%. A suite
+that green-lights 21 assertions while exercising one page is worse than no suite, because
+it reports safety it does not provide. Invoking each view function directly through
+`AppTest.from_string` took `views/workspace.py` from 12% to 98% and the project from 62%
+to 73%.
+
+`views/chat.py` remains at 40%: the uncovered half is the streaming-response path, which
+needs a live model call and is covered instead by the workflow tests underneath it.
 
 Every acceptance criterion maps to a named test in [`specs/traceability.md`](../specs/traceability.md).
 Two structural bugs were found by the tests rather than by review — both recorded there.
 
 ---
 
-## 6. Known limits and next steps
+## 6. Performance
+
+Cost and latency were design inputs, not an afterthought — the whole point of a
+three-tier router is to avoid paying for classification.
+
+**Router.** Tier 1 is regex: no model call, sub-millisecond. Tier 2 compares the question
+against intent centroids with a static embedding — no model call either, and the
+embedding is cached. Only tier 3 bills a classification, and the rule parametrization in
+`tests/test_router.py` keeps the common questions in tier 1. The trace on the AI Internals
+page reports which tier resolved each question, so the mix is observable rather than
+asserted.
+
+**Caching.** Four distinct layers, each verifiable on that same page: an exact-match
+completion cache keyed on the full request, an embedding cache persisted to disk, a market
+-data cache with a TTL, and an offline mode that never bills at all. A repeated question is
+served at zero tokens and zero cost — `tests/test_cost.py` asserts the call count is zero
+rather than merely that the answer matched.
+
+**Retrieval.** `NumpyIndex` does exact cosine over 77 chunks. At that size an approximate
+index would add a dependency and an index-build step to save microseconds on a dot product
+that is already dominated by Streamlit's rerun. BM25 runs over the same corpus in process.
+Both are in-memory after first load; the cost is the model2vec encode, which is cached.
+
+**What is not optimised.** Each Streamlit rerun re-renders the whole page — that is the
+framework's model, and at this corpus size it is not the bottleneck. Agent fan-out is
+concurrent, but the slowest agent sets the floor for a multi-intent question.
+
+---
+
+## 7. Known limits and next steps
 
 **Current limits.** Static embeddings are weaker than a transformer encoder. The corpus is 77
 documents. yfinance is unofficial and throttles on shared egress IPs. Safety is regex plus
