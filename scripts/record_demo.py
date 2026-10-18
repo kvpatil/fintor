@@ -22,6 +22,7 @@ racing ahead.
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -176,8 +177,15 @@ def open_about(page, item: str) -> None:
     print(f"    ! could not open About Fintor > {item}")
 
 
-def walk(page, beats: list[Beat], password: str) -> None:
-    """One function per beat id, run in order, each padded to its narration."""
+def walk(page, beats: list[Beat], password: str) -> list[dict]:
+    """Run each beat, padded to its narration, and report what actually happened.
+
+    Returns a span per beat: when it started and ended in the recording's own
+    timeline. The mux needs this because a beat can overrun - the fan-out
+    question went 74.5s past its budget on one take - and a single uniform
+    re-time cannot repair a localised overrun, it only shifts everything after
+    it. With real spans, each segment is fitted to its own narration clip.
+    """
     import time
 
     def pace(beat: Beat, started: float) -> None:
@@ -194,6 +202,8 @@ def walk(page, beats: list[Beat], password: str) -> None:
     # model calls, and threw the footage away with it. Now a failed beat is
     # logged, padded to its slot so the narration stays aligned, and the run
     # continues.
+    spans: list[dict] = []
+    origin = time.monotonic()
     for beat in beats:
         print(f"  beat {beat.id} ({beat.seconds + beat.pause_after:.1f}s)", flush=True)
         t0 = time.monotonic()
@@ -202,6 +212,13 @@ def walk(page, beats: list[Beat], password: str) -> None:
         except Exception as exc:
             print(f"    ! {beat.id} failed: {str(exc)[:120]}", flush=True)
         pace(beat, t0)
+        spans.append({
+            "id": beat.id,
+            "start": round(t0 - origin, 3),
+            "end": round(time.monotonic() - origin, 3),
+            "narration": round(beat.seconds + beat.pause_after, 3),
+        })
+    return spans
 
 
 def run_beat(page, beat: Beat, password: str) -> None:
@@ -311,8 +328,9 @@ def main() -> int:
             record_video_size=VIEWPORT,
         )
         page = context.new_page()
+        spans = []
         try:
-            walk(page, beats, args.password)
+            spans = walk(page, beats, args.password)
         finally:
             # The video is only flushed to disk on close.
             context.close()
@@ -324,6 +342,14 @@ def main() -> int:
         return 1
     raw = VIDEO / "raw.webm"
     produced[0].rename(raw)
+    (BUILD / "timings.json").write_text(json.dumps(spans, indent=1), encoding="utf-8")
+    wall = spans[-1]["end"] if spans else 0
+    print(f"wall clock: {wall/60:.2f} min   narration: "
+          f"{sum(s['narration'] for s in spans)/60:.2f} min")
+    for sp in spans:
+        over = (sp["end"] - sp["start"]) - sp["narration"]
+        if over > 2:
+            print(f"   {sp['id']} ran {over:+.1f}s over - the mux will fit it per beat")
     print(f"\nsilent footage: {raw}  ({raw.stat().st_size/1e6:.1f} MB)")
     print("next: .venv/bin/python scripts/mux_demo.py")
     return 0

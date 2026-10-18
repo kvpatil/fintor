@@ -21,6 +21,7 @@ The footage is untouched either way.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -31,6 +32,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build" / "demo"
 AUDIO = BUILD / "audio"
 RAW = BUILD / "video" / "raw.webm"
+TIMINGS = BUILD / "timings.json"
+SEGMENTS = BUILD / "segments"
 OUT = ROOT / "docs" / "demo.mp4"
 
 AUDIO_EXTS = (".aiff", ".m4a", ".wav", ".mp3")
@@ -107,6 +110,66 @@ def concat_beats() -> Path:
     return joined
 
 
+def mux_per_beat(args) -> int:
+    """Cut at the recorded beat spans, fit each to its narration, concat."""
+    spans = json.loads(TIMINGS.read_text(encoding="utf-8"))
+    clips = sorted(p for p in AUDIO.iterdir() if p.suffix.lower() in AUDIO_EXTS)
+    if len(clips) != len(spans):
+        print(f"  {len(spans)} spans but {len(clips)} audio clips - falling back")
+        return 1
+
+    vdur = duration(args.video)
+    wall = spans[-1]["end"]
+    # The whole file is inflated by the same factor; map wall-clock to film time.
+    inflate = vdur / wall if wall else 1.0
+    print(f"  footage {vdur/60:.2f} min for {wall/60:.2f} min of wall clock "
+          f"(x{inflate:.2f} inflation)")
+
+    SEGMENTS.mkdir(parents=True, exist_ok=True)
+    for f in SEGMENTS.glob("*.mp4"):
+        f.unlink()
+
+    listing, total = [], 0.0
+    for i, (sp, clip) in enumerate(zip(spans, clips), 1):
+        want = duration(clip)
+        src_start, src_end = sp["start"] * inflate, sp["end"] * inflate
+        have = max(src_end - src_start, 0.2)
+        out = SEGMENTS / f"{i:02d}.mp4"
+        run(["ffmpeg", "-y", "-ss", f"{src_start:.3f}", "-t", f"{have:.3f}",
+             "-i", str(args.video),
+             "-filter:v", f"setpts={want/have:.6f}*PTS", "-an",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+             "-pix_fmt", "yuv420p", "-r", "25", str(out)])
+        listing.append(out); total += want
+        print(f"   {sp['id']:16} film {have:6.1f}s -> narration {want:5.1f}s")
+
+    concat = BUILD / "segments.txt"
+    concat.write_text("".join(f"file '{p.resolve()}'\n" for p in listing), encoding="utf-8")
+    silent = BUILD / "fitted.mp4"
+    run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat),
+         "-c", "copy", str(silent)])
+
+    narration = concat_beats()
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    run(["ffmpeg", "-y", "-i", str(silent), "-i", str(narration),
+         "-map", "0:v:0", "-map", "1:a:0",
+         "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+         "-movflags", "+faststart", "-shortest", str(args.out)])
+    report(args.out)
+    return 0
+
+
+def report(out) -> None:
+    dur = duration(out)
+    st = [s.lower() for s in streams(out)]
+    print(f"\nwrote {out}")
+    print(f"  {dur/60:.2f} min   {out.stat().st_size/1e6:.1f} MB   streams: {', '.join(st)}")
+    if "audio" not in st:
+        print("!! NO AUDIO STREAM", file=sys.stderr)
+    if not 5*60 <= dur <= 10*60:
+        print(f"!! {dur/60:.2f} min is outside the brief's 5-10 minute window")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--audio", type=Path, default=None,
@@ -127,26 +190,27 @@ def main() -> int:
     a = duration(narration)
     print(f"\nvideo {v/60:.2f} min   audio {a/60:.2f} min   raw drift {v-a:+.1f}s")
 
-    # RE-TIME THE VIDEO TO THE NARRATION.
+    # RE-TIME PER BEAT, NOT UNIFORMLY.
     #
-    # Playwright does not record in real time. It stamps captured frames at a
-    # fixed 25fps regardless of when they were captured, so a page that
-    # repaints heavily - which Streamlit does on every rerun - produces more
-    # frames than wall-clock and the file plays back long. Measured on the
-    # first take: 24,862 frames for about nine minutes of real interaction,
-    # which is 16.6 minutes of playback.
+    # Two separate distortions have to be undone. Playwright does not record in
+    # real time - it stamps frames at a fixed 25fps regardless of when they were
+    # captured, so a page that repaints heavily (Streamlit, on every rerun)
+    # yields more frames than wall clock. And a beat can overrun its budget: the
+    # fan-out question went 74.5s past on one take.
     #
-    # Scaling presentation timestamps fixes it and, usefully, pins sync: the
-    # video is made exactly as long as the audio, so the two cannot drift no
-    # matter how uneven the capture was.
+    # A single scale factor fixes the first and not the second - it would just
+    # push everything after the overrun out of step. So the video is cut at the
+    # recorded beat boundaries and each segment is fitted to its own narration
+    # clip. Sync then holds per beat whatever happened during the take.
+    if TIMINGS.exists() and not args.audio:
+        return mux_per_beat(args)
+
     scale = a / v if v > 0 else 1.0
     if abs(scale - 1.0) < 0.02:
         print("  timing already matches; no re-timing applied")
         vfilter = []
     else:
-        pct = (1 / scale) if scale < 1 else scale
-        print(f"  re-timing video x{1/scale:.3f} ({'speeding up' if scale < 1 else 'slowing'}"
-              f" by {abs(1-1/scale)*100:.0f}%) so it matches the narration exactly")
+        print(f"  no timings.json - falling back to a single x{1/scale:.3f} re-time")
         vfilter = ["-filter:v", f"setpts={scale}*PTS"]
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

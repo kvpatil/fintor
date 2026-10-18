@@ -141,8 +141,112 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                47 tests
+└── tests/                238 tests
 ```
+
+## Usage examples
+
+**Run with no keys and no network.** Canned answers, zero spend — this is the fastest
+way to see the whole app.
+
+```bash
+FINTOR_OFFLINE=1 streamlit run src/web_app/app.py
+```
+
+**Run live.** Copy `.env.example` to `.env` and set at minimum:
+
+```bash
+OPENAI_API_KEY=sk-...            # the only key needed for live answers
+FINTOR_DEMO_PASSWORD=<yours>     # required, or sign-in refuses everyone
+streamlit run src/web_app/app.py
+```
+
+**Sign in.** The six personas *are* the accounts: usernames `maya`, `dev`, `priya`,
+`walter`, `aisha`, `sam`, all sharing `FINTOR_DEMO_PASSWORD`. The username selects who
+you are, so authenticating and choosing a reader are one step.
+
+**See personalization working.** Ask the same question as two different readers:
+
+```
+sign in as dev     → "Should I buy more NVDA?"   (31, 70% in one stock)
+sign out, as walter→ "Should I buy more NVDA?"   (61, four years from retiring)
+```
+
+Same agents, same corpus, same question. The answers differ because the persona sets the
+difficulty ceiling, the risk framing, the portfolio in scope and its own conversation thread.
+
+**Trigger a multi-agent fan-out:**
+
+```
+"How are capital gains taxed and how is SPY doing?"
+```
+
+Two agents run concurrently; their sections merge and the citations renumber across the
+whole answer. Watch it happen on **AI Internals**.
+
+**Rebuild the retrieval index** after editing the corpus:
+
+```bash
+python -m src.rag.build --reset
+```
+
+## API documentation
+
+**Agents.** Every specialist subclasses `BaseAgent` (`src/agents/base.py`) and implements
+one method. `run()` wraps it with timeout, tracing and error capture, so a failing agent
+degrades the answer instead of the request.
+
+```python
+class BaseAgent(ABC):
+    async def _execute(self, query: Query, persona: Persona | None) -> AgentResult: ...
+    async def run(self, query: Query, persona: Persona | None = None) -> AgentResult
+```
+
+**Tools** (`src/workflow/tools.py`) are LangChain `@tool` functions closed over the
+container, so they share its cache and cost meter. They are driven by a real ReAct loop
+with an iteration cap.
+
+| Tool | Signature | Returns |
+|---|---|---|
+| `get_quote` | `(symbols: str)` — comma-separated tickers | latest price and daily change |
+| `get_price_history` | `(symbol: str, period: str = "6mo")` — `1mo`/`3mo`/`6mo`/`1y` | change, low and high over the period |
+
+`build_tool_graph(deps, max_iterations=3)` assembles the loop.
+
+**Workflow.** `src/workflow/graph.py` exposes two entry points. Both are async.
+
+```python
+await run_query(deps, question, persona=..., thread_id=..., checkpoint_path=...)
+async for node, payload in stream_query(deps, question, ...):   # used by the UI
+```
+
+`stream_query` yields `(node_name, payload)` as each node completes, then one terminal
+`TRACE_EVENT` carrying the Langfuse trace id.
+
+**Ports.** Every external dependency sits behind a `typing.Protocol` in
+`src/core/ports.py` — `ChatProvider`, `CacheBackend`, `MarketProvider`, `Embedder` — each
+with at least two implementations, which is what makes the seams real and the tests fast.
+
+**Environment contract** (read only by `src/core/config.py`):
+
+| Variable | Required | Effect |
+|---|---|---|
+| `OPENAI_API_KEY` | for live answers | primary chat provider |
+| `FINTOR_DEMO_PASSWORD` | **yes** | sign-in; blank means sign-in refuses everyone |
+| `FINTOR_OFFLINE` | no | `1` = canned answers, no network, no spend |
+| `FINTOR_SESSION_BUDGET_USD` | no | overrides the session kill switch |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL` | no | tracing; absent means tracing is simply off |
+| `ANTHROPIC_API_KEY` | no | fallback provider; unset, so the chain never reaches it |
+
+## On the vector store
+
+The brief suggests FAISS, Chroma or Pinecone. Fintor uses a `NumpyIndex`
+(`src/rag/index.py`) doing an exact cosine scan, for two reasons. Python 3.14 has no FAISS
+wheel — nor one for `onnxruntime`, which is why embeddings are `model2vec` static vectors
+rather than a transformer encoder. And over a 77-document corpus an exact scan returns
+*the same neighbours* an approximate index would, without the index-build step or the
+recall/latency trade. The retrieval interface is a port, so swapping in FAISS at corpus
+scale is a container change, not a rewrite.
 
 ## Troubleshooting
 
