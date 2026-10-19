@@ -99,14 +99,38 @@ CSS = """
 
   /* The gate's mark height, and the distance from the top of the brand panel
      down to the tagline baseline block. The form card is offset by exactly this
-     so its top edge meets "Finance, taught." rather than the logo - tokenised
+     so its top edge meets "Finance, made approachable." rather than the logo - tokenised
      because the offset is only correct while it tracks the mark. */
   --gate-logo-h: 54px;
-  /* + 14px, NOT + 14px + 2px. `.gate-logo`'s bottom margin and
-     `.gate-tagline`'s top margin are adjacent siblings, so CSS COLLAPSES them
-     to max(14, 2) = 14. Summing both put the form card 2px low - measured, 174
-     against the tagline's 172. Do not re-add the 2px. */
-  --gate-logo-block: calc(var(--gate-logo-h) + 14px);
+  /* Distance from the mark to the tagline. A token because TWO things depend
+     on it and they must not drift: .gate-logo's bottom margin sets it, and
+     --gate-logo-block below offsets the sign-in card by exactly the same
+     amount so the card's top edge keeps meeting the tagline. */
+  --gate-logo-gap: 4px;
+  /* The gate's oversized mark. Its box runs from the top of "Fintor" down to
+     the bottom of the tagline, and its foot lands on the panel's left edge -
+     the same edge the subline below starts from. --gate-mark-top is the slack
+     above the glyphs inside the wordmark SVG; --gate-mark-bottom trims the
+     tagline's descender slack and bottom margin so the stem stops on the
+     baseline rather than below it. Both are font metrics, so they are checked
+     by measurement rather than reasoned about. */
+  --gate-mark-w: 62px;
+  /* Both 0: the box spans the head exactly, and the SHAPE carries the inset.
+     GATE_TIP sits 3.2/84 down its own viewBox and GATE_FOOT 81/84, which with
+     a head running 72 -> 155.6 puts the tip on "Fintor"'s cap line and the
+     foot on the tagline's baseline. Trimming here instead pulled the stem
+     13px short of the tagline. */
+  --gate-mark-top: 0px;
+  --gate-mark-bottom: 0px;
+  --gate-mark-clear: 76px;
+  /* The mark plus the gap under it - where the tagline, and so the sign-in
+     card, begins. The tagline's own top margin is NOT added, and the reason
+     is worth getting right: it is not margin collapsing, which was the first
+     explanation and is wrong. Streamlit styles `stMarkdownContainer p`
+     directly, which outranks a bare class, so every top margin on a gate
+     paragraph computes to 0px. A COLLAPSED margin still reports its declared
+     value; 0px means something overrode it. See the block below. */
+  --gate-logo-block: calc(var(--gate-logo-h) + var(--gate-logo-gap));
 
   /* The gate's own container inset, and the account grid's gap. Both are named
      because the form card's width is computed FROM them: a literal 28px in that
@@ -206,8 +230,28 @@ h1 { font-size: 1.72rem; }
    here drops the mark below the form card's top border. Measured - the card
    started at 104 and the logo at 120. */
 .signin-brand { padding: 0; }
-.gate-logo { margin: 0 0 14px; color: var(--fin-ink); }
-.gate-logo svg { height: var(--gate-logo-h); width: auto; }
+
+/* The wordmark and the tagline, with the leaf laid over the space to their
+   left. position:relative only - the mark is absolute inside it. */
+.gate-head { position: relative; }
+/* Everything in the head clears the mark by the same amount, which is what
+   keeps "Fintor" and the tagline on one left edge. */
+.gate-head > .gate-logo,
+.gate-head > .gate-tagline { padding-left: var(--gate-mark-clear); }
+/* The mark. Height is set from the head's own box so the stem always reaches
+   the bottom of the tagline, whatever the tagline says - the copy has already
+   changed once. */
+.gate-mark {
+  position: absolute;
+  left: 0;
+  top: var(--gate-mark-top);
+  bottom: var(--gate-mark-bottom);
+  width: var(--gate-mark-w);
+  pointer-events: none;
+}
+.gate-mark svg { height: 100%; width: 100%; display: block; }
+.gate-logo { margin: 0 0 var(--gate-logo-gap); color: var(--fin-ink); }
+.gate-logo svg { height: var(--gate-logo-h); width: auto; display: block; }
 /* Indented to start under the "F" of Fintor rather than at the panel edge, so
    the lockup and its tagline share a left edge. The offset is the wordmark's
    x in the logo's own viewBox, scaled to the height the mark is drawn at -
@@ -216,8 +260,11 @@ h1 { font-size: 1.72rem; }
 .gate-tagline {
   font-family: "Fintor Serif", Georgia, serif;
   font-size: 1.9rem; font-weight: 700; letter-spacing: -0.015em;
-  margin: 2px 0 8px;
-  padding-left: var(--gate-wordmark-x, 0px);
+  /* 0 on top, not 2px. The 2px never applied - Streamlit outranks the class -
+     and --gate-logo-block depends on the gap coming from .gate-logo's bottom
+     margin ALONE, so declaring a value that silently does nothing would be a
+     trap for whoever next tries to tune this. */
+  margin: 0 0 8px;
   color: var(--fin-tagline);
 }
 /* No max-width. It was capped at 54ch while the pillar rows below it filled the
@@ -387,9 +434,22 @@ h1 { font-size: 1.72rem; }
    left border of the first card to the right border of the last. The container
    already is that width, so the cap could only ever make it narrower. */
 .gate-foot {
-  color: var(--fin-muted); font-size: var(--fs-sm); margin: 18px 0 0;
+  color: var(--fin-muted); font-size: var(--fs-sm); margin: 0;
   border-top: 1px solid var(--fin-line); padding-top: 12px;
 }
+
+/* TOP MARGINS ON GATE PARAGRAPHS NEED THE EXTRA SPECIFICITY.
+   Streamlit sets a margin on `[data-testid="stMarkdownContainer"] p`, which is
+   (0,1,1) and beats a bare `.gate-foot` at (0,1,0) - so `margin-top` on any of
+   these silently computed to 0 while `margin-bottom` came through fine. Two
+   earlier spacing fixes did nothing at all because of this: the 30px above
+   "Demo accounts", and the 18px that was supposed to keep this rule off the
+   bottom of the cards. The rule ended up drawn exactly on the card edge -
+   measured gap 0.0px.
+   This is the same trap as the nav tab that stayed at 2.74:1: the declaration
+   was right and never reached the element. */
+[data-testid="stMarkdownContainer"] p.gate-ask-band { margin-top: 30px; }
+[data-testid="stMarkdownContainer"] p.gate-foot { margin-top: 24px; }
 
 /* Reference pages are read, not scanned, so they take a narrower measure.
    Headings and figures stay full width; only running text is constrained. */

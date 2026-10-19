@@ -147,7 +147,7 @@ def test_favicon_matches_the_svg_geometry():
 
 
 def test_the_tagline_wears_the_same_violet_as_the_leaf_stem():
-    """The stem and "Finance, taught." are meant to read as one thing, and
+    """The stem and the tagline are meant to read as one thing, and
     nothing else enforces that: the stem is baked into an <img> by brand.py and
     the tagline is painted by CSS in theme.py. Two files, one intended colour.
 
@@ -169,26 +169,37 @@ def test_the_tagline_wears_the_same_violet_as_the_leaf_stem():
     assert "--fin-tagline" not in DARK_TOKENS, (
         "the tagline must not be re-themed - the stem it matches cannot be")
 
-    rule = re.search(r"\.gate-tagline \{([^}]*)\}", CSS)
+    # Anchored: a loose match also hits the compound
+    # `.gate-head > .gate-tagline` rule and reads the wrong declarations.
+    rule = re.search(r"(?m)^\.gate-tagline \{([^}]*)\}", CSS)
+    assert rule, "no standalone .gate-tagline rule"
     assert "var(--fin-tagline)" in rule.group(1), "the tagline ignores its token"
 
 
-def test_the_tagline_aligns_with_the_wordmark_not_the_panel_edge():
-    """The indent is computed from the artwork's own constants. Hardcoding it
-    would leave the tagline behind the first time the wordmark moves."""
+def test_the_wordmark_and_tagline_share_one_left_edge():
+    """Both clear the leaf by the SAME token, which is what puts "Fintor" and
+    the tagline on one edge.
+
+    This used to indent the tagline alone, by an offset derived from where the
+    wordmark sat inside the lockup SVG. The leaf is its own positioned element
+    now, so the two are padded together by their shared parent - one value,
+    so they cannot drift apart by construction rather than by arithmetic.
+    """
     import re
 
-    from src.web_app.brand import GRID, WORDMARK_X
-    from src.web_app.gate import GATE_CHROME_CSS
     from src.web_app.theme import CSS
 
-    decl = re.search(r"--gate-wordmark-x:([^;]+);", GATE_CHROME_CSS)
-    assert decl, "the gate never emits the wordmark offset"
-    assert str(WORDMARK_X) in decl.group(1) and str(GRID) in decl.group(1), (
-        "the offset is not derived from brand.WORDMARK_X / brand.GRID")
+    rule = re.search(
+        r"\.gate-head > \.gate-logo,\s*\.gate-head > \.gate-tagline \{([^}]*)\}", CSS)
+    assert rule, "the wordmark and tagline are no longer padded together"
+    assert "var(--gate-mark-clear)" in rule.group(1), (
+        "they clear the mark by something other than the shared token")
 
-    rule = re.search(r"\.gate-tagline \{([^}]*)\}", CSS)
-    assert "var(--gate-wordmark-x" in rule.group(1), "the tagline is not indented"
+    # And the mark must actually be out of flow, or the padding is pointless.
+    mark = re.search(r"\.gate-mark \{([^}]*)\}", CSS)
+    assert mark and "position: absolute" in mark.group(1), (
+        "the leaf is back in the flow; it will push the text instead of "
+        "sitting beside it")
 
 
 # --- the gate -----------------------------------------------------------
@@ -212,7 +223,11 @@ def test_gate_blocks_until_persona_chosen():
 
     body = "\n".join(m.value for m in at.markdown)
     assert "Sign in" in body or "not configured" in body, "the gate did not render"
-    assert "Finance, taught." in body
+    from src.web_app.gate import TAGLINE
+
+    # The constant, not a copy of it: this assertion has already
+    # outlived one wording change.
+    assert TAGLINE in body
     assert not at.title, "no page title should render behind the gate"
     assert "Demo accounts" in body or "not configured" in body
 
@@ -350,7 +365,9 @@ def test_gate_does_not_build_the_container():
     at.run()
     assert not at.exception, at.exception[0].value if at.exception else ""
     body = "\n".join(m.value for m in at.markdown)
-    assert "Finance, taught." in body, "gate did not render with the container disabled"
+    from src.web_app.gate import TAGLINE
+
+    assert TAGLINE in body, "gate did not render with the container disabled"
 
 
 # --- the workspace is a workspace, not a document -----------------------
@@ -641,7 +658,9 @@ def test_the_gate_wordmark_follows_the_theme_without_a_rerun():
     """The gate inlines the SVG, so CSS reaches into it - unlike the header,
     which goes through <img> and needs two files plus a rerun to swap."""
     src = (ROOT / "src" / "web_app" / "gate.py").read_text(encoding="utf-8")
-    assert 'logo_svg(ink="currentColor")' in src
+    # wordmark_svg, not logo_svg: the gate draws the leaf as its own
+    # positioned element now, so the text is inlined on its own.
+    assert 'wordmark_svg(ink="currentColor")' in src
 
 
 def test_the_sign_in_screen_hides_the_stale_top_nav():

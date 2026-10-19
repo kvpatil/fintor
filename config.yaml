@@ -3,7 +3,7 @@
 
 app:
   name: Fintor
-  tagline: "Finance, taught."
+  tagline: "Finance, made approachable."
   # Education-only product. See .github/skills/finance-compliance/SKILL.md
   educational_only: true
 

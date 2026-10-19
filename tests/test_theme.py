@@ -87,6 +87,49 @@ def test_top_gap_is_tokenised():
     assert "var(--fin-top-gap)" in block.group(1)
 
 
+def test_gate_paragraph_top_margins_outrank_streamlit():
+    """A top margin on a bare `.gate-*` class never reaches the element.
+
+    Streamlit styles `[data-testid="stMarkdownContainer"] p` - specificity
+    (0,1,1) - which beats a plain class at (0,1,0). The symptom is silent:
+    `margin-bottom` comes through, `margin-top` computes to 0, and the page
+    just looks wrong with no error anywhere. It cost two spacing fixes that
+    appeared to land and did nothing - the 30px above "Demo accounts" and the
+    18px meant to keep the disclaimer rule off the cards, which ended up drawn
+    exactly on the card edge at a measured 0.0px gap.
+
+    Note it is NOT margin collapsing, which was the first diagnosis. A
+    collapsed margin still reports its declared value; 0px means overridden.
+
+    So: any gate paragraph rule that sets a non-zero top margin must carry the
+    container in its selector.
+    """
+    offenders = []
+    # Comments first: a /* ... */ before a rule otherwise lands inside the
+    # selector group and turns a real finding into an unreadable one.
+    css = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
+    for match in re.finditer(r"(^|\})\s*([^{}@]*?\.gate-[\w-]+)\s*\{([^}]*)\}", css):
+        selector, body = match.group(2).strip(), match.group(3)
+
+        top = re.search(r"margin-top:\s*([^;]+);", body)
+        if not top:
+            shorthand = re.search(r"margin:\s*([^;]+);", body)
+            if not shorthand:
+                continue
+            first = shorthand.group(1).split()[0]
+            top_value = first
+        else:
+            top_value = top.group(1)
+        if top_value.strip() in {"0", "0px", "auto"}:
+            continue
+        if "stMarkdownContainer" not in selector:
+            offenders.append(f"{selector} sets margin-top:{top_value.strip()}")
+
+    assert not offenders, (
+        "these top margins will be overridden to 0 by Streamlit; qualify the "
+        "selector with [data-testid=\"stMarkdownContainer\"]: " + "; ".join(offenders))
+
+
 # --- both themes --------------------------------------------------------
 
 

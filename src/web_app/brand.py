@@ -85,10 +85,49 @@ LEAF_RIB = (
 )
 GRID = 32
 
+# Tilt, in degrees, counter-clockwise from the drawn position - the tip swings
+# LEFT and the stem follows it right. Applied to the control points in Python
+# rather than as an SVG `transform`, because a transform would rotate the
+# vector artwork and leave Pillow drawing the unrotated outline: the PNG and
+# the SVG would quietly disagree. Rotating the definition keeps them one shape.
+LEAF_TILT = 10.0
+
+
+def _rotate(path, degrees, centre):
+    """A path tuple rotated about `centre`.
+
+    SVG's y axis points DOWN, so the usual rotation matrix turns clockwise on
+    screen. The angle is negated here so a positive LEAF_TILT reads as a
+    counter-clockwise, leftward lean the way a person would describe it.
+    """
+    import math
+
+    theta = math.radians(-degrees)
+    cos_t, sin_t = math.cos(theta), math.sin(theta)
+    cx, cy = centre
+
+    def turn(point):
+        dx, dy = point[0] - cx, point[1] - cy
+        return (cx + dx * cos_t - dy * sin_t, cy + dx * sin_t + dy * cos_t)
+
+    return tuple((cmd, *[turn(pt) for pt in pts]) for cmd, *pts in path)
+
+
+def _centre_of(*paths):
+    """Bounding-box centre of the flattened paths, so the tilt happens in
+    place instead of swinging the mark across its own canvas."""
+    pts = [pt for path in paths for pt in _flatten(path)]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2)
+
 # Wordmark layout. The mark now ends at x=27, so the text clears it at 36.
 WORDMARK_X = 36
 WORDMARK_SIZE = 25
 WORDMARK_BOX = (150, 32)
+# Width of the wordmark-only SVG the gate uses: the lockup box less the space
+# the leaf occupied in it.
+WORDMARK_TEXT_W = WORDMARK_BOX[0] - WORDMARK_X
 # An <img>-loaded SVG is its own document: it cannot reach the page's @font-face,
 # so the self-hosted Source Serif is unavailable here and the face resolves
 # against whatever is installed. The stack is widened to keep the fallback in the
@@ -144,6 +183,11 @@ def _flatten(path, steps: int = 24) -> list[tuple[float, float]]:
     return points
 
 
+_CENTRE = _centre_of(LEAF_BODY, LEAF_RIB)
+LEAF_BODY = _rotate(LEAF_BODY, LEAF_TILT, _CENTRE)
+LEAF_RIB = _rotate(LEAF_RIB, LEAF_TILT, _CENTRE)
+
+
 def _leaf_svg(fill: str, rib: str = None) -> str:
     """Body then stem - the stem is drawn second so it sits on top."""
     return (f'<path d="{_d(LEAF_BODY)}" fill="{fill}"/>'
@@ -173,6 +217,111 @@ def logo_svg(fill: str = MARK_INK, ink: str = WORDMARK_INK) -> str:
         f'width="{w}" height="{h}" role="img" aria-label="Fintor">'
         f"{_leaf_svg(fill)}"
         f'<text x="{WORDMARK_X}" y="25" font-family="{WORDMARK_STACK}" '
+        f'font-size="{WORDMARK_SIZE}" font-weight="700" letter-spacing="-0.4" '
+        f'fill="{ink}">Fintor</text>'
+        "</svg>"
+    )
+
+
+# --- the gate's oversized mark -------------------------------------------
+#
+# The gate draws the leaf as its own element BESIDE the text, not inside the
+# lockup, so the stem can run the full height of "Fintor" plus the tagline.
+#
+# A previous attempt grew the lockup's viewBox downward and pulled the tagline
+# back up with a negative margin. It failed: the pull never applied, the
+# tagline ended up below the whole enlarged drawing, and a long thin stem with
+# nothing beside it read as a broken spoon. Absolute positioning has no such
+# dependency - the leaf is simply placed, and the text flows as it always did.
+#
+# The box is 62x84 and the shape runs corner to corner: tip at the top right,
+# stem foot at the bottom left, both on one straight axis so the whole thing
+# reads as a single diagonal. The caller sizes the box; these are proportions.
+GATE_LEAF_BOX = (62, 84)
+GATE_FOOT = (1.8, 81.0)     # bottom left - lands on the panel's left edge
+GATE_TIP = (57.0, 3.2)      # top right - level with the top of "Fintor"
+GATE_BASE = (27.5, 47.0)    # where the body ends and the stem begins
+GATE_BULGE = 19.0
+GATE_STEM_HALF = 2.1
+
+
+def _gate_leaf_paths():
+    """Body and stem for the gate's mark, on one shared axis.
+
+    GATE_BASE sits on the line from GATE_FOOT to GATE_TIP, so the stem and the
+    midrib are collinear and the mark reads as one diagonal rather than a body
+    with a stick attached at an angle.
+    """
+    import math
+
+    ax, ay = GATE_BASE[0] - GATE_TIP[0], GATE_BASE[1] - GATE_TIP[1]
+    length = math.hypot(ax, ay)
+    unit = (ax / length, ay / length)
+    perp = (-unit[1], unit[0])
+
+    def at(t):
+        return (GATE_TIP[0] + unit[0] * length * t, GATE_TIP[1] + unit[1] * length * t)
+
+    def off(point, d):
+        return (point[0] + perp[0] * d, point[1] + perp[1] * d)
+
+    body = (
+        ("M", GATE_BASE),
+        ("C", off(at(0.75), GATE_BULGE), off(at(0.25), GATE_BULGE), GATE_TIP),
+        ("C", off(at(0.25), -GATE_BULGE), off(at(0.75), -GATE_BULGE), GATE_BASE),
+        ("Z",),
+    )
+
+    apex = at(0.10)
+    base_l, base_r = off(GATE_BASE, GATE_STEM_HALF), off(GATE_BASE, -GATE_STEM_HALF)
+    # The stem's own perpendicular, so the foot is square to the axis.
+    sx, sy = GATE_FOOT[0] - GATE_BASE[0], GATE_FOOT[1] - GATE_BASE[1]
+    slen = math.hypot(sx, sy)
+    sperp = (-sy / slen, sx / slen)
+    foot_l = (GATE_FOOT[0] + sperp[0] * GATE_STEM_HALF * 0.75,
+              GATE_FOOT[1] + sperp[1] * GATE_STEM_HALF * 0.75)
+    foot_r = (GATE_FOOT[0] - sperp[0] * GATE_STEM_HALF * 0.75,
+              GATE_FOOT[1] - sperp[1] * GATE_STEM_HALF * 0.75)
+    mid = ((GATE_BASE[0] + GATE_FOOT[0]) / 2, (GATE_BASE[1] + GATE_FOOT[1]) / 2)
+    stem = (
+        ("M", foot_l),
+        ("C", (mid[0] + sperp[0] * GATE_STEM_HALF, mid[1] + sperp[1] * GATE_STEM_HALF),
+         base_l, base_l),
+        ("C", off(at(0.60), GATE_STEM_HALF * 1.05), off(at(0.30), GATE_STEM_HALF * 0.8), apex),
+        ("C", off(at(0.30), -GATE_STEM_HALF * 0.8), off(at(0.60), -GATE_STEM_HALF * 1.05), base_r),
+        ("C", base_r, (mid[0] - sperp[0] * GATE_STEM_HALF, mid[1] - sperp[1] * GATE_STEM_HALF),
+         foot_r),
+        ("Z",),
+    )
+    return body, stem
+
+
+GATE_BODY, GATE_STEM = _gate_leaf_paths()
+
+
+def gate_leaf_svg(fill: str = MARK_INK, rib: str = None) -> str:
+    """The leaf alone, sized to run beside the wordmark and its tagline."""
+    w, h = GATE_LEAF_BOX
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
+        f'preserveAspectRatio="xMinYMin meet" role="img" aria-label="Fintor">'
+        f'<path d="{_d(GATE_BODY)}" fill="{fill}"/>'
+        f'<path d="{_d(GATE_STEM)}" fill="{rib or MARK_RIB}"/>'
+        "</svg>"
+    )
+
+
+def wordmark_svg(ink: str = WORDMARK_INK) -> str:
+    """"Fintor" on its own, for the gate, where the leaf is a separate element.
+
+    Same viewBox height and same baseline as logo_svg(), so rendered at the
+    same height the glyphs land at exactly the size and vertical position they
+    always did - only the leaf has moved out of the box.
+    """
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WORDMARK_TEXT_W} {GRID}" '
+        f'role="img" aria-label="Fintor">'
+        f'<text x="0" y="25" font-family="{WORDMARK_STACK}" '
         f'font-size="{WORDMARK_SIZE}" font-weight="700" letter-spacing="-0.4" '
         f'fill="{ink}">Fintor</text>'
         "</svg>"

@@ -20,10 +20,10 @@ import streamlit as st
 from src.core import auth
 from src.core.quant import diversification_score, portfolio_value, risk_score, weights
 from src.data.personas import PERSONAS
-from src.web_app.brand import GRID, WORDMARK_X, logo_svg
+from src.web_app.brand import gate_leaf_svg, wordmark_svg
 from src.web_app.state import app_settings
 
-TAGLINE = "Finance, taught."
+TAGLINE = "Finance, made approachable."
 SUBLINE = (
     "Six specialist agents answer money questions in plain English, grounded in a cited "
     "knowledge base. Sign in as one of six readers and the answers change with them."
@@ -48,11 +48,6 @@ PILLARS = (
 #    The toolbar is left alone so the theme switcher still works here.
 GATE_CHROME_CSS = (
     "<style>"
-    # Where the wordmark's own text begins, in rendered pixels: its x inside
-    # the logo viewBox, scaled by however tall the mark is drawn. Computed
-    # from the artwork's constants so moving the text in brand.py moves the
-    # tagline with it, rather than leaving the two silently out of step.
-    f":root{{--gate-wordmark-x:calc(var(--gate-logo-h) * {WORDMARK_X} / {GRID});}}"
     # The inset is declared rather than inherited: Streamlit's default is 5rem,
     # which left 112px of whitespace either side and silently broke the form
     # card's width calc, which subtracts this value.
@@ -109,8 +104,18 @@ def _brand_panel() -> None:
     # --fin-ink with no rerun lag.
     st.markdown(
         f'<div class="signin-brand">'
-        f'<div class="gate-logo">{logo_svg(ink="currentColor")}</div>'
+        # The head is a positioning context. The leaf is placed against it
+        # rather than sitting in the flow, so the stem can run the whole
+        # height of the wordmark AND the tagline without either of them
+        # moving. An earlier attempt grew the lockup's own viewBox and pulled
+        # the tagline back up with a negative margin; the pull silently never
+        # applied and the tagline ended up below the entire drawing. Absolute
+        # positioning has no such dependency.
+        f'<div class="gate-head">'
+        f'<div class="gate-mark">{gate_leaf_svg()}</div>'
+        f'<div class="gate-logo">{wordmark_svg(ink="currentColor")}</div>'
         f'<p class="gate-tagline">{TAGLINE}</p>'
+        f"</div>"
         f'<p class="gate-subline">{SUBLINE}</p>'
         + "".join(
             f'<div class="signin-pillar"><b>{title}</b><span>{body}</span></div>'

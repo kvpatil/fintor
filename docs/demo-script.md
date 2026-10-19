@@ -207,7 +207,7 @@ The video is never re-recorded. Only the audio is replaced.
 > Behind them sit the specifications, the governance skills, and a traceability matrix connecting each requirement to the code and the tests that satisfy it.
 > Two hundred and thirty eight tests, all passing, offline and without touching a paid API.
 > Fintor.
-> Finance, taught.
+> Finance, made approachable.
 
 ---
 
