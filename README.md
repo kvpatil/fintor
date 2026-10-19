@@ -26,6 +26,22 @@ FINTOR_OFFLINE=1 .venv/bin/streamlit run src/web_app/app.py
 .venv/bin/streamlit run src/web_app/app.py
 ```
 
+### Signing in
+
+The app opens on a sign-in screen. Use **any** of the six usernames — `maya`, `dev`,
+`priya`, `walter`, `aisha`, `sam` — with the password **`fintor`**. The screen prints
+the password too, so there is nothing to look up.
+
+The username is the interesting half: it selects which reader you are, and the same
+question gets a materially different answer as `dev` (31, concentrated in one stock)
+than as `walter` (61, four years from retirement). That contrast is the product.
+
+The credential is published on purpose and lives in `config.yaml`, not `.env` — the
+six accounts are synthetic teaching personas holding no real data. For a shared
+deployment set `FINTOR_DEMO_PASSWORD` in `.env`; it overrides the default, and the
+screen then stops printing it. Blank in both places disables sign-in entirely rather
+than letting anyone through.
+
 The retrieval index is **committed**, so there is nothing to build before first run. Market
 and news data need **no API keys** — yfinance and RSS are both keyless.
 

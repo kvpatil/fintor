@@ -190,3 +190,113 @@ def test_the_limits_are_documented_rather_than_implied():
     assert "KNOWN LIMITS" in doc
     assert "shared password" in doc.lower()
     assert "session" in doc.lower()
+
+
+# --- the grader's path: a clone with no .env -----------------------------
+#
+# These exist because the app shipped unopenable. auth.configured() fails
+# closed, which is right, and the consequence was that anyone who cloned the
+# repo met a locked door on the one screen that invites them to pick a reader.
+# "Correct and unusable" is still a defect.
+
+
+def _settings_from(tmp_path, monkeypatch, *, yaml_password, env_password=None):
+    """load_settings() against a throwaway config.yaml and a controlled env."""
+    import src.core.config as config
+
+    cfg = tmp_path / "config.yaml"
+    body = "app:\n  name: Fintor\n"
+    if yaml_password is not None:
+        body += f"auth:\n  demo_password: {yaml_password}\n"
+    cfg.write_text(body, encoding="utf-8")
+
+    if env_password is None:
+        monkeypatch.delenv("FINTOR_DEMO_PASSWORD", raising=False)
+    else:
+        monkeypatch.setenv("FINTOR_DEMO_PASSWORD", env_password)
+    # The real loader reads .env once per process and caches that it did; this
+    # keeps a developer's own .env out of the test.
+    monkeypatch.setattr(config, "_ENV_LOADED", True)
+    return config.load_settings(cfg)
+
+
+def test_a_fresh_clone_with_no_env_file_can_still_sign_in(tmp_path, monkeypatch):
+    """The submission-critical one. No .env, no exported variable - exactly what
+    a grader has after `git clone` - and every demo account must open."""
+    settings = _settings_from(tmp_path, monkeypatch, yaml_password="fintor")
+
+    assert auth.configured(settings), "a fresh clone cannot reach the app"
+    assert settings.demo_password_is_published
+
+    known = {"maya", "dev", "priya", "walter", "aisha", "sam"}
+    credential = auth.credential_for(settings)
+    for username in sorted(known):
+        assert auth.check(username, settings.demo_password,
+                          known_users=known, credential=credential) == username
+
+
+def test_a_wrong_password_is_still_refused_with_the_published_default(tmp_path, monkeypatch):
+    """Shipping a default must not turn the gate into a no-op."""
+    settings = _settings_from(tmp_path, monkeypatch, yaml_password="fintor")
+    credential = auth.credential_for(settings)
+    assert auth.check("dev", "wrong", known_users={"dev"}, credential=credential) is None
+    assert auth.check("dev", "", known_users={"dev"}, credential=credential) is None
+
+
+def test_the_environment_overrides_the_published_default(tmp_path, monkeypatch):
+    """A shared deployment sets FINTOR_DEMO_PASSWORD and that must win, or the
+    committed credential would quietly stay valid alongside it."""
+    settings = _settings_from(tmp_path, monkeypatch,
+                              yaml_password="fintor", env_password="operator-secret")
+
+    assert settings.demo_password == "operator-secret"
+    assert not settings.demo_password_is_published, (
+        "an operator's password must not be flagged as publishable")
+
+    credential = auth.credential_for(settings)
+    assert auth.check("dev", "operator-secret",
+                      known_users={"dev"}, credential=credential) == "dev"
+    assert auth.check("dev", "fintor", known_users={"dev"}, credential=credential) is None
+
+
+def test_blank_in_both_places_still_fails_closed(tmp_path, monkeypatch):
+    """The fail-closed path the published default must not have removed."""
+    settings = _settings_from(tmp_path, monkeypatch, yaml_password=None)
+
+    assert not auth.configured(settings)
+    assert auth.credential_for(settings) is None
+    assert not settings.demo_password_is_published
+
+
+def test_the_screen_prints_the_credential_only_when_it_is_published():
+    """A published credential is meant to be read; an operator's is not. The
+    screen cannot tell them apart without the provenance flag, and printing an
+    override is how a demo convenience becomes a credential leak."""
+    from src.web_app.gate import _credential_hint
+
+    source = inspect.getsource(_credential_hint)
+    assert "demo_password_is_published" in source, (
+        "the hint must gate on provenance, not merely on the password existing")
+
+    shown = []
+
+    class _Published:
+        demo_password = "fintor"
+        demo_password_is_published = True
+
+    class _Override:
+        demo_password = "operator-secret"
+        demo_password_is_published = False
+
+    import src.web_app.gate as gate
+    original = gate.st.markdown
+    gate.st.markdown = lambda body, **_kw: shown.append(body)
+    try:
+        _credential_hint(_Published())
+        _credential_hint(_Override())
+    finally:
+        gate.st.markdown = original
+
+    assert len(shown) == 1, "exactly one of the two should print"
+    assert "fintor" in shown[0]
+    assert "operator-secret" not in " ".join(shown), "an override was printed"

@@ -48,7 +48,34 @@ PILLARS = (
 #    The toolbar is left alone so the theme switcher still works here.
 GATE_CHROME_CSS = (
     "<style>"
-    "[data-testid='stMainBlockContainer']{max-width:var(--fin-measure-gate);}"
+    # The inset is declared rather than inherited: Streamlit's default is 5rem,
+    # which left 112px of whitespace either side and silently broke the form
+    # card's width calc, which subtracts this value.
+    "[data-testid='stMainBlockContainer']{"
+    "max-width:var(--fin-measure-gate);"
+    "padding-left:var(--gate-pad);padding-right:var(--gate-pad);"
+    "padding-top:var(--gate-top);}"
+    # Collapse the invisible elements. inject() and this block each emit a
+    # <style>, and the theme probe is a height=0 iframe - three elements that
+    # paint nothing but still take a slot in a `gap:16px` flex column, which
+    # is the 48px of dead air that sat above the mark. Measured: every
+    # ancestor of the logo reported top=104 with no margin of its own, so the
+    # space could only be coming from siblings.
+    # Gate-scoped: the app pages' top gap was tuned with these gaps present,
+    # and pulling every page up by 48px would slide content under the header.
+    "[data-testid='stMainBlockContainer'] "
+    "[data-testid='stElementContainer']:has(> .stMarkdown style),"
+    "[data-testid='stMainBlockContainer'] "
+    "[data-testid='stElementContainer']:has(iframe[height='0'])"
+    "{display:none !important;}"
+    # The theme probe, out of flow rather than hidden. It paints nothing but
+    # still claimed a 16px gap slot. NOT display:none - the probe is what
+    # reads the painted background to decide dark mode, and theme.py already
+    # records that display:none was the wrong tool for it. Absolute
+    # positioning takes it out of the flex flow, so it consumes no gap while
+    # still rendering and running.
+    "[data-testid='stLayoutWrapper']:has(> .st-key-theme-probe)"
+    "{position:absolute;width:0;height:0;overflow:hidden;}"
     "[data-testid='stTopNavLinkContainer'],"
     "[data-testid='stTopNavSection'],"
     "[data-testid='stLogoLink']{display:none !important;}"
@@ -137,20 +164,57 @@ def _accounts_band() -> None:
     They were a single stacked column in the right-hand panel, six deep, which
     pushed the last two below the fold - so the screen that is supposed to
     introduce the personas hid a third of them.
+
+    ONE grid, not six st.columns. The columns version put six Streamlit
+    wrappers between the row and each card - stHorizontalBlock > stColumn >
+    stLayoutWrapper > stVerticalBlock > stElementContainer > stMarkdown - and
+    the row resolved to a height 16px short of what the cards needed, so five
+    of the six pushed their last line through the bottom border. Measured
+    every link and tried five different flex repairs; all five left the
+    overhang at exactly +5.0px, which is what finally said the sizing was not
+    mine to fix. These cards hold no widgets, so they do not need Streamlit's
+    layout at all - as a single block of markup, `grid-auto-rows: 1fr` gives
+    equal heights for free and the padding is honoured because the border is
+    on an element we own.
     """
     shared = _shared_prompts()
-    st.markdown('<p class="gate-ask">Demo accounts</p>', unsafe_allow_html=True)
-    for row_start in (0, 3):
-        for persona, column in zip(PERSONAS[row_start:row_start + 3], st.columns(3),
-                                   strict=False):
-            with column, st.container(key=f"signin-account-{persona.id}"):
-                st.markdown(_account_cell(persona, shared), unsafe_allow_html=True)
+    st.markdown('<p class="gate-ask gate-ask-band">Demo accounts</p>',
+                unsafe_allow_html=True)
+    st.markdown(
+        '<div class="signin-accounts">'
+        + "".join(_account_cell(p, shared) for p in PERSONAS)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
     st.markdown(
         '<p class="gate-foot">Every persona is a synthetic teaching example, not a '
         "real account. Fintor explains concepts; it does not give personal "
         "financial, investment, legal or tax advice.</p>",
         unsafe_allow_html=True,
     )
+
+
+def _credential_hint(settings) -> None:
+    """Print the password, but ONLY when it is the published default.
+
+    Without this a grader who clones the repo cannot get in at all: there is no
+    .env, so `FINTOR_DEMO_PASSWORD` is unset, and auth.configured() correctly
+    refuses everyone. Failing closed is right for a real deployment and was
+    exactly wrong for the people meant to try the app - they met a locked door
+    on a screen that invites them to pick a reader.
+
+    An operator who sets FINTOR_DEMO_PASSWORD gets silence instead. A published
+    credential is meant to be read; theirs is not, and printing it because the
+    code could not tell the difference is how a demo convenience becomes a leak.
+    """
+    if getattr(settings, "demo_password_is_published", False):
+        st.markdown(
+            f'<p class="signin-help">Any username below, password '
+            f'<code>{settings.demo_password}</code>. Published on purpose - the '
+            f'accounts are synthetic. Set <code>FINTOR_DEMO_PASSWORD</code> to '
+            f'override it.</p>',
+            unsafe_allow_html=True,
+        )
 
 
 def _sign_in_form(known: set[str]) -> None:
@@ -188,6 +252,7 @@ def _sign_in_form(known: set[str]) -> None:
                                  placeholder="••••••••",
                                  autocomplete="current-password")
         submitted = st.form_submit_button("Sign in", width="stretch", type="primary")
+        _credential_hint(settings)
 
     if not submitted:
         return

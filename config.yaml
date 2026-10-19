@@ -7,6 +7,18 @@ app:
   # Education-only product. See .github/skills/finance-compliance/SKILL.md
   educational_only: true
 
+auth:
+  # A PUBLISHED credential, not a secret, and deliberately in the committed
+  # config rather than in .env. The six accounts are synthetic teaching
+  # personas holding no real data, so there is nothing here to protect - and a
+  # fresh clone with no .env would otherwise fail closed and lock out the very
+  # people meant to try the app.
+  #
+  # Override it for a shared deployment:  FINTOR_DEMO_PASSWORD=... in .env
+  # The env var always wins. Blank in BOTH places still refuses everyone, which
+  # is the fail-closed path core/auth.py exists to guarantee.
+  demo_password: fintor
+
 llm:
   # Provider chain: primary first, fallbacks in order. Built with
   # LangChain .with_fallbacks() so a primary outage degrades instead of failing.

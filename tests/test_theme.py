@@ -30,10 +30,18 @@ def test_no_font_size_below_the_floor():
 
     This is the regression guard. The sizes reached 11.5px gradually, each one
     defensible on its own; a floor makes the next such step fail the build.
+
+    `em` counts, not just `rem`. This checked only `rem` for a long time, and
+    two `code` rules sat at 0.86em and 0.82em - about 13.8px and 13.1px - in
+    plain sight the whole time, because the unit was the one the guard did not
+    read. An em value is relative to its parent rather than the root, so the
+    multiplier here assumes a 16px parent; that is right for both offenders it
+    caught and conservative everywhere else, since a smaller parent only makes
+    the real size smaller.
     """
     offenders = [
         (match, float(re.search(r"[0-9.]+", match).group(0)) * 16)
-        for match in re.findall(r"font-size:\s*[0-9.]+rem", CSS)
+        for match in re.findall(r"font-size:\s*[0-9.]+r?em", CSS)
         if float(re.search(r"[0-9.]+", match).group(0)) < FLOOR_REM
     ]
     assert not offenders, "font sizes below 14px: " + ", ".join(
@@ -83,7 +91,7 @@ def test_top_gap_is_tokenised():
 
 
 THEME_TOKENS = ("--fin-ink", "--fin-muted", "--fin-line", "--fin-accent",
-                "--fin-warn", "--fin-paper")
+                "--fin-warn", "--fin-paper", "--fin-field-line")
 
 
 @pytest.mark.parametrize("token", THEME_TOKENS)
@@ -171,6 +179,33 @@ def test_config_does_not_pin_a_single_palette():
     assert "base" not in theme, "theme.base pins the palette; use [theme.light]/[theme.dark]"
     assert "light" in theme and "dark" in theme, "both palettes must be declared"
     assert theme["light"]["backgroundColor"] != theme["dark"]["backgroundColor"]
+
+
+def test_text_fields_have_a_visible_edge_in_both_themes():
+    """Streamlit borders a text field in the same colour as its own fill, and in
+    dark mode that fill equals the card behind it - measured rgb(29,27,33) on
+    rgb(29,27,33), so the Username and Password boxes were simply not there.
+
+    --fin-line is NOT an acceptable fix and the point of this test is to stop
+    someone reaching for it: against a field fill it is 1.23:1 light and 1.29:1
+    dark, where WCAG 1.4.11 asks 3:1 of a control boundary. The dedicated token
+    clears that on both the fill and the card.
+    """
+    rule = re.search(r'\[data-testid="stTextInputRootElement"\][^{]*\{([^}]*)\}', CSS)
+    assert rule, "no rule gives a text field a border"
+    assert "var(--fin-field-line)" in rule.group(1), (
+        "the field border must come from the dedicated token, not --fin-line")
+
+    for mode, fill, card in (("light", "#eeedf1", "#fdfdfd"),
+                             ("dark", "#221f28", "#1d1b21")):
+        block = re.search(rf':root\[data-theme="{mode}"\]\s*\{{([^}}]*)\}}', CSS)
+        line = re.search(r"--fin-field-line:\s*(#[0-9a-fA-F]{6})", block.group(1))
+        assert line, f"--fin-field-line missing from the {mode} block"
+        for ground, label in ((fill, "fill"), (card, "card")):
+            ratio = _contrast(line.group(1), ground)
+            assert ratio >= 3.0, (
+                f"{mode} field border is {ratio:.2f}:1 on the {label} - "
+                "under the 3:1 WCAG asks of a control boundary")
 
 
 # --- contrast -----------------------------------------------------------
@@ -876,27 +911,44 @@ def test_no_dead_selector_for_the_about_section():
 
 
 def test_the_disclaimer_is_not_held_to_a_narrow_measure():
-    """It spans the whole right-hand panel. At 72ch it wrapped at 666px inside a
-    960px row, and that ragged edge is what read as unfinished.
+    """It spans the full account grid above it. At 72ch it wrapped at 666px
+    inside a 960px row, and that ragged edge is what read as unfinished.
 
-    The brand subline is NOT checked here any more: it now sits in a ~600px
-    panel, so a narrower measure is correct rather than a bug.
+    NO cap now passes, and is the strongest form of this guarantee - the
+    container is already the grid's width, so any ch cap could only make the
+    paragraph narrower than the cards it sits under. An earlier version of this
+    test REQUIRED a cap of >=90ch and so would have failed the correct fix.
+    A cap is still allowed, but only a generous one.
+
+    The brand subline is not checked here; it is uncapped for the same reason.
     """
     rule = re.search(r"\.gate-foot\s*\{([^}]*)\}", CSS)
     assert rule, "no rule for .gate-foot"
     found = re.search(r"max-width:\s*(\d+)ch", rule.group(1))
-    assert found and int(found.group(1)) >= 90, (
-        f".gate-foot is capped at {found.group(1) if found else '?'}ch")
+    assert found is None or int(found.group(1)) >= 90, (
+        f".gate-foot is capped at {found.group(1)}ch")
 
 
 def test_the_gate_takes_a_wider_measure_than_the_reading_pages():
     """A 3-up card grid is not running prose and does not want a reading
-    measure; the About pages still do."""
+    measure; the About pages still do.
+
+    The gate measure is a `min(<vw>, <px>)`, not a bare px value: a fixed
+    1280px left ~160px of dead gutter either side on a 1600px viewport, and a
+    fixed larger number would overflow a small one. So this reads the px cap
+    for the width comparison AND asserts the viewport term is still there -
+    an earlier version of this test matched only `(\\d+)px`, which does not
+    match a min() at all and died on `NoneType.group`.
+    """
     from src.web_app.gate import GATE_CHROME_CSS
 
-    gate = int(re.search(r"--fin-measure-gate:\s*(\d+)px", CSS).group(1))
+    decl = re.search(r"--fin-measure-gate:([^;]*);", CSS)
+    assert decl, "--fin-measure-gate is not declared"
+    gate = int(re.search(r"(\d+)px", decl.group(1)).group(1))
     page = int(re.search(r"--fin-measure:\s*(\d+)px", CSS).group(1))
     assert gate > page, "the gate measure must be wider than the page measure"
+    assert "vw" in decl.group(1), (
+        "the gate measure has no viewport term, so a narrow screen loses its margin")
     assert "--fin-measure-gate" in GATE_CHROME_CSS, "the gate never applies it"
 
 

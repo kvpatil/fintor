@@ -25,6 +25,19 @@ CSS = """
   --fin-paper: #fdfdfd;
   /* Ground for the "What this shows" panel: a tint of the page, not a new hue. */
   --fin-note-ground: #eeedf1;
+  /* Card ground on the sign-in screen. The six accounts are a wall of small
+     text on white; a tint of the brand hue gives the eye an edge to rest on
+     without introducing a second colour. Measured on this ground, not assumed:
+     ink 15.53:1, muted 6.50:1, accent 7.62:1. */
+  --fin-card-tint: #f3effc;
+  /* Border for a text field. NOT --fin-line: that is a page hairline, and
+     measured against a field fill it is 1.23:1 light and 1.29:1 dark - far
+     under the 3:1 WCAG asks of a control boundary (1.4.11), which is why the
+     dark inputs were invisible. Streamlit paints the field's border in the
+     SAME colour as its fill, and in dark that fill also equals the card, so
+     there was neither an edge nor a change of ground to see.
+     #837e92: 3.36:1 on the fill, 3.85:1 on the card. */
+  --fin-field-line: #837e92;
   /* Direction of a price move. Reserved status colours - never a series hue. */
   --fin-up: #1b7f4e;
   --fin-down: #b4332f;
@@ -63,8 +76,10 @@ CSS = """
      Streamlit renders its columns outside any wrapper div we emit. */
   --fin-measure: 1120px;
   /* The gate is a 3-up card grid, not running prose, so it does not want a
-     reading measure. gate.render() swaps the container over to this. */
-  --fin-measure-gate: 1280px;
+     reading measure at all. 1280px left ~160px of dead gutter either side on a
+     1600px viewport; min() keeps a margin on smaller screens instead of
+     clamping to a width they do not have. gate.render() swaps to this. */
+  --fin-measure-gate: min(98vw, 1800px);
   --fin-prose: 72ch;
 
   /* Distance from the top of the viewport to the first thing on the page.
@@ -73,6 +88,29 @@ CSS = """
      buys any visible air. Measured in the browser: 3.5rem leaves the header row
      12px clear of the nav. Below 3rem the Switch button is clipped. */
   --fin-top-gap: 3.5rem;
+
+  /* The gate's mark height, and the distance from the top of the brand panel
+     down to the tagline baseline block. The form card is offset by exactly this
+     so its top edge meets "Finance, taught." rather than the logo - tokenised
+     because the offset is only correct while it tracks the mark. */
+  --gate-logo-h: 54px;
+  /* + 14px, NOT + 14px + 2px. `.gate-logo`'s bottom margin and
+     `.gate-tagline`'s top margin are adjacent siblings, so CSS COLLAPSES them
+     to max(14, 2) = 14. Summing both put the form card 2px low - measured, 174
+     against the tagline's 172. Do not re-add the 2px. */
+  --gate-logo-block: calc(var(--gate-logo-h) + 14px);
+
+  /* The gate's own container inset, and the account grid's gap. Both are named
+     because the form card's width is computed FROM them: a literal 28px in that
+     calc had to silently agree with a `gap` declared 60 lines away, and an
+     inset that was never declared at all. */
+  --gate-pad: 1rem;
+  /* The gate's own top gap. It must still clear the 60px fixed header, which
+     overlays the container rather than pushing it down - but it does NOT need
+     the room the app pages leave for their nav row, because the gate hides
+     that. 4.5rem puts the mark 12px under the header. */
+  --gate-top: 4.5rem;
+  --gate-grid-gap: 14px;
 }
 
 /* Streamlit sizes this padding for an app with NO top nav, so with
@@ -86,6 +124,27 @@ CSS = """
 }
 
 html, body, [class*="st-"] { font-feature-settings: "kern" 1; }
+
+/* Text fields need a visible edge. Streamlit gives the wrapper a 1px border in
+   the same colour as its own background, so the box is defined only by its
+   fill - and in dark mode that fill is identical to the card it sits on
+   (measured: rgb(29,27,33) on rgb(29,27,33)). The field simply was not there.
+   Fixed app-wide rather than on the gate alone, because it is the same
+   component and the same disappearance on every page. */
+[data-testid="stTextInputRootElement"],
+.stTextArea [data-baseweb="base-input"],
+[data-testid="stChatInput"] {
+  border: 1px solid var(--fin-field-line) !important;
+  background: var(--fin-note-ground) !important;
+}
+/* Focus is stated explicitly rather than left to Streamlit's own rule winning
+   on specificity - the border above would otherwise swallow the focus ring. */
+[data-testid="stTextInputRootElement"]:focus-within,
+.stTextArea [data-baseweb="base-input"]:focus-within,
+[data-testid="stChatInput"]:focus-within {
+  border-color: var(--fin-accent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--fin-accent) 28%, transparent);
+}
 
 /* Every figure aligns in its column and stops jittering as values update. */
 [data-testid="stMetricValue"], [data-testid="stMetricDelta"],
@@ -135,16 +194,22 @@ h1 { font-size: 1.72rem; }
    Two panels: brand on the left, the form and the demo accounts on the right.
    .gate-wrap is gone - Streamlit renders its columns outside any HTML we emit,
    which is why that wrapper never constrained anything. */
-.signin-brand { padding: 8px 0 0; }
-.gate-logo { margin: 8px 0 14px; color: var(--fin-ink); }
-.gate-logo svg { height: 54px; width: auto; }
+/* No leading offset on either: both columns open at the same y, so any padding
+   here drops the mark below the form card's top border. Measured - the card
+   started at 104 and the logo at 120. */
+.signin-brand { padding: 0; }
+.gate-logo { margin: 0 0 14px; color: var(--fin-ink); }
+.gate-logo svg { height: var(--gate-logo-h); width: auto; }
 .gate-tagline {
   font-family: "Fintor Serif", Georgia, serif;
   font-size: 1.9rem; font-weight: 700; letter-spacing: -0.015em;
   margin: 2px 0 8px;
 }
+/* No max-width. It was capped at 54ch while the pillar rows below it filled the
+   whole brand column, so the paragraph wrapped short of the rules underneath it
+   and the ragged edge read as a mistake. The column is the measure. */
 .gate-subline {
-  color: var(--fin-muted); max-width: 54ch; margin: 0 0 26px;
+  color: var(--fin-muted); margin: 0 0 26px;
   font-size: 1.02rem; line-height: 1.55;
 }
 .signin-pillar {
@@ -152,6 +217,9 @@ h1 { font-size: 1.72rem; }
   padding: 9px 0; border-top: 1px solid var(--fin-line);
   font-size: var(--fs-sm);
 }
+/* The stack had a top rule per row and nothing closing it, so the last line
+   ran straight into the eyebrow below. */
+.signin-pillar:last-of-type { border-bottom: 1px solid var(--fin-line); }
 .signin-pillar b { color: var(--fin-ink); font-weight: 600; }
 .signin-pillar span { color: var(--fin-muted); }
 
@@ -159,6 +227,9 @@ h1 { font-size: 1.72rem; }
   font-size: var(--fs-xs); letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--fin-accent); margin: 0 0 12px;
 }
+/* Same eyebrow, but this one opens a full-width band below two panels rather
+   than labelling the top of a card. */
+.gate-ask-band { margin: 30px 0 14px; }
 
 /* The form card. Keyed container rather than a wrapper div, for the reason
    above - st.container(key=...) emits a st-key-* class we can target. */
@@ -167,6 +238,20 @@ h1 { font-size: 1.72rem; }
   border-radius: 12px;
   background: var(--fin-paper);
   padding: 20px 22px 18px;
+  /* One account card wide, derived from the SAME arithmetic the grid uses -
+     three columns and two gaps - so the two cannot drift apart when the
+     measure changes. Note the container inset: --fin-measure-gate is a
+     BORDER-box width and the grid sits in the content box, so the padding has
+     to come off or this lands 53px too wide (measured: 502.7 against 449.3). margin-left:auto rather than centring: it sits in the
+     last column, so right-aligning lands its edge on the grid's right edge and
+     the card reads as the head of that third column. */
+  max-width: calc(
+    (var(--fin-measure-gate) - 2 * var(--gate-pad) - 2 * var(--gate-grid-gap)) / 3);
+  margin-left: auto;
+  /* Drop the card past the mark so its top edge lines up with the tagline, not
+     with the logo. The offset is the logo block (mark + its bottom margin +
+     the tagline's top margin), so it stays correct if the mark is resized. */
+  margin-top: var(--gate-logo-block);
 }
 .st-key-signin-card .stButton > button,
 .st-key-signin-card [data-testid="stFormSubmitButton"] > button {
@@ -188,42 +273,82 @@ h1 { font-size: 1.72rem; }
   font-size: var(--fs-sm); color: var(--fin-muted); margin: 8px 0 0;
   line-height: 1.5;
 }
-.signin-help code, .signin-account code {
-  font-size: 0.86em; padding: 1px 5px; border-radius: 4px;
+.signin-help code {
+  font-size: var(--fs-xs); padding: 1px 5px; border-radius: 4px;
   background: var(--fin-note-ground); color: var(--fin-ink);
+}
+/* The username badge. It is the thing you actually type to sign in, so it gets
+   the one accent on the card; everything else stays ink and muted. */
+.signin-account code {
+  font-size: var(--fs-xs); font-weight: 600; padding: 2px 7px; border-radius: 999px;
+  background: var(--fin-accent); color: var(--fin-paper);
+  letter-spacing: 0.01em;
 }
 
 /* The demo accounts: three across, two down, below both panels. Stacked six
    deep in the right-hand column they pushed the last two below the fold, so
-   the screen that introduces the personas hid a third of them. */
-[class*="st-key-signin-account-"] {
-  border: 1px solid var(--fin-line);
-  border-radius: 10px;
-  background: var(--fin-paper);
-  padding: 11px 13px 10px;
-  flex: 1 1 auto;
+   the screen that introduces the personas hid a third of them.
+
+   A real grid, not st.columns. See gate.py::_accounts_band for why - the short
+   version is that Streamlit's nested flex wrappers sized the row 16px under
+   what the cards needed and clipped the figures off the bottom of five of the
+   six. `grid-auto-rows: 1fr` equalises each row of cards by construction, so
+   there is nothing left to shrink and nothing to overflow. */
+.signin-accounts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: var(--gate-grid-gap);
+}
+@media (max-width: 900px) {
+  .signin-accounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .signin-accounts { grid-template-columns: minmax(0, 1fr); }
 }
 /* Equal-height cells. The row is already flex/stretch, but stColumn is
    display:block, so a stretched column still hands its child a content
    height - the same chain the persona tiles needed. Scoped with :has() so the
-   workspace main/rail columns keep Streamlit's default behaviour. */
-[data-testid="stHorizontalBlock"]:has([class*="st-key-signin-account-"])
-  [data-testid="stColumn"],
-[data-testid="stHorizontalBlock"]:has([class*="st-key-signin-account-"])
-  [data-testid="stColumn"] > *,
-[data-testid="stHorizontalBlock"]:has([class*="st-key-signin-account-"])
-  [data-testid="stLayoutWrapper"] {
-  display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+   workspace main/rail columns keep Streamlit's default behaviour.
+
+   min-height:auto, NOT 0. `min-height:0` is the standard unlock for a flex
+   child that needs to scroll, and it is exactly wrong here: it lets the cell
+   shrink below its own content, so the last line escaped the bottom border.
+   Measured before the fix - the cell ended at 635.1 and its text at 640.1, a
+   5px overhang that also ate the 10px of bottom padding.
+
+   The chain has to be unbroken. Streamlit puts stElementContainer > stMarkdown
+   > stMarkdownContainer between the keyed container and our markup; any one of
+   them left as display:block re-introduces an auto-height link, and the
+   `margin-top:auto` that pins the figures to the bottom stops resolving. */
+/* Each card. The border and padding live here now, on an element we emit, so
+   the box model is ours and the bottom padding is actually honoured. */
+.signin-account {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--fin-line);
+  border-radius: 10px;
+  background: var(--fin-card-tint);
+  padding: 13px 15px 12px;
+  transition: border-color 120ms ease, transform 120ms ease;
 }
-.signin-account { display: flex; flex-direction: column; height: 100%; }
+/* These are not clickable - the hover is an affordance for "this is a unit you
+   read", which is what stops six tinted blocks reading as one slab. */
+.signin-account:hover { border-color: var(--fin-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .signin-account { transition: none; }
+}
 .signin-account-head {
   display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
 }
 .signin-account-name { font-weight: 600; color: var(--fin-ink); }
 /* Under the name, not floating right: at a third of the width there is no
    room for a right-aligned column and the figures wrapped. */
+/* margin-top:auto on this element resolved to 0px - measured on all six cards -
+   so the shortest card left 33px of slack UNDER its figures instead of above.
+   Making the quote the flexible element pushes the figures down reliably
+   without depending on auto-margin resolution inside a grid item. */
 .signin-account-nums {
-  margin: auto 0 0; padding-top: 8px; color: var(--fin-muted);
+  margin: 0; padding-top: 8px; color: var(--fin-muted);
   font-size: var(--fs-xs); font-variant-numeric: tabular-nums lining-nums;
   border-top: 1px solid var(--fin-line);
 }
@@ -231,7 +356,7 @@ h1 { font-size: 1.72rem; }
   margin: 4px 0 3px; font-size: var(--fs-sm); color: var(--fin-muted);
 }
 .signin-account-journey {
-  margin: 0 0 6px; font-size: var(--fs-sm); color: var(--fin-ink);
+  flex: 1 1 auto; margin: 0 0 8px; font-size: var(--fs-sm); color: var(--fin-ink);
   font-family: "Fintor Serif", Georgia, serif; font-style: italic;
   line-height: 1.4;
 }
@@ -242,9 +367,13 @@ h1 { font-size: 1.72rem; }
   font-style: normal; font-size: var(--fs-xs); color: var(--fin-accent);
   margin-top: 2px;
 }
+/* No max-width. 100ch still wrapped short of the account grid above it, which
+   is the edge the eye actually measures against - the rule should run from the
+   left border of the first card to the right border of the last. The container
+   already is that width, so the cap could only ever make it narrower. */
 .gate-foot {
   color: var(--fin-muted); font-size: var(--fs-sm); margin: 18px 0 0;
-  max-width: 100ch; border-top: 1px solid var(--fin-line); padding-top: 12px;
+  border-top: 1px solid var(--fin-line); padding-top: 12px;
 }
 
 /* Reference pages are read, not scanned, so they take a narrower measure.
@@ -488,6 +617,8 @@ DARK_TOKENS = """
   --fin-warn: #d2a248;
   --fin-paper: #1d1b21;
   --fin-note-ground: #221f28;
+  --fin-card-tint: #201d28;   /* ink 13.34:1, muted 5.95:1, accent 5.03:1 */
+  --fin-field-line: #756e8e;  /* 3.38:1 on the field fill, 3.56:1 on the card */
   --fin-up: #4fbf85;        /* 7.11:1 on the dark card */
   --fin-down: #e8786f;      /* 5.73:1 on the dark card */
   --tab-workspace: rgba(155, 122, 235, 0.16);
@@ -506,6 +637,8 @@ LIGHT_TOKENS = """
   --fin-warn: #9a6a1b;
   --fin-paper: #fdfdfd;
   --fin-note-ground: #eeedf1;
+  --fin-card-tint: #f3effc;
+  --fin-field-line: #837e92;
   --fin-up: #1b7f4e;
   --fin-down: #b4332f;
   --tab-workspace: rgba(82, 31, 205, 0.08);

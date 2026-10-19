@@ -44,10 +44,16 @@ class Settings:
     anthropic_api_key: str = field(default="", repr=False)
     offline: bool = False
     session_budget_usd: float = 0.50
-    # Shared password for the six demo accounts on the sign-in screen. Blank
-    # means sign-in is disabled and the screen says how to enable it - see
-    # core/auth.py, which fails closed rather than waving everyone through.
+    # Shared password for the six demo accounts on the sign-in screen. Comes
+    # from FINTOR_DEMO_PASSWORD if set, otherwise the published default in
+    # config.yaml. Blank in both still disables sign-in and the screen says so -
+    # see core/auth.py, which fails closed rather than waving everyone through.
     demo_password: str = field(default="", repr=False)
+    # True when the password came from the committed config rather than from
+    # FINTOR_DEMO_PASSWORD. The sign-in screen prints the credential only in
+    # that case: a published default is meant to be read, an operator's
+    # override is not, and the screen cannot tell them apart without this.
+    demo_password_is_published: bool = False
     # Langfuse. The SDK would read these itself, but the house rule is that only
     # this module touches the environment, so they are read here and passed
     # explicitly. LANGFUSE_BASE_URL is the SDK's own current name.
@@ -106,12 +112,17 @@ def load_settings(config_path: Path | None = None) -> Settings:
     cfg_file = config_path or (ROOT / "config.yaml")
     raw = yaml.safe_load(cfg_file.read_text(encoding="utf-8")) if cfg_file.exists() else {}
     budget = os.environ.get("FINTOR_SESSION_BUDGET_USD")
+    _env_password = os.environ.get("FINTOR_DEMO_PASSWORD", "").strip()
+    _published_password = str(raw.get("auth", {}).get("demo_password", "")).strip()
     return Settings(
         raw=raw,
         openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip(),
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", "").strip(),
         offline=os.environ.get("FINTOR_OFFLINE", "0").strip() in {"1", "true", "True", "yes"},
-        demo_password=os.environ.get("FINTOR_DEMO_PASSWORD", "").strip(),
+        # Env first, then the published default in config.yaml. Without the
+        # fallback a clone with no .env locks everyone out of a demo app.
+        demo_password=_env_password or _published_password,
+        demo_password_is_published=bool(_published_password and not _env_password),
         langfuse_public_key=os.environ.get("LANGFUSE_PUBLIC_KEY", "").strip(),
         langfuse_secret_key=os.environ.get("LANGFUSE_SECRET_KEY", "").strip(),
         langfuse_base_url=(os.environ.get("LANGFUSE_BASE_URL")
