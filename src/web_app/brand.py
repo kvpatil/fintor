@@ -240,7 +240,11 @@ def logo_svg(fill: str = MARK_INK, ink: str = WORDMARK_INK) -> str:
 GATE_LEAF_BOX = (62, 84)
 GATE_FOOT = (1.8, 81.0)     # bottom left - lands on the panel's left edge
 GATE_TIP = (57.0, 3.2)      # top right - level with the top of "Fintor"
-GATE_BASE = (27.5, 47.0)    # where the body ends and the stem begins
+# Where the body ends and the stem begins: 70% of the way from tip to foot,
+# so the blade runs well down the diagonal and the stalk is the last third.
+# It sat at 53% and the leaf read as a small head on a long stick. Kept ON the
+# tip-to-foot line, which is what keeps the midrib and the stem collinear.
+GATE_BASE = (18.4, 57.7)
 GATE_BULGE = 19.0
 GATE_STEM_HALF = 2.1
 
