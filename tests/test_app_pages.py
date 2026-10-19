@@ -146,66 +146,8 @@ def test_favicon_matches_the_svg_geometry():
     assert favicon_png(32)[:8] == b"\x89PNG\r\n\x1a\n"
 
 
-def test_the_tagline_wears_the_same_violet_as_the_leaf_stem():
-    """The stem and the tagline are meant to read as one thing, and
-    nothing else enforces that: the stem is baked into an <img> by brand.py and
-    the tagline is painted by CSS in theme.py. Two files, one intended colour.
-
-    The stem cannot follow the viewer's theme - st.logo() takes a single image -
-    so the tagline token is deliberately NOT redefined for dark. That is normally
-    the exact bug test_every_colour_token_is_redefined_for_dark exists to catch,
-    which is why the reasoning is written down here rather than left to be
-    rediscovered and "fixed".
-    """
-    import re
-
-    from src.web_app.brand import MARK_RIB
-    from src.web_app.theme import CSS, DARK_TOKENS
-
-    token = re.search(r"--fin-tagline:\s*(#[0-9a-fA-F]{6})", CSS)
-    assert token, "--fin-tagline is not defined"
-    assert token.group(1).lower() == MARK_RIB.lower(), (
-        f"tagline {token.group(1)} has drifted from the stem {MARK_RIB}")
-    assert "--fin-tagline" not in DARK_TOKENS, (
-        "the tagline must not be re-themed - the stem it matches cannot be")
-
-    # Anchored: a loose match also hits the compound
-    # `.gate-head > .gate-tagline` rule and reads the wrong declarations.
-    rule = re.search(r"(?m)^\.gate-tagline \{([^}]*)\}", CSS)
-    assert rule, "no standalone .gate-tagline rule"
-    assert "var(--fin-tagline)" in rule.group(1), "the tagline ignores its token"
 
 
-def test_the_wordmark_and_tagline_share_one_left_edge():
-    """Both clear the leaf by the SAME token, which is what puts "Fintor" and
-    the tagline on one edge.
-
-    This used to indent the tagline alone, by an offset derived from where the
-    wordmark sat inside the lockup SVG. The leaf is its own positioned element
-    now, so the two are padded together by their shared parent - one value,
-    so they cannot drift apart by construction rather than by arithmetic.
-    """
-    import re
-
-    from src.web_app.theme import CSS
-
-    rule = re.search(
-        r"\.gate-head > \.gate-logo,\s*\.gate-head > \.gate-tagline \{([^}]*)\}", CSS)
-    assert rule, "the wordmark and tagline are no longer padded together"
-    assert "var(--gate-mark-clear)" in rule.group(1), (
-        "they clear the mark by something other than the shared token")
-
-    # And the mark must actually be out of flow, or the padding is pointless.
-    mark = re.search(r"\.gate-mark \{([^}]*)\}", CSS)
-    assert mark and "position: absolute" in mark.group(1), (
-        "the leaf is back in the flow; it will push the text instead of "
-        "sitting beside it")
-
-
-# --- the gate -----------------------------------------------------------
-
-
-@pytest.mark.slow
 def test_gate_blocks_until_persona_chosen():
     """With no persona set, the gate renders and the app does not.
 
@@ -654,13 +596,65 @@ def test_the_header_is_fed_the_wordmark_not_the_bare_mark():  # noqa: D401
     assert "icon_image" in call.group(1), "icon_image is the slot that renders"
 
 
-def test_the_gate_wordmark_follows_the_theme_without_a_rerun():
-    """The gate inlines the SVG, so CSS reaches into it - unlike the header,
-    which goes through <img> and needs two files plus a rerun to swap."""
+
+def test_both_lockup_variants_are_committed_and_differ():
+    """The gate's hero is a supplied image now, not three drawn elements.
+
+    An <img> cannot inherit CSS colour, so dark mode needs its own file with
+    the wordmark recoloured - the leaf and tagline are violet and hold on both
+    grounds, the near-black "Fintor" does not. If the two files were ever
+    identical the dark theme would show black text on a near-black page, which
+    is the same 1.2:1 failure the whole theme system was built to stop.
+    """
+    from src.web_app.brand import LOCKUP_DARK_PATH, LOCKUP_PATH
+
+    for path in (LOCKUP_PATH, LOCKUP_DARK_PATH):
+        assert path.exists(), f"missing lockup asset: {path}"
+        assert path.stat().st_size > 0
+        # Inlined as a data URI on every render, so size is a real cost.
+        assert path.stat().st_size < 120_000, (
+            f"{path.name} is {path.stat().st_size // 1024}KB; it is base64'd "
+            "into the page on every rerun")
+
+    assert LOCKUP_PATH.read_bytes() != LOCKUP_DARK_PATH.read_bytes(), (
+        "the dark lockup is a copy of the light one; the wordmark will "
+        "disappear on the dark ground")
+
+
+def test_the_lockup_swaps_theme_without_a_rerun():
+    """Both variants are emitted and CSS picks one.
+
+    Choosing server-side would go stale the moment the viewer toggles -
+    Streamlit repaints the page WITHOUT rerunning the script, which is the
+    same trap that left black cards on a light page before the theme probe
+    existed. The probe stamps data-theme, so the swap is pure CSS.
+    """
+    import re as _re
+
+    from src.web_app.theme import CSS
+
     src = (ROOT / "src" / "web_app" / "gate.py").read_text(encoding="utf-8")
-    # wordmark_svg, not logo_svg: the gate draws the leaf as its own
-    # positioned element now, so the text is inlined on its own.
-    assert 'wordmark_svg(ink="currentColor")' in src
+    assert "lockup_data_uri()" in src and "lockup_data_uri(dark=True)" in src, (
+        "the gate does not emit both variants")
+
+    assert _re.search(r"\.gate-lockup \.lockup-dark \{[^}]*display:\s*none", CSS), (
+        "the dark variant is not hidden by default")
+    assert _re.search(
+        r':root\[data-theme="dark"\] \.gate-lockup \.lockup-dark \{[^}]*display:\s*block',
+        CSS), "nothing reveals the dark variant when the theme flips"
+
+
+def test_the_lockup_carries_its_words_in_alt_text():
+    """The wordmark and the tagline are PIXELS now. Without alt text a screen
+    reader gets nothing at all from the top of the page - the brand, the
+    product name and its one-line description all vanish at once."""
+    src = (ROOT / "src" / "web_app" / "gate.py").read_text(encoding="utf-8")
+    from src.web_app.gate import TAGLINE
+
+    assert 'alt="Fintor - {TAGLINE}"' in src, (
+        "the lockup images carry no alt text, or it does not include the "
+        "tagline constant")
+    assert TAGLINE
 
 
 def test_the_sign_in_screen_hides_the_stale_top_nav():

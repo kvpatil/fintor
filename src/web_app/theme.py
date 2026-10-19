@@ -101,36 +101,7 @@ CSS = """
      down to the tagline baseline block. The form card is offset by exactly this
      so its top edge meets "Finance, made approachable." rather than the logo - tokenised
      because the offset is only correct while it tracks the mark. */
-  --gate-logo-h: 54px;
-  /* Distance from the mark to the tagline. A token because TWO things depend
-     on it and they must not drift: .gate-logo's bottom margin sets it, and
-     --gate-logo-block below offsets the sign-in card by exactly the same
-     amount so the card's top edge keeps meeting the tagline. */
-  --gate-logo-gap: 4px;
-  /* The gate's oversized mark. Its box runs from the top of "Fintor" down to
-     the bottom of the tagline, and its foot lands on the panel's left edge -
-     the same edge the subline below starts from. --gate-mark-top is the slack
-     above the glyphs inside the wordmark SVG; --gate-mark-bottom trims the
-     tagline's descender slack and bottom margin so the stem stops on the
-     baseline rather than below it. Both are font metrics, so they are checked
-     by measurement rather than reasoned about. */
-  --gate-mark-w: 62px;
-  /* Both 0: the box spans the head exactly, and the SHAPE carries the inset.
-     GATE_TIP sits 3.2/84 down its own viewBox and GATE_FOOT 81/84, which with
-     a head running 72 -> 155.6 puts the tip on "Fintor"'s cap line and the
-     foot on the tagline's baseline. Trimming here instead pulled the stem
-     13px short of the tagline. */
-  --gate-mark-top: 0px;
-  --gate-mark-bottom: 0px;
-  --gate-mark-clear: 76px;
-  /* The mark plus the gap under it - where the tagline, and so the sign-in
-     card, begins. The tagline's own top margin is NOT added, and the reason
-     is worth getting right: it is not margin collapsing, which was the first
-     explanation and is wrong. Streamlit styles `stMarkdownContainer p`
-     directly, which outranks a bare class, so every top margin on a gate
-     paragraph computes to 0px. A COLLAPSED margin still reports its declared
-     value; 0px means something overrode it. See the block below. */
-  --gate-logo-block: calc(var(--gate-logo-h) + var(--gate-logo-gap));
+  --gate-lockup-w: 420px;
 
   /* The gate's own container inset, and the account grid's gap. Both are named
      because the form card's width is computed FROM them: a literal 28px in that
@@ -231,45 +202,24 @@ h1 { font-size: 1.72rem; }
    started at 104 and the logo at 120. */
 .signin-brand { padding: 0; }
 
-/* The wordmark and the tagline, with the leaf laid over the space to their
-   left. position:relative only - the mark is absolute inside it. */
-.gate-head { position: relative; }
-/* Everything in the head clears the mark by the same amount, which is what
-   keeps "Fintor" and the tagline on one left edge. */
-.gate-head > .gate-logo,
-.gate-head > .gate-tagline { padding-left: var(--gate-mark-clear); }
-/* The mark. Height is set from the head's own box so the stem always reaches
-   the bottom of the tagline, whatever the tagline says - the copy has already
-   changed once. */
-.gate-mark {
-  position: absolute;
-  left: 0;
-  top: var(--gate-mark-top);
-  bottom: var(--gate-mark-bottom);
-  width: var(--gate-mark-w);
-  pointer-events: none;
+/* The hero lockup: leaf, wordmark and tagline as one supplied image.
+   Width is the only thing to set - the artwork carries its own proportions,
+   which is the point of replacing three separately-aligned elements with it. */
+.gate-lockup { margin: 0 0 22px; }
+.gate-lockup img {
+  display: block;
+  width: var(--gate-lockup-w);
+  max-width: 100%;
+  height: auto;
 }
-.gate-mark svg { height: 100%; width: 100%; display: block; }
-.gate-logo { margin: 0 0 var(--gate-logo-gap); color: var(--fin-ink); }
-.gate-logo svg { height: var(--gate-logo-h); width: auto; display: block; }
-/* Indented to start under the "F" of Fintor rather than at the panel edge, so
-   the lockup and its tagline share a left edge. The offset is the wordmark's
-   x in the logo's own viewBox, scaled to the height the mark is drawn at -
-   emitted by gate.py from brand.WORDMARK_X/GRID so it tracks the artwork
-   instead of being a number copied across files. */
-.gate-tagline {
-  font-family: "Fintor Serif", Georgia, serif;
-  font-size: 1.9rem; font-weight: 700; letter-spacing: -0.015em;
-  /* 0 on top, not 2px. The 2px never applied - Streamlit outranks the class -
-     and --gate-logo-block depends on the gap coming from .gate-logo's bottom
-     margin ALONE, so declaring a value that silently does nothing would be a
-     trap for whoever next tries to tune this. */
-  margin: 0 0 8px;
-  color: var(--fin-tagline);
-}
-/* No max-width. It was capped at 54ch while the pillar rows below it filled the
-   whole brand column, so the paragraph wrapped short of the rules underneath it
-   and the ragged edge read as a mistake. The column is the measure. */
+/* Two files, one shown. An <img> cannot inherit CSS colour, and choosing
+   server-side goes stale the instant the viewer toggles - Streamlit repaints
+   without rerunning the script. The probe's data-theme drives this, so the
+   swap needs no rerun. */
+.gate-lockup .lockup-dark { display: none; }
+:root[data-theme="dark"] .gate-lockup .lockup-light { display: none; }
+:root[data-theme="dark"] .gate-lockup .lockup-dark { display: block; }
+
 .gate-subline {
   color: var(--fin-muted); margin: 0 0 26px;
   font-size: 1.02rem; line-height: 1.55;
@@ -310,10 +260,10 @@ h1 { font-size: 1.72rem; }
   max-width: calc(
     (var(--fin-measure-gate) - 2 * var(--gate-pad) - 2 * var(--gate-grid-gap)) / 3);
   margin-left: auto;
-  /* Drop the card past the mark so its top edge lines up with the tagline, not
-     with the logo. The offset is the logo block (mark + its bottom margin +
-     the tagline's top margin), so it stays correct if the mark is resized. */
-  margin-top: var(--gate-logo-block);
+  /* No offset. It used to drop past the mark so its top met the tagline
+     ELEMENT; the lockup is one image now, there is no tagline element to
+     meet, and both panels simply open at the same y. */
+  margin-top: 0;
 }
 .st-key-signin-card .stButton > button,
 .st-key-signin-card [data-testid="stFormSubmitButton"] > button {

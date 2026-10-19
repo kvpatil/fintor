@@ -20,7 +20,7 @@ import streamlit as st
 from src.core import auth
 from src.core.quant import diversification_score, portfolio_value, risk_score, weights
 from src.data.personas import PERSONAS
-from src.web_app.brand import gate_leaf_svg, wordmark_svg
+from src.web_app.brand import lockup_data_uri
 from src.web_app.state import app_settings
 
 TAGLINE = "Finance, made approachable."
@@ -104,17 +104,24 @@ def _brand_panel() -> None:
     # --fin-ink with no rerun lag.
     st.markdown(
         f'<div class="signin-brand">'
-        # The head is a positioning context. The leaf is placed against it
-        # rather than sitting in the flow, so the stem can run the whole
-        # height of the wordmark AND the tagline without either of them
-        # moving. An earlier attempt grew the lockup's own viewBox and pulled
-        # the tagline back up with a negative margin; the pull silently never
-        # applied and the tagline ended up below the entire drawing. Absolute
-        # positioning has no such dependency.
-        f'<div class="gate-head">'
-        f'<div class="gate-mark">{gate_leaf_svg()}</div>'
-        f'<div class="gate-logo">{wordmark_svg(ink="currentColor")}</div>'
-        f'<p class="gate-tagline">{TAGLINE}</p>'
+        # ONE supplied artwork, not three drawn elements. The leaf, the
+        # wordmark and the tagline were a generated SVG, an inlined wordmark
+        # and an HTML paragraph, held together by four measured alignments.
+        # They are now a single image, so there is nothing left to align.
+        #
+        # Both themes are emitted and CSS shows one. An <img> cannot inherit
+        # colour, and picking server-side would go stale the moment the viewer
+        # toggles - Streamlit repaints without rerunning the script. The theme
+        # probe stamps data-theme, so the swap is instant and needs no rerun.
+        #
+        # The alt text carries the wordmark AND the tagline, because both are
+        # now pixels: without it a screen reader gets nothing at all from the
+        # top of the page.
+        f'<div class="gate-lockup">'
+        f'<img class="lockup-light" src="{lockup_data_uri()}" '
+        f'alt="Fintor - {TAGLINE}">'
+        f'<img class="lockup-dark" src="{lockup_data_uri(dark=True)}" '
+        f'alt="Fintor - {TAGLINE}">'
         f"</div>"
         f'<p class="gate-subline">{SUBLINE}</p>'
         + "".join(

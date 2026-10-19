@@ -125,9 +125,6 @@ def _centre_of(*paths):
 WORDMARK_X = 36
 WORDMARK_SIZE = 25
 WORDMARK_BOX = (150, 32)
-# Width of the wordmark-only SVG the gate uses: the lockup box less the space
-# the leaf occupied in it.
-WORDMARK_TEXT_W = WORDMARK_BOX[0] - WORDMARK_X
 # An <img>-loaded SVG is its own document: it cannot reach the page's @font-face,
 # so the self-hosted Source Serif is unavailable here and the face resolves
 # against whatever is installed. The stack is widened to keep the fallback in the
@@ -223,115 +220,6 @@ def logo_svg(fill: str = MARK_INK, ink: str = WORDMARK_INK) -> str:
     )
 
 
-# --- the gate's oversized mark -------------------------------------------
-#
-# The gate draws the leaf as its own element BESIDE the text, not inside the
-# lockup, so the stem can run the full height of "Fintor" plus the tagline.
-#
-# A previous attempt grew the lockup's viewBox downward and pulled the tagline
-# back up with a negative margin. It failed: the pull never applied, the
-# tagline ended up below the whole enlarged drawing, and a long thin stem with
-# nothing beside it read as a broken spoon. Absolute positioning has no such
-# dependency - the leaf is simply placed, and the text flows as it always did.
-#
-# The box is 62x84 and the shape runs corner to corner: tip at the top right,
-# stem foot at the bottom left, both on one straight axis so the whole thing
-# reads as a single diagonal. The caller sizes the box; these are proportions.
-GATE_LEAF_BOX = (62, 84)
-GATE_FOOT = (1.8, 81.0)     # bottom left - lands on the panel's left edge
-GATE_TIP = (57.0, 3.2)      # top right - level with the top of "Fintor"
-# Where the body ends and the stem begins: 70% of the way from tip to foot,
-# so the blade runs well down the diagonal and the stalk is the last third.
-# It sat at 53% and the leaf read as a small head on a long stick. Kept ON the
-# tip-to-foot line, which is what keeps the midrib and the stem collinear.
-GATE_BASE = (18.4, 57.7)
-GATE_BULGE = 19.0
-GATE_STEM_HALF = 2.1
-
-
-def _gate_leaf_paths():
-    """Body and stem for the gate's mark, on one shared axis.
-
-    GATE_BASE sits on the line from GATE_FOOT to GATE_TIP, so the stem and the
-    midrib are collinear and the mark reads as one diagonal rather than a body
-    with a stick attached at an angle.
-    """
-    import math
-
-    ax, ay = GATE_BASE[0] - GATE_TIP[0], GATE_BASE[1] - GATE_TIP[1]
-    length = math.hypot(ax, ay)
-    unit = (ax / length, ay / length)
-    perp = (-unit[1], unit[0])
-
-    def at(t):
-        return (GATE_TIP[0] + unit[0] * length * t, GATE_TIP[1] + unit[1] * length * t)
-
-    def off(point, d):
-        return (point[0] + perp[0] * d, point[1] + perp[1] * d)
-
-    body = (
-        ("M", GATE_BASE),
-        ("C", off(at(0.75), GATE_BULGE), off(at(0.25), GATE_BULGE), GATE_TIP),
-        ("C", off(at(0.25), -GATE_BULGE), off(at(0.75), -GATE_BULGE), GATE_BASE),
-        ("Z",),
-    )
-
-    apex = at(0.10)
-    base_l, base_r = off(GATE_BASE, GATE_STEM_HALF), off(GATE_BASE, -GATE_STEM_HALF)
-    # The stem's own perpendicular, so the foot is square to the axis.
-    sx, sy = GATE_FOOT[0] - GATE_BASE[0], GATE_FOOT[1] - GATE_BASE[1]
-    slen = math.hypot(sx, sy)
-    sperp = (-sy / slen, sx / slen)
-    foot_l = (GATE_FOOT[0] + sperp[0] * GATE_STEM_HALF * 0.75,
-              GATE_FOOT[1] + sperp[1] * GATE_STEM_HALF * 0.75)
-    foot_r = (GATE_FOOT[0] - sperp[0] * GATE_STEM_HALF * 0.75,
-              GATE_FOOT[1] - sperp[1] * GATE_STEM_HALF * 0.75)
-    mid = ((GATE_BASE[0] + GATE_FOOT[0]) / 2, (GATE_BASE[1] + GATE_FOOT[1]) / 2)
-    stem = (
-        ("M", foot_l),
-        ("C", (mid[0] + sperp[0] * GATE_STEM_HALF, mid[1] + sperp[1] * GATE_STEM_HALF),
-         base_l, base_l),
-        ("C", off(at(0.60), GATE_STEM_HALF * 1.05), off(at(0.30), GATE_STEM_HALF * 0.8), apex),
-        ("C", off(at(0.30), -GATE_STEM_HALF * 0.8), off(at(0.60), -GATE_STEM_HALF * 1.05), base_r),
-        ("C", base_r, (mid[0] - sperp[0] * GATE_STEM_HALF, mid[1] - sperp[1] * GATE_STEM_HALF),
-         foot_r),
-        ("Z",),
-    )
-    return body, stem
-
-
-GATE_BODY, GATE_STEM = _gate_leaf_paths()
-
-
-def gate_leaf_svg(fill: str = MARK_INK, rib: str = None) -> str:
-    """The leaf alone, sized to run beside the wordmark and its tagline."""
-    w, h = GATE_LEAF_BOX
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
-        f'preserveAspectRatio="xMinYMin meet" role="img" aria-label="Fintor">'
-        f'<path d="{_d(GATE_BODY)}" fill="{fill}"/>'
-        f'<path d="{_d(GATE_STEM)}" fill="{rib or MARK_RIB}"/>'
-        "</svg>"
-    )
-
-
-def wordmark_svg(ink: str = WORDMARK_INK) -> str:
-    """"Fintor" on its own, for the gate, where the leaf is a separate element.
-
-    Same viewBox height and same baseline as logo_svg(), so rendered at the
-    same height the glyphs land at exactly the size and vertical position they
-    always did - only the leaf has moved out of the box.
-    """
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WORDMARK_TEXT_W} {GRID}" '
-        f'role="img" aria-label="Fintor">'
-        f'<text x="0" y="25" font-family="{WORDMARK_STACK}" '
-        f'font-size="{WORDMARK_SIZE}" font-weight="700" letter-spacing="-0.4" '
-        f'fill="{ink}">Fintor</text>'
-        "</svg>"
-    )
-
-
 def favicon_png(size: int = 64) -> bytes:
     """Draw the mark with Pillow at `size` px.
 
@@ -395,6 +283,26 @@ MARK_PATH = ASSETS / "fintor-mark.svg"
 LOGO_PATH = ASSETS / "fintor-logo.svg"
 LOGO_DARK_PATH = ASSETS / "fintor-logo-dark.svg"
 FAVICON_PATH = ASSETS / "fintor-favicon.png"
+# The gate's hero lockup: leaf, wordmark and tagline as one supplied artwork.
+# Built by scripts/build_lockup.py - see there for why it is WebP, why there
+# are two files, and how the wordmark is told apart from the leaf.
+LOCKUP_PATH = ASSETS / "fintor-lockup.webp"
+LOCKUP_DARK_PATH = ASSETS / "fintor-lockup-dark.webp"
+
+
+def lockup_data_uri(dark: bool = False) -> str:
+    """The lockup as a `data:` URI.
+
+    Inlined rather than linked because Streamlit does not serve files out of
+    the package by default, and the same media-file pipeline that silently
+    dropped the favicon is not worth trusting with the brand on the login
+    screen. 28KB of WebP is ~38KB of base64, paid once per render.
+    """
+    import base64
+
+    path = LOCKUP_DARK_PATH if dark else LOCKUP_PATH
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/webp;base64,{encoded}"
 
 
 if __name__ == "__main__":
