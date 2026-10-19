@@ -102,6 +102,7 @@ CSS = """
      so its top edge meets "Finance, made approachable." rather than the logo - tokenised
      because the offset is only correct while it tracks the mark. */
   --gate-lockup-w: 420px;
+  --gate-card-drop: 20px;
 
   /* The gate's own container inset, and the account grid's gap. Both are named
      because the form card's width is computed FROM them: a literal 28px in that
@@ -260,10 +261,11 @@ h1 { font-size: 1.72rem; }
   max-width: calc(
     (var(--fin-measure-gate) - 2 * var(--gate-pad) - 2 * var(--gate-grid-gap)) / 3);
   margin-left: auto;
-  /* No offset. It used to drop past the mark so its top met the tagline
-     ELEMENT; the lockup is one image now, there is no tagline element to
-     meet, and both panels simply open at the same y. */
-  margin-top: 0;
+  /* A deliberate drop, not an alignment. It used to be computed so the card
+     met the tagline ELEMENT; the lockup is one image now and there is nothing
+     to align to, so this is simply how far the form sits below the top of the
+     brand panel. */
+  margin-top: var(--gate-card-drop);
 }
 .st-key-signin-card .stButton > button,
 .st-key-signin-card [data-testid="stFormSubmitButton"] > button {

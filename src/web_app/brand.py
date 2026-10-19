@@ -283,9 +283,13 @@ MARK_PATH = ASSETS / "fintor-mark.svg"
 LOGO_PATH = ASSETS / "fintor-logo.svg"
 LOGO_DARK_PATH = ASSETS / "fintor-logo-dark.svg"
 FAVICON_PATH = ASSETS / "fintor-favicon.png"
-# The gate's hero lockup: leaf, wordmark and tagline as one supplied artwork.
-# Built by scripts/build_lockup.py - see there for why it is WebP, why there
-# are two files, and how the wordmark is told apart from the leaf.
+# The gate's hero lockup: leaf, wordmark and tagline as one supplied artwork,
+# drawn twice - once for each ground, not recoloured from one source. The dark
+# version is not a tint of the light one: its wordmark is white and its
+# tagline a deeper violet, both chosen against the dark page.
+# Built by scripts/build_lockup.py - see there for why they are WebP and why
+# the backgrounds still have to be keyed out even though each was drawn for
+# the ground it sits on.
 LOCKUP_PATH = ASSETS / "fintor-lockup.webp"
 LOCKUP_DARK_PATH = ASSETS / "fintor-lockup-dark.webp"
 

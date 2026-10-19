@@ -600,11 +600,12 @@ def test_the_header_is_fed_the_wordmark_not_the_bare_mark():  # noqa: D401
 def test_both_lockup_variants_are_committed_and_differ():
     """The gate's hero is a supplied image now, not three drawn elements.
 
-    An <img> cannot inherit CSS colour, so dark mode needs its own file with
-    the wordmark recoloured - the leaf and tagline are violet and hold on both
-    grounds, the near-black "Fintor" does not. If the two files were ever
-    identical the dark theme would show black text on a near-black page, which
-    is the same 1.2:1 failure the whole theme system was built to stop.
+    An <img> cannot inherit CSS colour, so each ground needs its own artwork.
+    They are drawn separately rather than derived: the dark version has a
+    white wordmark and a deeper violet tagline, which no recolour of the light
+    one would produce. If the two files were ever identical the dark theme
+    would show near-black text on a near-black page - the same 1.2:1 failure
+    the whole theme system exists to stop.
     """
     from src.web_app.brand import LOCKUP_DARK_PATH, LOCKUP_PATH
 
