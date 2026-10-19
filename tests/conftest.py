@@ -128,3 +128,137 @@ def chunks():
         mk("c#0", "Duration", "Term: Duration. Definition: price sensitivity to interest rates.",
            category="bonds", difficulty="advanced"),
     ]
+
+
+# --- fakes for the agent layer ------------------------------------------
+#
+# These lived inline in test_workflow.py as StubMarket/StubDeps. They are
+# here because the agent tests need the same shapes, and a second copy is how
+# a fake drifts from the port it stands in for. tests/test_architecture.py
+# asserts each of these satisfies its Protocol in src/core/ports.py, which is
+# what stops that drift silently.
+
+
+class FakeRetriever:
+    """Returns canned chunks and RECORDS how it was asked.
+
+    The recording is the point for the tax agent: `default_category="tax"` is a
+    class attribute that is supposed to reach `retrieve(category=...)`, and
+    nothing else proves it does.
+    """
+
+    def __init__(self, chunks=None) -> None:
+        self._chunks = list(chunks or [])
+        self.calls: list[dict] = []
+
+    def retrieve(self, text, *, top_k=6, category=None, difficulty_ceiling=None):
+        self.calls.append({"text": text, "top_k": top_k, "category": category,
+                           "difficulty_ceiling": difficulty_ceiling})
+        return list(self._chunks)
+
+
+class FakeMarket:
+    """quotes() returns a dict, history() a tuple - the real asymmetry.
+
+    MarketService.history returns `(rows, status)` and agents unpack it; a fake
+    that returned a bare list would pass its own test and fail the real one.
+    """
+
+    def __init__(self, prices=None, history_points: int = 40, status=None) -> None:
+        from src.core.contracts import DataStatus
+
+        self._prices = dict(prices or {})
+        self._points = history_points
+        self.last_status = status or DataStatus.LIVE
+        self.quote_calls: list[list[str]] = []
+
+    def quotes(self, symbols):
+        from src.core.contracts import DataStatus, Quote
+
+        self.quote_calls.append(list(symbols))
+        return {
+            s: Quote(symbol=s, price=self._prices[s], change_pct=1.5,
+                     currency="USD", provider="fake", status=DataStatus.LIVE)
+            for s in symbols if s in self._prices
+        }
+
+    def history(self, symbol, period="6mo"):
+        rows = [(f"2026-01-{i % 28 + 1:02d}", 100.0 + i) for i in range(self._points)]
+        return rows, self.last_status
+
+
+class FakeNews:
+    def __init__(self, items=None, status=None) -> None:
+        from src.core.contracts import DataStatus
+
+        self._items = list(items or [])
+        self.last_status = status or DataStatus.LIVE
+        self.calls = 0
+
+    def search(self, text, limit=5):
+        self.calls += 1
+        return list(self._items)[:limit]
+
+
+class RecordingChain(FakeChatProvider):
+    """Captures the messages it was handed, and can return a chosen object
+    from `structured()`.
+
+    FakeChatProvider.structured returns an EMPTY schema instance, which is only
+    the "the model extracted nothing" case. Verifying the extraction guard
+    needs a model that returns populated - and hallucinated - values.
+    """
+
+    def __init__(self, text: str = "fake answer", structured_value=None) -> None:
+        super().__init__(text)
+        self.messages: list = []
+        self._structured_value = structured_value
+
+    async def complete(self, messages, *, max_tokens=None):
+        self.messages.append(messages)
+        return await super().complete(messages, max_tokens=max_tokens)
+
+    async def structured(self, schema, messages):
+        self.messages.append(messages)
+        self.calls += 1
+        if self._structured_value is not None:
+            return self._structured_value
+        return schema()
+
+
+def make_deps(*, chain=None, retriever=None, market=None, news=None, settings=None):
+    """A duck-typed container. Nothing isinstance-checks deps, so this is enough."""
+
+    class _Deps:
+        pass
+
+    deps = _Deps()
+    deps.chain = chain if chain is not None else FakeChatProvider()
+    deps.retriever = retriever if retriever is not None else FakeRetriever()
+    deps.market = market if market is not None else FakeMarket()
+    deps.news = news if news is not None else FakeNews()
+    deps.settings = settings if settings is not None else type(
+        "S", (), {"news": {"limit": 5}, "workflow": {"agent_timeout_seconds": 5}})()
+    return deps
+
+
+@pytest.fixture
+def deps():
+    return make_deps()
+
+
+@pytest.fixture
+def retrieved():
+    """Two chunks in the shape the retriever really returns."""
+    from src.core.contracts import RetrievedChunk
+
+    return [
+        RetrievedChunk(id="a#0", text="An index fund tracks an index at low cost.",
+                       title="Index Fund", category="financial_basics",
+                       difficulty="beginner", source_name="SEC Investor.gov",
+                       source_url="https://investor.gov", score=0.81),
+        RetrievedChunk(id="b#0", text="Capital gains are taxed when you sell.",
+                       title="Capital Gains", category="tax",
+                       difficulty="beginner", source_name="IRS",
+                       source_url="https://irs.gov", score=0.74),
+    ]

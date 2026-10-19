@@ -46,7 +46,7 @@ The retrieval index is **committed**, so there is nothing to build before first 
 and news data need **no API keys** — yfinance and RSS are both keyless.
 
 ```bash
-.venv/bin/python -m pytest -q          # 254 tests, no network, no spend
+.venv/bin/python -m pytest -q          # 334 tests, no network, no spend
 .venv/bin/python -m src.rag.build      # rebuild the index (only after corpus changes)
 ```
 
@@ -157,7 +157,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                254 tests
+└── tests/                334 tests
 ```
 
 ## Usage examples
@@ -253,6 +253,49 @@ with at least two implementations, which is what makes the seams real and the te
 | `FINTOR_SESSION_BUDGET_USD` | no | overrides the session kill switch |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_BASE_URL` | no | tracing; absent means tracing is simply off |
 | `ANTHROPIC_API_KEY` | no | fallback provider; unset, so the chain never reaches it |
+
+## MCP server (Claude Desktop)
+
+Fintor's finance tools are also exposed over the **Model Context Protocol**, so
+Claude Desktop can compute with them directly.
+
+```bash
+.venv/bin/python -m src.mcp_server        # stdio
+```
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`
+(macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows), using
+**absolute** paths:
+
+```json
+{
+  "mcpServers": {
+    "fintor": {
+      "command": "/absolute/path/to/fintor/.venv/bin/python",
+      "args": ["-m", "src.mcp_server"],
+      "cwd": "/absolute/path/to/fintor"
+    }
+  }
+}
+```
+
+Restart Claude Desktop; the tools appear under the connector menu.
+
+| Tool | Returns |
+|---|---|
+| `analyze_portfolio` | Total, weights, class mix, diversification, risk score, concentration flags |
+| `project_goal` | A savings projection with a spread either side of the assumed return |
+| `analyze_price_series` | Period return, max drawdown, annualised volatility |
+| `correlate` | Correlation matrix across several price series |
+| `list_demo_personas` | The six synthetic readers, shaped as input for the tools above |
+| `search_knowledge_base` | Cited passages from the glossary, with source names and URLs |
+
+**No API key, no network, no model.** Every tool delegates to the same
+functions the app uses (`src/core/quant.py`, `src/core/market_calc.py`) and
+computes locally — the client is already a model, so the server does not need
+one. It cannot run up a bill sitting in your config file.
+
+Implementation notes are in [`docs/design.md`](docs/design.md#7-mcp-server).
 
 ## On the vector store
 

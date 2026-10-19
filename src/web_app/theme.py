@@ -102,7 +102,13 @@ CSS = """
      so its top edge meets "Finance, made approachable." rather than the logo - tokenised
      because the offset is only correct while it tracks the mark. */
   --gate-lockup-w: 420px;
-  --gate-card-drop: 20px;
+  /* How far the form sits below the top of the brand panel, set so the
+     card's BOTTOM border lands on the rule under the last pillar.
+     Tuned for the SHIPPED state, in which the card carries the published
+     credential hint - that line is 72px tall and was absent while a local
+     .env override suppressed it, which is why this was briefly 96px and
+     overshot by exactly that much once the override was removed. */
+  --gate-card-drop: 24px;
 
   /* The gate's own container inset, and the account grid's gap. Both are named
      because the form card's width is computed FROM them: a literal 28px in that

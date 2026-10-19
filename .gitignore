@@ -41,3 +41,4 @@ data/market/
 # Coverage artefacts
 .coverage
 htmlcov/
+.DS_Store

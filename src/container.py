@@ -46,6 +46,31 @@ class Deps:
         return bool(self.settings.offline)
 
 
+def build_retriever(settings: Settings | None = None, embedder=None):
+    """The retrieval stack on its own, with no LLM anywhere near it.
+
+    Extracted from build() because the MCP server needs retrieval and nothing
+    else: it never calls a model, so constructing the provider chain there
+    would couple a key-free server to LLM configuration for no benefit. One
+    definition, two callers.
+    """
+    s = settings or load_settings()
+    if embedder is None:
+        emb_cache = EmbeddingCache(s.path(s.cache.get("dir", "data/cache"), "embeddings.db"))
+        embedder = build_embedder(s, emb_cache)
+
+    index_dir = Path(s.rag.get("index_dir", "src/data/kb/index"))
+    index = NumpyIndex(embedder.dim, embedder.model_name)
+    index.load(index_dir)
+    chunks = json.loads((index_dir / "records.json").read_text(encoding="utf-8"))
+    return HybridRetriever(
+        chunks, index, embedder,
+        rrf_k=int(s.rag.get("rrf_k", 60)), overfetch=int(s.rag.get("overfetch", 20)),
+        score_threshold=float(s.rag.get("score_threshold", 0.25)),
+        mode=str(s.rag.get("mode", "hybrid")),
+    )
+
+
 def build(settings: Settings | None = None, *, persona_id: str | None = None,
           tier: ModelTier = ModelTier.CHEAP) -> Deps:
     s = settings or load_settings()
@@ -61,17 +86,7 @@ def build(settings: Settings | None = None, *, persona_id: str | None = None,
 
     emb_cache = EmbeddingCache(s.path(cache_dir, "embeddings.db"))
     embedder = build_embedder(s, emb_cache)
-
-    index_dir = Path(s.rag.get("index_dir", "src/data/kb/index"))
-    index = NumpyIndex(embedder.dim, embedder.model_name)
-    index.load(index_dir)
-    chunks = json.loads((index_dir / "records.json").read_text(encoding="utf-8"))
-    retriever = HybridRetriever(
-        chunks, index, embedder,
-        rrf_k=int(s.rag.get("rrf_k", 60)), overfetch=int(s.rag.get("overfetch", 20)),
-        score_threshold=float(s.rag.get("score_threshold", 0.25)),
-        mode=str(s.rag.get("mode", "hybrid")),
-    )
+    retriever = build_retriever(s, embedder)
 
     data_cache = SqliteCache(s.path(cache_dir, "market.db"))
     market = MarketService(

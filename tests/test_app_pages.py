@@ -303,8 +303,21 @@ def test_gate_does_not_build_the_container():
         "container.build = _boom\n"
         "exec(open(%r).read())\n" % str(APP)
     )
-    at = AppTest.from_string(probe, default_timeout=300)
-    at.run()
+    # AppTest runs IN PROCESS, so `container.build = _boom` inside the probe
+    # mutates the real module for the rest of the session. It is restored
+    # here because it does not stay inside this test: it leaked, and every
+    # later test that renders a page through the container failed with "the
+    # gate built the container" - a message pointing at this test from files
+    # that have nothing to do with it. Cost real time to track down once.
+    import src.container as container
+
+    original_build = container.build
+    try:
+        at = AppTest.from_string(probe, default_timeout=300)
+        at.run()
+    finally:
+        container.build = original_build
+
     assert not at.exception, at.exception[0].value if at.exception else ""
     body = "\n".join(m.value for m in at.markdown)
     from src.web_app.gate import TAGLINE

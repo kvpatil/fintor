@@ -111,3 +111,77 @@ def test_only_entrypoints_import_the_composition_root():
             offenders.append(module)
     assert not offenders, ("only entry points may import the composition root; found: "
                            + ", ".join(offenders))
+
+
+# --- the ports, checked at runtime rather than by grep -------------------
+
+
+def test_the_test_fakes_satisfy_the_ports_they_stand_in_for():
+    """`isinstance` against the real Protocols, not a text search.
+
+    test_protocols_have_two_impls above greps for `class Name` in the source.
+    That catches a deleted implementation but not a renamed method, and it
+    never imports src/core/ports.py - which is why that module sat at 0%
+    coverage with eight protocols nobody executed.
+
+    The fakes matter most here. A fake that drifts from its port makes every
+    test using it meaningless while staying green, and tests/conftest.py now
+    supplies the market, news and retriever doubles for the whole agent suite.
+
+    Honest about the limit: runtime_checkable checks method NAMES, not
+    signatures. It would not catch a changed parameter. It does catch the
+    common case - a method renamed or dropped on one side.
+    """
+    from src.core.ports import (CacheBackend, ChatProvider, Embedder, MarketDataProvider,
+                                NewsProvider, Retriever, VectorIndex)
+    from tests.conftest import (FakeChatProvider, FakeEmbedder, FakeMarket, FakeNews,
+                                FakeRetriever)
+
+    from src.core.cache import MemoryCache
+    from src.rag.index import NumpyIndex
+
+    assert isinstance(FakeEmbedder(), Embedder)
+    assert isinstance(FakeChatProvider(), ChatProvider)
+    assert isinstance(FakeRetriever(), Retriever)
+    assert isinstance(MemoryCache(), CacheBackend)
+    assert isinstance(NumpyIndex(8, "fake-8"), VectorIndex)
+
+    # FakeMarket and FakeNews stand in for the SERVICES (MarketService,
+    # NewsService), not for the providers underneath them - that is what
+    # container.py puts on deps, and what the agents call. The services add
+    # last_status and drop the provider's `name`, so asserting them against
+    # MarketDataProvider/NewsProvider is asserting the wrong contract. The
+    # first version of this test did exactly that and failed, which is the
+    # distinction worth recording.
+    for double, real in ((FakeMarket(), "MarketService"), (FakeNews(), "NewsService")):
+        assert hasattr(double, "last_status"), f"{real} double has no last_status"
+    assert hasattr(FakeMarket(), "quotes") and hasattr(FakeMarket(), "history")
+    assert hasattr(FakeNews(), "search")
+
+
+def test_the_real_providers_satisfy_the_provider_ports():
+    """The layer the services wrap. MockProvider and MockNews are the offline
+    implementations, so these run with no network at all."""
+    from src.core.ports import MarketDataProvider, NewsProvider
+    from src.data.market import MockProvider
+    from src.data.news import MockNews
+
+    assert isinstance(MockProvider(), MarketDataProvider)
+    assert isinstance(MockNews(), NewsProvider)
+
+
+def test_every_declared_port_is_runtime_checkable():
+    """Except Completion, which is a data shape rather than a service.
+
+    A Protocol that is not runtime_checkable cannot be asserted against at
+    all, so the conformance test above would silently skip it.
+    """
+    import src.core.ports as ports
+
+    not_checkable = []
+    for name in ("Embedder", "VectorIndex", "Retriever", "ChatProvider",
+                 "CacheBackend", "MarketDataProvider", "NewsProvider"):
+        proto = getattr(ports, name)
+        if not getattr(proto, "_is_runtime_protocol", False):
+            not_checkable.append(name)
+    assert not not_checkable, f"not runtime_checkable: {not_checkable}"

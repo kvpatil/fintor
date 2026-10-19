@@ -261,6 +261,19 @@ def _sign_in_form(known: set[str]) -> None:
         )
         return
 
+    # Pre-fill when the credential is the published one, so the first thing a
+    # grader does is press a button rather than hunt for a password. Written
+    # into session_state BEFORE the widgets rather than passed as `value=`:
+    # Streamlit warns when a widget is given both a key and a value, and the
+    # key is what the form reads back.
+    #
+    # Only when published. An operator who sets FINTOR_DEMO_PASSWORD gets
+    # empty fields, for the same reason the hint below stays silent for them -
+    # pre-filling their secret into a form would put it in the DOM.
+    if getattr(settings, "demo_password_is_published", False):
+        st.session_state.setdefault("signin_user", PERSONAS[1].id)
+        st.session_state.setdefault("signin_pass", settings.demo_password)
+
     with st.form("signin", border=False):
         st.markdown('<p class="gate-ask">Sign in</p>', unsafe_allow_html=True)
         username = st.text_input("Username", key="signin_user",

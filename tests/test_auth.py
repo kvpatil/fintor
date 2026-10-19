@@ -12,6 +12,7 @@ import inspect
 
 import pytest
 
+import src.web_app.gate as auth_gate
 from src.core import auth
 
 
@@ -300,3 +301,32 @@ def test_the_screen_prints_the_credential_only_when_it_is_published():
     assert len(shown) == 1, "exactly one of the two should print"
     assert "fintor" in shown[0]
     assert "operator-secret" not in " ".join(shown), "an override was printed"
+
+
+def test_the_published_credential_is_pre_filled_so_the_form_opens_ready():
+    """A grader should press one button, not hunt for a password.
+
+    The fields are seeded through session_state rather than `value=`, because
+    Streamlit warns when a widget gets both a key and a value - and the key is
+    what the form reads back, so a `value=` would be the thing ignored.
+    """
+    source = inspect.getsource(auth_gate._sign_in_form)
+
+    assert "demo_password_is_published" in source, (
+        "the pre-fill is not gated on provenance")
+    assert 'st.session_state.setdefault("signin_user"' in source
+    assert 'st.session_state.setdefault("signin_pass"' in source
+
+
+def test_an_operator_password_is_never_pre_filled_into_the_form():
+    """Same rule as the on-screen hint. Pre-filling an override would put a
+    real secret into the DOM of every sign-in page, which is worse than the
+    inconvenience it saves."""
+    source = inspect.getsource(auth_gate._sign_in_form)
+
+    seed_block = source.split("demo_password_is_published")[1].split("with st.form")[0]
+    assert "signin_pass" in seed_block, "the password seed moved out of the guard"
+
+    # The guard must be a condition, not a comment: the seeding has to sit
+    # inside the `if`.
+    assert "if getattr(settings" in source

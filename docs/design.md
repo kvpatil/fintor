@@ -204,7 +204,7 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 
 ## 5. Testing strategy
 
-254 tests, 73% line coverage. No network, no API spend — a session fixture replaces
+334 tests, 82% line coverage. No network, no API spend — a session fixture replaces
 `socket.socket` so an accidental connection fails loudly instead of billing.
 
 | Layer | What is asserted |
@@ -215,10 +215,17 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 | Workflow | Reducer merge, concurrency timing, citation renumbering, crisis short-circuit, tool-loop termination and its cap, error containment |
 | Cost | Zero-call cache hits, offline determinism, the budget kill switch, provider fallback, metered hits |
 | Views | Every page renders for every persona without raising — the blank-screen alarm nothing else catches |
+| Agents | Per agent: the relevance gate makes zero LLM calls, sample news is never narrated, a personal tax question is redirected, a hallucinated figure is dropped from an extraction, a failing agent costs one section |
+| MCP | Every tool's output equals the `quant`/`market_calc` function it wraps, dispatched through `call_tool` rather than around it |
 
-**Where the coverage is, and where it is not.** The logic is well covered: retriever 92%,
-router 93%, charts 99%, tools 89%. The remainder is concentrated in the Streamlit view
-layer, which needed `AppTest` to reach at all.
+**Where the coverage is, and where it is not.** 82% overall, clearing the brief's 80%.
+The six agents are now 84-100% each, having been 16-52%: nothing imported `src.agents`
+for behaviour at all, so ~320 statements of the product's core were guarded only by the
+workflow tests mocking them away. `src/rag/build.py` and `src/core/ports.py` left 0%.
+
+What remains uncovered is mostly adapter code with external edges - `data/news.py` (30%),
+`core/llm.py` (57%), `data/market.py` (54%) - plus `views/chat.py` (40%), whose
+uncovered half is the streaming-response path.
 
 That took two attempts, and the first one is worth recording because it looked like it
 worked. It drove the real `app.py` and set `query_params["page"]` to navigate.
@@ -227,7 +234,7 @@ page — coverage did not move, and `views/about.py` actually *dropped* to 19%. 
 that green-lights 21 assertions while exercising one page is worse than no suite, because
 it reports safety it does not provide. Invoking each view function directly through
 `AppTest.from_string` took `views/workspace.py` from 12% to 98% and the project from 62%
-to 73%.
+to 73%; the agent suite below took it from 73% to 82%.
 
 `views/chat.py` remains at 40%: the uncovered half is the streaming-response path, which
 needs a live model call and is covered instead by the workflow tests underneath it.
@@ -266,7 +273,49 @@ concurrent, but the slowest agent sets the floor for a multi-intent question.
 
 ---
 
-## 7. Known limits and next steps
+## 7. MCP server
+
+`src/mcp_server/server.py` exposes six finance tools over the Model Context
+Protocol (`mcp` 2.x, `MCPServer`, stdio transport). Setup and the tool table are
+in the [README](../README.md#mcp-server-claude-desktop).
+
+**It is an adapter, and deliberately nothing more.** Every tool delegates to
+`src/core/quant.py` or `src/core/market_calc.py`. No finance logic lives behind
+the protocol boundary, because logic that lives only there is logic nobody can
+test without standing up a protocol client. `tests/test_mcp_server.py` asserts
+delegation directly — a tool's output must equal what the underlying function
+returns, so "simplifying" the adapter by inlining the maths fails the build.
+
+**No model, no key, no network.** The client is the model; a second one would
+be paying twice for a worse answer. The practical consequence is that this
+server cannot incur cost while sitting in someone's config file, and the
+session socket block in `tests/conftest.py` turns that into an assertion rather
+than an intention.
+
+**Tested through dispatch, not around it.** The tests call
+`server.call_tool(name, args)` — the same path a client takes — rather than the
+undecorated Python functions. Calling those directly would leave registration,
+the generated input schema and the JSON round-trip untested, which is precisely
+the layer an MCP server *is*.
+
+Two things that only surfaced by testing through the protocol:
+
+- `analyze_price_series` originally called `volatility` for any series of two
+  or more points. `market_calc` requires ten and raises below that, so a short
+  series propagated `InsufficientData` through the protocol and failed the
+  whole call. It now returns the statistics the series can support and names
+  the one it cannot.
+- `correlation_matrix` sorts its labels and correlates *returns*, not prices.
+  A rising and a falling ramp look mirrored but correlate at +0.81, because
+  both have decaying returns.
+
+`search_knowledge_base` is the one tool with a heavy dependency. The retriever
+is built lazily and a failure is caught and returned as a message, so a missing
+index degrades that tool instead of taking the other five with it.
+
+---
+
+## 8. Known limits and next steps
 
 **Current limits.** Static embeddings are weaker than a transformer encoder. The corpus is 77
 documents. yfinance is unofficial and throttles on shared egress IPs. Safety is regex plus
