@@ -117,21 +117,78 @@ def test_brand_assets_exist_and_are_committed():
 
 
 def test_favicon_matches_the_svg_geometry():
-    """The PNG and the SVG come from one point list, so a change to the mark
+    """The PNG and the SVG come from one definition, so a change to the mark
     cannot update one renderer and leave the other behind.
 
-    This used to compare rectangles. The mark is a leaf now, with curves, and
-    the easy thing would have been to delete the check along with the rects -
-    but the invariant it protects is renderer agreement, not rectangles, and
-    that still holds: the SVG emits LEAF as `points`, Pillow draws the same
-    tuples.
+    This check has now survived two rewrites of the mark - rectangles, then a
+    polygon, now cubics - because the invariant it protects is renderer
+    AGREEMENT, not any particular primitive. Each time the easy move was to
+    delete it along with the shape it happened to describe.
+
+    Pillow has no cubic primitive, so the agreement is: the SVG emits the
+    control points as a path, and the PNG draws _flatten() of those same
+    control points. What must not happen is a second copy of the geometry.
     """
-    from src.web_app.brand import LEAF, favicon_png, mark_svg
+    from src.web_app.brand import (LEAF_BODY, LEAF_RIB, _flatten, favicon_png,
+                                   mark_svg)
 
     svg = mark_svg()
-    for x, y in LEAF:
-        assert f"{x},{y}" in svg, f"point ({x},{y}) is missing from the SVG"
+    for path in (LEAF_BODY, LEAF_RIB):
+        for _cmd, *points in path:
+            for x, y in points:
+                assert f"{x:g},{y:g}" in svg, f"({x},{y}) is missing from the SVG"
+        # The flattener has to start on the path and stay inside the grid, or
+        # the PNG silently renders a different shape from the SVG.
+        flat = _flatten(path)
+        assert len(flat) > 20, "the curve was not actually sampled"
+        assert all(-1 <= x <= 33 and -1 <= y <= 33 for x, y in flat)
+
     assert favicon_png(32)[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_the_tagline_wears_the_same_violet_as_the_leaf_stem():
+    """The stem and "Finance, taught." are meant to read as one thing, and
+    nothing else enforces that: the stem is baked into an <img> by brand.py and
+    the tagline is painted by CSS in theme.py. Two files, one intended colour.
+
+    The stem cannot follow the viewer's theme - st.logo() takes a single image -
+    so the tagline token is deliberately NOT redefined for dark. That is normally
+    the exact bug test_every_colour_token_is_redefined_for_dark exists to catch,
+    which is why the reasoning is written down here rather than left to be
+    rediscovered and "fixed".
+    """
+    import re
+
+    from src.web_app.brand import MARK_RIB
+    from src.web_app.theme import CSS, DARK_TOKENS
+
+    token = re.search(r"--fin-tagline:\s*(#[0-9a-fA-F]{6})", CSS)
+    assert token, "--fin-tagline is not defined"
+    assert token.group(1).lower() == MARK_RIB.lower(), (
+        f"tagline {token.group(1)} has drifted from the stem {MARK_RIB}")
+    assert "--fin-tagline" not in DARK_TOKENS, (
+        "the tagline must not be re-themed - the stem it matches cannot be")
+
+    rule = re.search(r"\.gate-tagline \{([^}]*)\}", CSS)
+    assert "var(--fin-tagline)" in rule.group(1), "the tagline ignores its token"
+
+
+def test_the_tagline_aligns_with_the_wordmark_not_the_panel_edge():
+    """The indent is computed from the artwork's own constants. Hardcoding it
+    would leave the tagline behind the first time the wordmark moves."""
+    import re
+
+    from src.web_app.brand import GRID, WORDMARK_X
+    from src.web_app.gate import GATE_CHROME_CSS
+    from src.web_app.theme import CSS
+
+    decl = re.search(r"--gate-wordmark-x:([^;]+);", GATE_CHROME_CSS)
+    assert decl, "the gate never emits the wordmark offset"
+    assert str(WORDMARK_X) in decl.group(1) and str(GRID) in decl.group(1), (
+        "the offset is not derived from brand.WORDMARK_X / brand.GRID")
+
+    rule = re.search(r"\.gate-tagline \{([^}]*)\}", CSS)
+    assert "var(--gate-wordmark-x" in rule.group(1), "the tagline is not indented"
 
 
 # --- the gate -----------------------------------------------------------
@@ -463,51 +520,99 @@ def test_the_generated_graph_is_laid_out_horizontally():
 
 
 def _render_mark(size: int = 32):
-    """The mark as a boolean grid, drawn exactly as favicon_png draws it."""
+    """The mark's silhouette as a boolean grid - body and stem together, which
+    is the outline the eye actually sees."""
     from PIL import Image, ImageDraw
 
-    from src.web_app.brand import GRID, LEAF
+    from src.web_app.brand import GRID, LEAF_BODY, LEAF_RIB, _flatten
 
     scale = size / GRID
     img = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(img).polygon([(x * scale, y * scale) for x, y in LEAF], fill=255)
+    draw = ImageDraw.Draw(img)
+    for path in (LEAF_BODY, LEAF_RIB):
+        draw.polygon([(x * scale, y * scale) for x, y in _flatten(path)], fill=255)
     return [[img.getpixel((x, y)) > 127 for x in range(size)] for y in range(size)]
 
 
 def test_the_mark_has_enough_weight_to_read_small():
-    """It renders at 34px in the header and 24px before that. The old version
-    of this test asserted stem and bar widths, which mean nothing for a leaf -
-    but what those numbers were really protecting is that the mark has enough
-    mass to survive at the size it is actually used. Ink coverage says the same
-    thing about any shape.
-    """
-    grid = _render_mark(32)
-    ink = sum(row.count(True) for row in grid)
-    coverage = ink / (32 * 32)
-    assert coverage >= 0.35, f"the mark covers {coverage:.0%}; it will read as a smudge"
-    assert coverage <= 0.85, f"the mark covers {coverage:.0%}; it is a blob, not a mark"
+    """It renders at 34px in the header and 24px before that, and it has to
+    have enough mass to survive there rather than read as a smudge.
 
+    MEASURED AGAINST ITS OWN BOUNDING BOX, not the square. The earlier version
+    divided by the full 32x32 canvas and demanded 35%, which was fine for the
+    squat polygon it was written for and is simply the wrong question for a
+    diagonal shape: a leaf on the diagonal leaves two corners of the square
+    necessarily empty, so it scored 26% while looking perfectly solid. Lowering
+    the number to make it pass would have hidden that; changing WHAT is
+    measured keeps the guarantee and makes it orientation-independent.
 
-def test_the_midrib_gap_survives_at_favicon_size():
-    """The gap is what makes it a leaf rather than a blob. It is the first
-    feature to close when the shape is scaled down, so it is checked at the
-    smallest size the app actually renders.
-
-    A row crossing the shape four times means ink, gap, ink - the midrib.
+    Both halves still matter - a mark that is dense but tiny fails the second
+    assertion, one that fills the grid as a blob fails the third.
     """
     for size in (32, 16):
         grid = _render_mark(size)
-        split_rows = 0
-        for row in grid:
-            runs, prev = 0, False
-            for cell in row:
-                if cell and not prev:
-                    runs += 1
-                prev = cell
-            if runs >= 2:
-                split_rows += 1
-        assert split_rows >= 2, (
-            f"at {size}px no row shows a midrib gap; the leaf has closed into a blob")
+        on = [(x, y) for y, row in enumerate(grid)
+              for x, cell in enumerate(row) if cell]
+        assert on, f"nothing rendered at {size}px"
+        xs, ys = [p[0] for p in on], [p[1] for p in on]
+        box = (max(xs) - min(xs) + 1) * (max(ys) - min(ys) + 1)
+        density = len(on) / box
+
+        assert box >= 0.5 * size * size, (
+            f"at {size}px the mark spans {box} of {size * size} px; it is "
+            "floating in its own canvas")
+        assert density >= 0.45, (
+            f"at {size}px the mark fills {density:.0%} of its own box; "
+            "it will read as a smudge")
+        assert density <= 0.80, (
+            f"at {size}px the mark fills {density:.0%} of its own box; "
+            "it is a blob, not a leaf")
+
+
+def test_the_midrib_survives_at_favicon_size():
+    """The midrib is what makes it a leaf rather than a blob, and it is the
+    first feature to disappear when the shape is scaled down - so it is checked
+    at the smallest size the app actually renders.
+
+    WHAT CHANGED, because this test used to assert the opposite. The midrib was
+    negative space: a slit, detected by counting rows that crossed ink, gap,
+    ink. It is now a drawn stem in MARK_RIB, so there is no gap to find and the
+    old check would pass on a solid blob. The invariant is the same - the rib
+    must be VISIBLE at 16px - but the evidence for it is now colour separation
+    rather than a hole.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+
+    from src.web_app.brand import MARK_INK, MARK_RIB, favicon_png
+
+    def rgb(h):
+        h = h.lstrip("#")
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+    for size in (32, 16):
+        img = Image.open(BytesIO(favicon_png(size))).convert("RGBA")
+        body = rib = 0
+        for y in range(size):
+            for x in range(size):
+                r, g, b, a = img.getpixel((x, y))
+                if a < 128:
+                    continue
+                # Nearest of the two brand inks, in plain RGB distance. The
+                # two differ by enough that antialiasing cannot flip one into
+                # the other across a whole region.
+                d_body = sum((c - t) ** 2 for c, t in zip((r, g, b), rgb(MARK_INK)))
+                d_rib = sum((c - t) ** 2 for c, t in zip((r, g, b), rgb(MARK_RIB)))
+                if d_rib < d_body:
+                    rib += 1
+                else:
+                    body += 1
+        assert body > 0, f"at {size}px the leaf body did not render"
+        assert rib >= max(4, size // 4), (
+            f"at {size}px only {rib} stem pixels survive; the midrib has "
+            "vanished and the mark is a blob")
+        assert rib < body, f"at {size}px the stem ({rib}) outweighs the body ({body})"
 
 
 def test_a_dark_wordmark_is_committed_and_differs():

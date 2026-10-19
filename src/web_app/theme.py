@@ -30,6 +30,14 @@ CSS = """
      without introducing a second colour. Measured on this ground, not assumed:
      ink 15.53:1, muted 6.50:1, accent 7.62:1. */
   --fin-card-tint: #f3effc;
+  /* The tagline under the wordmark. Deliberately ONE value for both themes,
+     and deliberately not redefined in the dark block - it has to equal
+     brand.MARK_RIB, the leaf's stem, and that is baked into a themeless <img>
+     that cannot follow the viewer. Measured on both grounds: 3.11:1 light,
+     5.66:1 dark. AA for LARGE text, which the tagline is at 1.9rem/700; it
+     would fail at body size, so this token stays on the tagline.
+     tests/test_brand.py fails the build if it drifts from MARK_RIB. */
+  --fin-tagline: #9b7aeb;
   /* Border for a text field. NOT --fin-line: that is a page hairline, and
      measured against a field fill it is 1.23:1 light and 1.29:1 dark - far
      under the 3:1 WCAG asks of a control boundary (1.4.11), which is why the
@@ -200,10 +208,17 @@ h1 { font-size: 1.72rem; }
 .signin-brand { padding: 0; }
 .gate-logo { margin: 0 0 14px; color: var(--fin-ink); }
 .gate-logo svg { height: var(--gate-logo-h); width: auto; }
+/* Indented to start under the "F" of Fintor rather than at the panel edge, so
+   the lockup and its tagline share a left edge. The offset is the wordmark's
+   x in the logo's own viewBox, scaled to the height the mark is drawn at -
+   emitted by gate.py from brand.WORDMARK_X/GRID so it tracks the artwork
+   instead of being a number copied across files. */
 .gate-tagline {
   font-family: "Fintor Serif", Georgia, serif;
   font-size: 1.9rem; font-weight: 700; letter-spacing: -0.015em;
   margin: 2px 0 8px;
+  padding-left: var(--gate-wordmark-x, 0px);
+  color: var(--fin-tagline);
 }
 /* No max-width. It was capped at 54ch while the pillar rows below it filled the
    whole brand column, so the paragraph wrapped short of the rules underneath it

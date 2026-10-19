@@ -28,38 +28,60 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 # to violet that name would have been actively misleading - the kind of lie a
 # grep goes looking for and believes.
 MARK_INK = "#7a52db"
+# The stem, and the tagline under the wordmark - deliberately the same value,
+# so the lockup and the line beneath it read as one thing. A LIGHTER violet, as
+# asked, and the lightest one that still works: it is fixed ink in a themeless
+# <img>, so it has to hold on both grounds, and measured it gives 3.11:1 on the
+# light ground and 5.66:1 on the dark. That clears AA for LARGE text only - the
+# tagline is 1.9rem/700, well past the 18.66px bold threshold. Do not reuse
+# this for body copy, where 3.11:1 is a fail.
+MARK_RIB = "#9b7aeb"
 # Light-mode ink, and the reason there are two logo files: an <img>-loaded SVG
 # cannot inherit the page's colour, so the wordmark has to be baked per theme.
 WORDMARK_INK = "#17211d"
 WORDMARK_INK_DARK = "#e7ebe6"
 
-# The leaf, as ONE polygon on a 32-unit grid.
+# The leaf: a body and a stem, each ONE cubic-Bezier outline on a 32-unit grid.
 #
-# Traced from the brand diagram rather than drawn freehand: a row scan of the
-# source PNG gave a 41x51 silhouette (aspect 0.804, so taller than wide) whose
-# lower half is split by a diagonal midrib gap about two units across. The
-# points below follow that scan clockwise from the tip.
+# It was a 30-point polygon traced off the brand diagram, and it read as a
+# blob - a leaf is two smooth arcs meeting at a point, and a row-scan of a PNG
+# cannot give you that. With curves the tip falls out of the two tangents
+# meeting, where the polygon had to fake it with short segments.
 #
-# A single non-convex outline, not two shapes. The notch is cut up from the
-# bottom - the outline runs down the right lobe, back up the inside of the gap,
-# down the left lobe, and around the outer edge. Drawing it as two polygons
-# would need the gap maintained in two places and they would drift.
+# The axis runs bottom-left (base) to top-right (tip) at 45 degrees. Each side
+# of the body is one cubic bulging away from that axis.
 #
-# ONE point list, two renderers: mark_svg() emits it as <polygon points>, and
-# favicon_png() hands the same tuples to ImageDraw.polygon. That is what keeps
-# the SVG and the PNG from diverging now that the shape has curves - the old
-# mark was rectangles-only for exactly this reason, and the invariant survives
-# the change rather than being dropped with it.
-LEAF = (
-    (28, 0),                                      # tip, top right
-    (30, 3), (30, 10), (29, 18), (26, 23),        # right edge, falling away
-    (22, 27), (18, 29), (14, 31), (10, 32),       # foot of the right lobe
-    (9, 30), (11, 24), (13, 20), (17, 15),        # up the notch, right side
-    (16, 15), (12, 18), (8, 23), (6, 26),         # down the notch, left side
-    (5, 29), (4, 32),                             # foot of the left lobe
-    (2, 28), (0, 24), (0, 20), (2, 16),           # outer left edge, rising
-    (3, 12), (6, 10), (10, 7), (15, 5),
-    (20, 2), (24, 1),                             # back round to the tip
+# The midrib used to be a SLIT - a wedge of negative space cut up from the
+# base. It is now a drawn shape in MARK_RIB, so the stem carries colour
+# instead of showing the page through, and it extends past the base so the
+# leaf reads as picked rather than floating. Two shapes, not one, because a
+# single path cannot hold two fills.
+BASE = (5.0, 27.0)
+TIP = (27.0, 5.0)
+# Both controls near the tip sit close to the axis, which is what sharpens it:
+# the first draft put them far off-axis, the tangents met at a wide angle and
+# the tip came out blunt. Rendered at 11x against two alternatives before
+# picking this one - a slenderer version read as a willow leaf and lost its
+# body at the 24px nav size.
+LEAF_BODY = (
+    ("M", BASE),
+    ("C", (2.8, 14.6), (14.6, 7.2), TIP),
+    ("C", (24.6, 17.4), (17.4, 29.2), BASE),
+    ("Z",),
+)
+
+# The stem. Starts outside the body at the base and tapers to a point short of
+# the tip, bowing the same way the body does so it sits along the leaf rather
+# than cutting across it. The two edges are offset by ~1.5 units at the base
+# and converge on RIB_APEX, which is what makes the taper.
+STEM_A = (2.3, 28.6)
+STEM_B = (3.4, 29.7)
+RIB_APEX = (24.0, 8.0)
+LEAF_RIB = (
+    ("M", STEM_A),
+    ("C", (9.0, 20.0), (16.0, 13.0), RIB_APEX),
+    ("C", (17.0, 14.0), (10.0, 21.0), STEM_B),
+    ("Z",),
 )
 GRID = 32
 
@@ -77,9 +99,55 @@ WORDMARK_STACK = (
 )
 
 
-def _leaf_svg(fill: str) -> str:
-    points = " ".join(f"{x},{y}" for x, y in LEAF)
-    return f'<polygon points="{points}" fill="{fill}"/>' 
+def _d(path) -> str:
+    """A path tuple as an SVG `d` string."""
+    parts = []
+    for cmd, *pts in path:
+        coords = " ".join(f"{x:g},{y:g}" for x, y in pts)
+        parts.append(f"{cmd}{coords}" if coords else cmd)
+    return " ".join(parts)
+
+
+def _bezier(p0, p1, p2, p3, steps):
+    """Cubic Bezier, sampled. 24 steps is past the point where more changes a
+    pixel at 64px, which is the largest size the PNG is ever asked for."""
+    out = []
+    for i in range(1, steps + 1):
+        t = i / steps
+        u = 1 - t
+        out.append((
+            u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
+            u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1],
+        ))
+    return out
+
+
+def _flatten(path, steps: int = 24) -> list[tuple[float, float]]:
+    """A path tuple as a point list, for renderers that cannot draw curves.
+
+    This is what keeps the PNG honest: Pillow has no cubic primitive, so
+    without flattening the SAME control points the favicon would have to be a
+    second, hand-kept copy of the shape.
+    """
+    points: list[tuple[float, float]] = []
+    cursor = (0.0, 0.0)
+    for cmd, *pts in path:
+        if cmd == "M":
+            cursor = pts[0]
+            points.append(cursor)
+        elif cmd == "C":
+            points.extend(_bezier(cursor, pts[0], pts[1], pts[2], steps))
+            cursor = pts[2]
+        elif cmd == "L":
+            cursor = pts[0]
+            points.append(cursor)
+    return points
+
+
+def _leaf_svg(fill: str, rib: str = None) -> str:
+    """Body then stem - the stem is drawn second so it sits on top."""
+    return (f'<path d="{_d(LEAF_BODY)}" fill="{fill}"/>'
+            f'<path d="{_d(LEAF_RIB)}" fill="{rib or MARK_RIB}"/>')
 
 
 def mark_svg(fill: str = MARK_INK) -> str:
@@ -114,8 +182,9 @@ def logo_svg(fill: str = MARK_INK, ink: str = WORDMARK_INK) -> str:
 def favicon_png(size: int = 64) -> bytes:
     """Draw the mark with Pillow at `size` px.
 
-    st.set_page_config(page_icon=...) wants a raster path, and since the mark is
-    pure rectangles this is an exact rendering rather than a rasterized guess.
+    st.set_page_config(page_icon=...) wants a raster path. The outline is
+    flattened from the same control points the SVG uses, so this is the same
+    shape at raster resolution rather than a separately maintained one.
     """
     from io import BytesIO
 
@@ -123,8 +192,10 @@ def favicon_png(size: int = 64) -> bytes:
 
     scale = size / GRID
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    ImageDraw.Draw(img).polygon(
-        [(x * scale, y * scale) for x, y in LEAF], fill=MARK_INK)
+    draw = ImageDraw.Draw(img)
+    for path, colour in ((LEAF_BODY, MARK_INK), (LEAF_RIB, MARK_RIB)):
+        draw.polygon([(x * scale, y * scale) for x, y in _flatten(path)],
+                     fill=colour)
     buf = BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()

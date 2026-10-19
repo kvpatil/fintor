@@ -20,7 +20,7 @@ import streamlit as st
 from src.core import auth
 from src.core.quant import diversification_score, portfolio_value, risk_score, weights
 from src.data.personas import PERSONAS
-from src.web_app.brand import logo_svg
+from src.web_app.brand import GRID, WORDMARK_X, logo_svg
 from src.web_app.state import app_settings
 
 TAGLINE = "Finance, taught."
@@ -48,6 +48,11 @@ PILLARS = (
 #    The toolbar is left alone so the theme switcher still works here.
 GATE_CHROME_CSS = (
     "<style>"
+    # Where the wordmark's own text begins, in rendered pixels: its x inside
+    # the logo viewBox, scaled by however tall the mark is drawn. Computed
+    # from the artwork's constants so moving the text in brand.py moves the
+    # tagline with it, rather than leaving the two silently out of step.
+    f":root{{--gate-wordmark-x:calc(var(--gate-logo-h) * {WORDMARK_X} / {GRID});}}"
     # The inset is declared rather than inherited: Streamlit's default is 5rem,
     # which left 112px of whitespace either side and silently broke the form
     # card's width calc, which subtracts this value.
