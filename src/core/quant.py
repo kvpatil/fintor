@@ -24,6 +24,20 @@ BROAD_FUNDS = {"VTI","VOO","SPY","ITOT","VXUS","VEU","IXUS","QQQ","IWM","BND","A
 _LOOK_THROUGH = 20
 
 
+def _usable(price: float | None) -> bool:
+    """A price is only usable if it is a real, positive number.
+
+    Defence in depth against the NaN that reached the UI once already. The
+    provider now drops non-finite closes, but a quote can also arrive from a
+    cache written BEFORE that fix - which is exactly what happened: the bad
+    value was already on disk and kept being served. A valuation function
+    must not trust its input to be finite.
+    """
+    import math
+
+    return price is not None and math.isfinite(price) and price > 0
+
+
 def portfolio_value(holdings: Sequence[Holding], quotes: dict[str, Quote], cash: float = 0.0) -> tuple[float, list[str]]:
     """Total value plus the symbols that could not be priced.
 
@@ -34,7 +48,7 @@ def portfolio_value(holdings: Sequence[Holding], quotes: dict[str, Quote], cash:
     unpriced: list[str] = []
     for h in holdings:
         q = quotes.get(h.symbol.upper())
-        if q is not None and q.status.value != "sample":
+        if q is not None and q.status.value != "sample" and _usable(q.price):
             total += h.shares * q.price
         elif h.cost_basis:
             total += h.shares * h.cost_basis
@@ -51,7 +65,11 @@ def weights(holdings: Sequence[Holding], quotes: dict[str, Quote], cash: float =
     out: dict[str, float] = {}
     for h in holdings:
         q = quotes.get(h.symbol.upper())
-        price = q.price if (q and q.status.value != "sample") else (h.cost_basis or 0.0)
+        # Same usability test as portfolio_value, or the two disagree: the
+        # total would fall back to cost basis while the weight divided a NaN
+        # by it, which is how every weight came out blank.
+        usable = q is not None and q.status.value != "sample" and _usable(q.price)
+        price = q.price if usable else (h.cost_basis or 0.0)
         out[h.symbol.upper()] = round(100.0 * h.shares * price / total, 2)
     if cash > 0:
         out["CASH"] = round(100.0 * cash / total, 2)

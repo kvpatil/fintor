@@ -109,8 +109,20 @@ class YFinanceProvider:
         df = yf.Ticker(symbol.upper()).history(period=period, interval="1d")
         if df is None or df.empty or "Close" not in df:
             return []
+        # NaN closes are DROPPED, not passed on. yfinance returns them for
+        # partial or holiday rows, and one of them poisons everything
+        # downstream: a NaN price made the portfolio total render as "$nan",
+        # every weight blank, and the diversification and risk scores read
+        # 100/100. Worse, the bad quote was cached, so it kept doing it.
+        #
+        # Dropping here rather than at each call site because quotes(),
+        # history(), the moving averages, volatility and the correlation
+        # matrix all read through this one function.
+        import math
+
         return [(str(idx.date()), round(float(c), 2))
-                for idx, c in zip(df.index, df["Close"].tolist(), strict=False)]
+                for idx, c in zip(df.index, df["Close"].tolist(), strict=False)
+                if c is not None and math.isfinite(float(c))]
 
     def quotes(self, symbols: Sequence[str]) -> list[Quote]:
         out: list[Quote] = []

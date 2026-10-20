@@ -1,19 +1,94 @@
 # Fintor
 
-**Finance, made approachable.** A multi-agent AI finance assistant: six specialist agents
-analyse a portfolio, project a goal, read the market, and answer money questions in plain
-English — grounded in a cited knowledge base, enriched with keyless live market data, and
-conditioned on a selectable profile. Every figure is computed in Python, never estimated by
-a model. It provides information and analysis; it does not give personal financial,
-investment, legal or tax advice, and every answer says so.
+**AI-powered personal finance analysis.** Six specialist agents analyse a portfolio,
+project a goal, read the market, and answer money questions in plain English — grounded
+in a cited knowledge base and conditioned on whose finances are being discussed.
+
+Every figure is computed in Python; the model explains results it cannot alter. Fintor
+provides information and analysis. It does not give personal financial, investment,
+legal or tax advice, and every answer says so.
+
+---
+
+## The problem
+
+People have no shortage of financial data. What they lack is a way to see what it means
+for *them*.
+
+A brokerage app shows a balance but not that 65% of it sits in one stock. A spreadsheet
+projects a goal but hides the assumption doing the work. And a general-purpose chatbot
+will cheerfully produce a confident number it never calculated — which is worse than no
+answer, because it looks the same as a right one.
+
+Fintor separates the two things those tools conflate:
+
+| | |
+|---|---|
+| **Arithmetic** | Computed in Python, deterministic, unit-tested. The model cannot change a figure. |
+| **Explanation** | Generated, cited to a retrieved passage, and conditioned on the person asking. |
+
+A narration containing a number absent from the computed facts is **discarded whole** and
+replaced by a deterministic template. That single rule is what makes the rest trustworthy.
+
+![Portfolio analysis](docs/img/portfolio.png)
+
+## What it does
+
+| Capability | What that means |
+|---|---|
+| **Portfolio analysis** | Value, allocation, diversification score, risk score against stated tolerance, concentration flags, and a correlation matrix — because diversification comes from owning things that *do not move together*, which weights alone never show. |
+| **Goal planning** | Target projections with a spread either side of the assumed return. A single projection presented as a forecast is the most common way tools like this mislead people. |
+| **Market context** | Prices, moving averages, max drawdown, annualised volatility, and benchmark comparison indexed to a common base — never a second y-axis. |
+| **Grounded answers** | Hybrid retrieval over a cited corpus. A citation that does not resolve to a retrieved passage is stripped, and the count is reported. |
+| **Personalisation** | The same question answered differently for a 31-year-old concentrated in one stock and a 61-year-old four years from retirement. |
+| **Reusable services** | The same analysis functions exposed over **MCP** for external agent clients. |
+
+### The demonstration that matters
+
+Ask *"Should I buy more NVDA?"* as **Dev** (31, most of his portfolio in one employer stock) and then as
+**Walter** (61, bond-heavy, four years from retiring).
+
+Same agents. Same corpus. Same retrieval. The answers differ because the person asking does —
+the profile sets a difficulty ceiling that filters the corpus before ranking, supplies a
+different portfolio to reason about, and carries its own conversation thread.
+
+Neither answer recommends buying anything.
+
+![Sign-in: six sample accounts, each with the question it opens with](docs/img/sign-in.png)
+
+## How it works
+
+```
+web_app  →  workflow  →  agents  →  { rag, data }  →  core
+```
+
+Strictly one-way, enforced by a build-time test. Every external dependency sits behind a
+`typing.Protocol` in `src/core/ports.py` with at least two implementations, which is what
+makes the seams real and the tests fast.
+
+Five decisions worth the reading time:
+
+- **A three-tier router.** Regex first, then embedding k-NN against intent centroids,
+  and only then an LLM classifier. Most questions never reach tier three, so routing is
+  usually free.
+- **Dynamic fan-out, not a fixed pipeline.** `Send()` dispatches one payload per planned
+  agent and they run concurrently; `operator.add` reducers merge the results. Without
+  that reducer, concurrent writes to shared state silently drop.
+- **Grounding is enforced, not requested.** Every `[n]` is verified against what was
+  actually retrieved; unresolvable markers are stripped and counted.
+- **Cost is a first-class constraint.** Seven cache layers, a session budget kill switch,
+  and an offline mode that is never billed. The full suite runs with zero API spend.
+- **The internals are on screen.** *About Fintor → AI Internals* reports the routing
+  tier, retrieval ranks with fusion scores, every model call with tokens and cost, and
+  the guardrail counters — for the run you just did.
 
 ```
 Workspace                    About Fintor
-├── Chat                     ├── Architecture      (8 diagrams, #1 generated from the graph)
-├── Portfolio                ├── Design Document
-├── Market                   ├── Governance        (5 SKILL.md + traceability)
-├── Goals                    └── Recording
-└── AI Internals  ← the machinery, made visible
+├── Chat                     ├── Architecture      (7 diagrams, #1 generated from the graph)
+├── Portfolio                ├── AI Internals      ← the machinery, made visible
+├── Market                   ├── Design Document
+└── Goals                    ├── Governance        (5 SKILL.md + traceability)
+                             └── Recording
 ```
 
 ## Quick start
@@ -57,7 +132,7 @@ The retrieval index is **committed**, so there is nothing to build before first 
 and news data need **no API keys** — yfinance and RSS are both keyless.
 
 ```bash
-.venv/bin/python -m pytest -q          # 349 tests, no network, no spend
+.venv/bin/python -m pytest -q          # 358 tests, no network, no spend
 .venv/bin/python -m src.rag.build      # rebuild the index (only after corpus changes)
 ```
 
@@ -145,15 +220,7 @@ committed **first** — they constrain the code written after them. Rendered in-
 Plus [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for repo-wide
 conventions, including the one-way dependency rule.
 
-## Architecture at a glance
-
-```
-web_app  →  workflow  →  agents  →  { rag, data }  →  core
-```
-
-Strictly one-way, enforced by a build-time test. Every external dependency sits behind a
-`typing.Protocol` in `src/core/ports.py` with at least two implementations, which is what
-makes the seams real and the tests fast.
+## Repository layout
 
 ```
 fintor/
@@ -168,7 +235,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                349 tests
+└── tests/                358 tests
 ```
 
 ## Usage examples

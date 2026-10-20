@@ -25,7 +25,7 @@ PERSONAS: list[Persona] = [
         ],
     ),
     Persona(
-        id="dev", name="Dev", age=31, headline="70% in employer stock after an IPO",
+        id="dev", name="Dev", age=31, headline="Heavily concentrated in employer stock after an IPO",
         experience_level=Difficulty.INTERMEDIATE, risk_tolerance="aggressive", horizon_years=30,
         cash=12000.0,
         holdings=[
@@ -79,7 +79,7 @@ PERSONAS: list[Persona] = [
         ],
     ),
     Persona(
-        id="aisha", name="Aisha", age=29, headline="40% crypto, high risk appetite",
+        id="aisha", name="Aisha", age=29, headline="Crypto-heavy, high risk appetite",
         experience_level=Difficulty.INTERMEDIATE, risk_tolerance="aggressive", horizon_years=30,
         cash=4000.0,
         holdings=[
