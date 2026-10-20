@@ -24,14 +24,24 @@ from src.web_app.brand import lockup_data_uri
 from src.web_app.state import app_settings
 
 TAGLINE = "Finance, made approachable."
+# Written for someone deciding whether to sign in, not for someone reviewing
+# the build. These three used to be "Hybrid retrieval / Dense vectors and BM25,
+# fused by reciprocal rank", "Every claim cited" and "Costed and traced /
+# Langfuse span for every run" - true, and of no interest whatsoever to a
+# customer looking at their money. The engineering story moved to About Fintor,
+# where someone who wants it can go and find it.
 SUBLINE = (
-    "Six specialist agents answer money questions in plain English, grounded in a cited "
-    "knowledge base. Sign in as one of six readers and the answers change with them."
+    "Understand your portfolio, plan towards a goal, and get straight answers about "
+    "money — with the sources shown. Choose a profile to see how the answers change "
+    "with the person asking."
 )
 PILLARS = (
-    ("Hybrid retrieval", "Dense vectors and BM25, fused by reciprocal rank."),
-    ("Every claim cited", "A citation that does not resolve is stripped, not shown."),
-    ("Costed and traced", "Token spend per answer, and a Langfuse span for every run."),
+    ("See your real risk",
+     "Concentration and correlation, not just a list of what you hold."),
+    ("Plan with a range",
+     "Goal projections show a spread, because a single number is not a forecast."),
+    ("Answers you can check",
+     "Every figure is computed, and every claim names where it came from."),
 )
 
 # Scoped to this render only. Two jobs:
@@ -204,9 +214,9 @@ def _accounts_band() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p class="gate-foot">Every persona is a synthetic teaching example, not a '
-        "real account. Fintor explains concepts; it does not give personal "
-        "financial, investment, legal or tax advice.</p>",
+        '<p class="gate-foot">These are sample accounts with simulated holdings, not '
+        "real ones. Fintor provides information and analysis; it does not provide "
+        "personal financial, investment, legal or tax advice.</p>",
         unsafe_allow_html=True,
     )
 
@@ -292,6 +302,10 @@ def _sign_in_form(known: set[str]) -> None:
     if who:
         st.session_state["persona_id"] = who
         st.session_state[_ATTEMPTS_KEY] = 0
+        # The cookie is NOT written here. st.rerun() discards everything this
+        # run produced, so a component emitted on this line never reaches the
+        # browser - app.py writes it on the next run instead, once the gate
+        # has been passed.
         st.rerun()
     else:
         st.session_state[_ATTEMPTS_KEY] = attempts + 1

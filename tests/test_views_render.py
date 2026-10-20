@@ -161,3 +161,87 @@ def test_internals_renders_a_completed_turn():
     _ok(at, "internals with a completed turn")
     body = " ".join(m.value for m in at.markdown)
     assert "rules" in body or any("rules" in str(m.value) for m in at.metric)
+
+
+# --- product pages talk about money, not about Fintor --------------------
+
+# Words that describe the MACHINE. Each is fine on About Fintor, where the
+# engineering story belongs, and wrong on a page about someone's portfolio.
+# "chunk" catches "Chunks 77"; "reciprocal rank" and "BM25" were the login
+# screen's three pillars; "router"/"tier" were chips under every answer.
+_INTERNALS_WORDS = (
+    "bm25", "reciprocal rank", "hybrid search", "chunk", "embedding",
+    "langgraph", "langfuse", "rrf", "centroid", "retriev",
+    "router", "tier 1", "tier 2", "tier 3", "llm ", "token",
+)
+
+# Classroom framing. The product is a finance app, not a course.
+_TUTOR_WORDS = ("teaching example", "tutor", "lesson", "student", "classroom",
+                "finance, taught")
+
+
+def _visible_text(at) -> str:
+    """Rendered copy, with the injected stylesheet excluded.
+
+    theme.inject() emits its CSS through st.markdown, so it lands in
+    at.markdown alongside real copy - and that stylesheet is full of words
+    like "token" in its comments. Counting it made the check fail on text no
+    user can see. A <style> block is never user-visible, so it is dropped.
+    """
+    parts = []
+    for group in (at.markdown, at.title, at.caption, at.subheader, at.header):
+        for element in group:
+            value = str(getattr(element, "value", ""))
+            if "<style" in value or "<script" in value:
+                continue
+            parts.append(value)
+    for e in at.metric:
+        parts += [str(getattr(e, "label", "")), str(getattr(e, "value", ""))]
+    return " ".join(parts).lower()
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("module,fn", [
+    ("src.web_app.views.workspace", "portfolio"),
+    ("src.web_app.views.workspace", "market"),
+    ("src.web_app.views.workspace", "goals"),
+    ("src.web_app.views.chat", "render"),
+])
+def test_product_pages_do_not_explain_their_own_implementation(module, fn):
+    """A customer looking at their portfolio should not be told about BM25.
+
+    These pages used to carry a "Knowledge base / Chunks / 77" rail, a card
+    headed "How an answer is built" describing the router's three tiers, and
+    chips reading "router: rules" under every answer. None of it is about the
+    user's money. It all still exists, in full, under About Fintor.
+
+    The word list is deliberately blunt. A gentler check would let the copy
+    drift back one phrase at a time, which is exactly how it got there.
+    """
+    text = _visible_text(_render(module, fn))
+    found = sorted({w for w in _INTERNALS_WORDS if w in text})
+    assert not found, (
+        f"{module}.{fn} explains Fintor's internals to a customer: {found}")
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("module,fn", [
+    ("src.web_app.views.workspace", "portfolio"),
+    ("src.web_app.views.workspace", "goals"),
+    ("src.web_app.views.chat", "render"),
+])
+def test_product_pages_do_not_sound_like_a_classroom(module, fn):
+    """The brand is literally fin + tutor, and it leaked into the product."""
+    text = _visible_text(_render(module, fn))
+    found = sorted({w for w in _TUTOR_WORDS if w in text})
+    assert not found, f"{module}.{fn} still reads as a course: {found}"
+
+
+@pytest.mark.slow
+def test_the_internals_page_keeps_every_one_of_those_words():
+    """The other half of the rule, and the reason the words were MOVED rather
+    than deleted: the transparency is a feature, it just belongs on its own
+    page. Without this, 'fix' the test above by deleting the evidence."""
+    text = _visible_text(_render("src.web_app.views.internals", "render"))
+    assert "router" in text or "routing" in text
+    assert "retriev" in text or "cache" in text

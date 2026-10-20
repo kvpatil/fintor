@@ -57,21 +57,27 @@ def test_navigation_uses_top_position():
 
 
 def test_workspace_pages_are_ungrouped():
-    """The five workspace pages must carry "" as their section.
+    """The four workspace pages must carry "" as their section.
 
-    Labelling that group collapses all five into a dropdown and the top bar loses
+    Labelling that group collapses them into a dropdown and the top bar loses
     its tabs entirely - a visual regression that no other test would catch.
+
+    AI Internals is deliberately NOT here. It reports routing tiers, retrieval
+    ranks and a token ledger: the engineering story, not the state of anyone's
+    money. It moved under About Fintor with the other engineering pages, and
+    this list is what stops it drifting back into the customer's workspace.
     """
     workspace = [r for r in _page_spec() if r[0] == ""]
-    assert [r[1] for r in workspace] == ["Chat", "Portfolio", "Market", "Goals", "AI Internals"]
+    assert [r[1] for r in workspace] == ["Chat", "Portfolio", "Market", "Goals"]
 
 
 def test_about_pages_share_one_group():
-    """Four reference pages, one labelled dropdown - not four fragments."""
+    """The reference pages are one labelled dropdown, not several fragments."""
     groups = {r[0] for r in _page_spec() if r[0]}
     assert groups == {"About Fintor"}
     about = [r[1] for r in _page_spec() if r[0] == "About Fintor"]
-    assert len(about) == 4
+    assert len(about) == 5
+    assert "AI Internals" in about
 
 
 def test_every_page_declares_an_explicit_url_path():

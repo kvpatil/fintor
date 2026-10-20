@@ -972,27 +972,53 @@ def test_the_disclaimer_is_not_held_to_a_narrow_measure():
         f".gate-foot is capped at {found.group(1)}ch")
 
 
-def test_the_gate_takes_a_wider_measure_than_the_reading_pages():
-    """A 3-up card grid is not running prose and does not want a reading
-    measure; the About pages still do.
+def test_the_pages_are_wide_and_the_READING_is_what_is_capped():
+    """One measure for every page, with running text capped per element.
 
-    The gate measure is a `min(<vw>, <px>)`, not a bare px value: a fixed
-    1280px left ~160px of dead gutter either side on a 1600px viewport, and a
-    fixed larger number would overflow a small one. So this reads the px cap
-    for the width comparison AND asserts the viewport term is still there -
-    an earlier version of this test matched only `(\\d+)px`, which does not
-    match a min() at all and died on `NoneType.group`.
+    This replaces an assertion that the gate was WIDER than the app pages.
+    That held while --fin-measure was 1120px, justified as a reading width -
+    but it also meant every dashboard page threw away 320px either side on a
+    1600px screen, 960px of usable content out of 1600, while the login
+    screen used 32px. The reading-width constraint was being applied to the
+    page when it belongs to the paragraph.
+
+    So the invariant inverted: the page is now as wide as the viewport
+    sensibly allows, and the things that are actually READ carry the cap. If
+    someone widens the measure again without those caps, long-form answers
+    stretch to 1500px and this fails.
     """
     from src.web_app.gate import GATE_CHROME_CSS
 
-    decl = re.search(r"--fin-measure-gate:([^;]*);", CSS)
-    assert decl, "--fin-measure-gate is not declared"
-    gate = int(re.search(r"(\d+)px", decl.group(1)).group(1))
-    page = int(re.search(r"--fin-measure:\s*(\d+)px", CSS).group(1))
-    assert gate > page, "the gate measure must be wider than the page measure"
-    assert "vw" in decl.group(1), (
-        "the gate measure has no viewport term, so a narrow screen loses its margin")
+    measure = re.search(r"--fin-measure:([^;]+);", CSS)
+    assert measure, "--fin-measure is not declared"
+    assert "vw" in measure.group(1), (
+        "the measure has no viewport term, so a narrow screen loses its margin")
+    cap = int(re.search(r"(\d+)px", measure.group(1)).group(1))
+    assert cap >= 1500, f"the page cap is {cap}px; that is the old narrow measure"
+
+    # The gate uses the same value rather than a wider one of its own.
+    gate = re.search(r"--fin-measure-gate:([^;]+);", CSS)
+    assert gate and "--fin-measure" in gate.group(1), (
+        "the gate has drifted back to a separate measure")
     assert "--fin-measure-gate" in GATE_CHROME_CSS, "the gate never applies it"
+
+    # And the caps that make the width safe.
+    assert re.search(r"\.fin-prose p, \.fin-prose li \{[^}]*max-width", CSS), (
+        "reference prose is uncapped")
+    chat = re.search(
+        r'\[data-testid="stChatMessage"\][^{]*\{([^}]*)\}', CSS)
+    assert chat and "max-width" in chat.group(1), (
+        "the chat transcript is uncapped; answers will stretch to the full page")
+
+
+def test_the_page_inset_is_declared_not_inherited():
+    """Streamlit's default is 5rem, which was most of the whitespace. It is
+    set explicitly so the number is visible and tunable in one place."""
+    block = re.search(r'\[data-testid="stMainBlockContainer"\][^{]*\{([^}]*)\}', CSS)
+    assert block, "no stMainBlockContainer override"
+    body = block.group(1)
+    assert "padding-left: var(--fin-pad)" in body
+    assert "padding-right: var(--fin-pad)" in body
 
 
 def test_the_sign_in_card_is_a_keyed_container():

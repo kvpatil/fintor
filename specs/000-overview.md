@@ -2,7 +2,7 @@
 
 ## Intent
 
-Fintor is a multi-agent AI finance tutor. Six specialist agents answer money questions in
+Fintor is a multi-agent AI finance assistant. Six specialist agents answer money questions in
 plain English, grounded in a cited knowledge base, enriched with keyless live market data,
 and conditioned on a selectable synthetic persona. This spec fixes the structural rules that
 every later spec depends on, so that modularity is enforced mechanically rather than by

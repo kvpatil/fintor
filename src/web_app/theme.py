@@ -82,12 +82,21 @@ CSS = """
      buttons stretch ~1370px and running prose hits an unreadable measure. The
      .gate-wrap max-width that was supposed to do this never applied, because
      Streamlit renders its columns outside any wrapper div we emit. */
-  --fin-measure: 1120px;
-  /* The gate is a 3-up card grid, not running prose, so it does not want a
-     reading measure at all. 1280px left ~160px of dead gutter either side on a
-     1600px viewport; min() keeps a margin on smaller screens instead of
-     clamping to a width they do not have. gate.render() swaps to this. */
-  --fin-measure-gate: min(98vw, 1800px);
+  /* ONE measure for every page, the gate included. It was 1120px with
+     Streamlit's own 5rem inset on top, which at 1600px left 320px of dead
+     space either side and 960px of usable content - the login screen had
+     32px. The reading-width argument that justified 1120 is handled per
+     ELEMENT instead (see --fin-prose below and the chat rule), which is the
+     right place for it: a dashboard wants the width, a paragraph does not,
+     and they share a page. */
+  --fin-measure: min(98vw, 1800px);
+  /* Container inset. Declared rather than inherited - Streamlit's default is
+     5rem, which is most of the whitespace above. */
+  --fin-pad: 1rem;
+  /* Kept as a name because gate.py applies it, but it is now the same value:
+     the gate and the app pages agreed on a width once the reading-width
+     constraint moved onto the elements that actually need it. */
+  --fin-measure-gate: var(--fin-measure);
   --fin-prose: 72ch;
 
   /* Distance from the top of the viewport to the first thing on the page.
@@ -114,7 +123,7 @@ CSS = """
      because the form card's width is computed FROM them: a literal 28px in that
      calc had to silently agree with a `gap` declared 60 lines away, and an
      inset that was never declared at all. */
-  --gate-pad: 1rem;
+  --gate-pad: var(--fin-pad);
   /* The gate's own top gap. It must still clear the 60px fixed header, which
      overlays the container rather than pushing it down - but it does NOT need
      the room the app pages leave for their nav row, because the gate hides
@@ -128,6 +137,8 @@ CSS = """
    which is the dead band between the tabs and the content. */
 [data-testid="stMainBlockContainer"] {
   padding-top: var(--fin-top-gap);
+  padding-left: var(--fin-pad);
+  padding-right: var(--fin-pad);
   max-width: var(--fin-measure);
   margin-left: auto;
   margin-right: auto;
@@ -192,6 +203,51 @@ h1 { font-size: 1.72rem; }
 .fin-chip-good { border-color: var(--dot-live); color: var(--dot-live); }
 .fin-chip-accent { border-color: var(--fin-accent); color: var(--fin-accent); }
 .fin-chip-warn { border-color: var(--fin-warn); color: var(--fin-warn); }
+
+/* ---- alerts ----
+   Streamlit's stock alerts were the one surface the palette never reached:
+   a warning painted rgba(255,255,18,0.2) with rgb(255,255,194) text, which on
+   the dark ground read as a muddy olive panel that belonged to a different
+   product. Everything else in the app is measured; these were not.
+
+   The kind is taken from the inner data-testid rather than the emotion class,
+   which is a build hash and changes between Streamlit versions.
+
+   Tinted from the SEMANTIC token with color-mix, so each theme gets its own
+   tint from the value already chosen for that theme - no second palette to
+   keep in step. Text stays --fin-ink: the colour carries the meaning on the
+   rule and the icon, and the words stay as readable as the rest of the page.
+   Icons keep the semantic colour, so the alert is never colour-alone. */
+[data-testid="stAlertContainer"] {
+  border: 1px solid var(--fin-line);
+  border-left: 3px solid var(--fin-muted);
+  border-radius: 8px;
+  color: var(--fin-ink);
+  background: var(--fin-note-ground);
+}
+[data-testid="stAlertContainer"] p,
+[data-testid="stAlertContainer"] li { color: var(--fin-ink); }
+
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) {
+  border-left-color: var(--fin-warn);
+  background: color-mix(in srgb, var(--fin-warn) 10%, transparent);
+}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) {
+  border-left-color: var(--fin-accent);
+  background: color-mix(in srgb, var(--fin-accent) 8%, transparent);
+}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {
+  border-left-color: var(--fin-down);
+  background: color-mix(in srgb, var(--fin-down) 10%, transparent);
+}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) {
+  border-left-color: var(--fin-up);
+  background: color-mix(in srgb, var(--fin-up) 10%, transparent);
+}
+[data-testid="stAlertContentWarning"] svg { fill: var(--fin-warn); }
+[data-testid="stAlertContentInfo"] svg { fill: var(--fin-accent); }
+[data-testid="stAlertContentError"] svg { fill: var(--fin-down); }
+[data-testid="stAlertContentSuccess"] svg { fill: var(--fin-up); }
 
 .fin-persona {
   border: 1px solid var(--fin-line); border-left: 3px solid var(--fin-accent);
@@ -412,6 +468,16 @@ h1 { font-size: 1.72rem; }
 /* Reference pages are read, not scanned, so they take a narrower measure.
    Headings and figures stay full width; only running text is constrained. */
 .fin-prose p, .fin-prose li { max-width: var(--fin-prose); }
+
+/* The chat transcript is running prose inside a wide workspace. Capping the
+   PARAGRAPH rather than the page is what lets the Portfolio and Market pages
+   use the full width while an answer stays at a readable measure - the two
+   requirements that the single 1120px page width used to trade off against
+   each other. */
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] li {
+  max-width: var(--fin-prose);
+}
 
 /* The header logo. Streamlit pins it to 24px, which renders the lockup too
    small to read in a 60px bar; 34px leaves 13px of clearance top and bottom. */

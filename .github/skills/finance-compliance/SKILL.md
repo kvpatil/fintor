@@ -25,7 +25,7 @@ real regulatory boundary, so treat it as a hard constraint rather than a stylist
 - **Append the educational disclaimer** to every user-facing answer, exactly once. Use
   `ensure_educational_disclaimer()` from `src/core/safety.py`; never hand-write the text, and
   never append it twice when a cached answer already carries it.
-- **Label synthetic data honestly.** Persona portfolios are teaching examples — say so.
+- **Label synthetic data honestly.** Persona portfolios are sample accounts with simulated holdings — say so.
   Mock market data must be labeled "sample data, not real" and must never be used to value a
   portfolio or narrate news as if current.
 - **Disclose data provenance.** When a quote comes from cache or a stale fallback, say so with
@@ -47,6 +47,8 @@ appends it once, at the end, rather than each agent repeating it.
 
 ## Tone
 
-Write for someone the project brief describes as intimidated and afraid of making mistakes.
-Plain words over jargon; when a technical term is unavoidable, define it in the same sentence.
-Never condescend, and never imply a question was naive.
+Write for a capable adult who is new to this, not for a student. The brief describes
+someone intimidated and afraid of making mistakes: the answer to that is clarity and
+directness, not hand-holding. Plain words over jargon; when a technical term is
+unavoidable, define it in the same sentence. Never condescend, never imply a question
+was naive, and never adopt a classroom voice - this is a finance product, not a course.

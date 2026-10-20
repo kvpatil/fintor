@@ -11,12 +11,17 @@ from src.web_app.components import (
 from src.web_app.state import active_persona, checkpoint_path, get_deps, record_turn, run_async, turns
 from src.web_app.theme import chip
 
+# Progress labels, written for whoever is waiting. They used to read
+# "Routing the question" / "Specialist agent" / "Verifying citations", which
+# describe the pipeline; these describe what is being done to answer the
+# question. The node names themselves are unchanged and still shown verbatim
+# on the AI Internals trace.
 NODE_LABEL = {
-    "guard": "Safety and PII guard",
-    "router": "Routing the question",
-    "agent": "Specialist agent",
-    "synthesize": "Assembling the answer",
-    "verify": "Verifying citations",
+    "guard": "Checking the question",
+    "router": "Finding the right specialist",
+    "agent": "Looking it up",
+    "synthesize": "Writing the answer",
+    "verify": "Checking the sources",
 }
 
 
@@ -47,7 +52,9 @@ def _collect(deps, question: str, persona, status) -> dict:
             label = NODE_LABEL.get(node, node)
             detail = ""
             if node == "router" and final["route"]:
-                detail = f" → {', '.join(final['route'].get('intents', []))} (tier: {final['route'].get('tier','')})"
+                # Intents only. The router TIER is an implementation detail
+                # and is reported on AI Internals instead.
+                detail = f" → {', '.join(final['route'].get('intents', []))}"
             if node == "agent" and payload.get("agent_results"):
                 detail = f" → {payload['agent_results'][-1].get('agent','')}"
             status.write(f"✓ {label}{detail}")
@@ -56,34 +63,39 @@ def _collect(deps, question: str, persona, status) -> dict:
     return run_async(pump())
 
 
-def _knowledge_rail(deps) -> None:
-    """What the answers are grounded in. The retrieval design is the part of
-    Fintor most worth seeing, so it belongs on screen rather than in a doc."""
-    with card("ch-kb", title="Knowledge base"):
-        try:
-            count = deps.retriever.count()
-        except Exception:  # noqa: BLE001 - the rail must never break the page
-            count = None
-        if count is not None:
-            rail_stat("Chunks", f"{count:,}",
-                      note="Retrieved by <b>hybrid search</b>: dense vectors and "
-                           "BM25 run separately, then fuse by reciprocal rank. "
-                           "Keyword-only misses paraphrases; vectors alone miss "
-                           "exact terms like a form number.")
-        else:
-            st.markdown('<div class="fin-rail-note">Index not loaded.</div>',
-                        unsafe_allow_html=True)
+def _assistant_rail(persona) -> None:
+    """What this assistant can do for the person signed in.
 
-    with card("ch-how", title="How an answer is built"):
+    This rail used to be a "Knowledge base" card reporting a chunk count and
+    explaining reciprocal rank fusion, plus a "How an answer is built" card
+    describing the router's three tiers. All true, none of it about the
+    customer's money. That material now lives under About Fintor > AI
+    Internals, where someone who wants the engineering can go and read it.
+    """
+    with card("ch-can", title="What I can help with"):
         st.markdown(
             '<div class="fin-rail-note">'
-            'A three-tier router picks the specialists: regex first, then '
-            'nearest-neighbour against intent centroids, and only then a model '
-            'call. Most questions never reach tier three.<br><br>'
-            'Every claim is cited against a retrieved chunk. A citation that '
-            'does not resolve is <b>stripped</b> rather than shown, and the '
-            'count of stripped citations is reported with the answer.'
-            '</div>', unsafe_allow_html=True)
+            "<b>Your portfolio</b> — what you hold, how concentrated it is, and "
+            "whether the parts move together.<br><br>"
+            "<b>A goal</b> — what a target needs each month, and how the answer "
+            "changes if returns do.<br><br>"
+            "<b>Markets</b> — prices, how a holding has moved, and how that "
+            "compares to a benchmark.<br><br>"
+            "<b>How money works</b> — tax treatment, account types, and the terms "
+            "behind a decision."
+            "</div>", unsafe_allow_html=True)
+
+    with card("ch-you", title="Your profile"):
+        holdings = len(persona.holdings)
+        rail_stat("Positions", f"{holdings}",
+                  note=f"{persona.headline}. Horizon {persona.horizon_years} years, "
+                       f"stated risk tolerance {persona.risk_tolerance}.")
+        st.markdown(
+            '<div class="fin-rail-note">'
+            "Answers are shaped by this profile — the same question gets a "
+            "different answer for someone four years from retiring than for "
+            "someone with thirty years ahead of them."
+            "</div>", unsafe_allow_html=True)
 
 
 def render() -> None:
@@ -94,11 +106,11 @@ def render() -> None:
 
     main, rail = main_and_rail()
     with rail:
-        _knowledge_rail(get_deps())
+        _assistant_rail(persona)
 
     with main, card("ch-thread", title="Ask a finance question",
-                    subtitle="Plain English. The answer changes with the reader "
-                             "you chose."):
+                    subtitle="Plain English. Answers are shaped by the profile "
+                             "you signed in as."):
         # The journey prompts moved out of the sidebar into the body, but they
         # still set session_state["pending_q"] - so the pickup below is
         # unchanged. Shown only on an empty transcript: once you are in a
@@ -133,21 +145,28 @@ def render() -> None:
             st.write(question)
 
         with st.chat_message("assistant"):
-            with st.status("Running the workflow…", expanded=True) as status:
+            with st.status("Working on it…", expanded=True) as status:
                 result = _collect(get_deps(), question, persona, status)
-                status.update(label="Done", state="complete", expanded=False)
+                status.update(label="Answered", state="complete", expanded=False)
 
             final = result.get("final", {})
             st.markdown(escape_dollars(final.get("text", "_No answer produced._")))
 
+            # The data-status chip stays: "Live data" / "Saved copy" is
+            # something a customer needs in order to read the number.
+            #
+            # The router tier and the agent list are gone from here. They say
+            # "tier: rules" and "agents: portfolio, tax" - the shape of the
+            # machine, not the state of your money - and they are still
+            # reported, in full, under About Fintor > AI Internals.
             bits = [data_status_chip(final.get("data_status", "live"))]
-            route = result.get("route", {})
-            if route:
-                bits.append(chip(f"router: {route.get('tier','')}"))
-                bits.append(chip(f"agents: {', '.join(route.get('intents', []))}"))
             stripped = final.get("citations_stripped") or []
             if stripped:
-                bits.append(chip(f"{len(stripped)} bad citation(s) stripped", "warn"))
+                # Kept, and worded for a reader rather than an engineer: a
+                # dropped claim is a fact about the ANSWER, and hiding it
+                # would be the dishonest option.
+                bits.append(chip(
+                    f"{len(stripped)} unverified claim(s) removed", "warn"))
             st.markdown(" ".join(bits), unsafe_allow_html=True)
 
             citations_block(final.get("citations", []))

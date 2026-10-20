@@ -330,3 +330,91 @@ def test_an_operator_password_is_never_pre_filled_into_the_form():
     # The guard must be a condition, not a comment: the seeding has to sit
     # inside the `if`.
     assert "if getattr(settings" in source
+
+
+# --- session tokens: staying signed in without opening a hole ------------
+
+
+def _cred():
+    return auth.hash_password("fintor")
+
+
+def test_a_refresh_can_restore_the_session_it_signed_in_with():
+    """The feature. Before this, st.session_state died with the tab and a
+    browser refresh dumped the user back on the sign-in screen."""
+    credential = _cred()
+    token = auth.issue_token("dev", credential)
+
+    assert auth.verify_token(token, credential, known_users={"dev", "maya"}) == "dev"
+
+
+def test_a_cookie_cannot_be_edited_into_a_different_persona():
+    """The reason the token is signed at all. An unsigned cookie holding a
+    bare persona id would let anyone type `fintor_session=walter` and skip
+    the password - the session cookie would BE the authentication bypass."""
+    credential = _cred()
+    token = auth.issue_token("dev", credential)
+    forged = token.replace("dev", "walter", 1)
+
+    assert auth.verify_token(forged, credential, known_users={"dev", "walter"}) is None
+
+
+def test_a_hand_written_token_is_refused():
+    credential = _cred()
+    assert auth.verify_token("walter|99999999999|deadbeef", credential,
+                             known_users={"walter"}) is None
+    assert auth.verify_token("garbage", credential, known_users={"walter"}) is None
+    assert auth.verify_token("", credential, known_users={"walter"}) is None
+
+
+def test_the_expiry_is_covered_by_the_signature():
+    """Pushing the expiry out must invalidate the token, or it never expires."""
+    credential = _cred()
+    token = auth.issue_token("dev", credential)
+    username, _old_expiry, mac = token.split("|")
+    extended = f"{username}|9999999999|{mac}"
+
+    assert auth.verify_token(extended, credential, known_users={"dev"}) is None
+
+
+def test_an_expired_token_is_refused():
+    credential = _cred()
+    stale = auth.issue_token("dev", credential, ttl_seconds=-1)
+
+    assert auth.verify_token(stale, credential, known_users={"dev"}) is None
+
+
+def test_changing_the_password_invalidates_every_outstanding_session():
+    """The signing key is derived from the stored digest, so rotating the
+    password logs everyone out with no extra bookkeeping."""
+    token = auth.issue_token("dev", _cred())
+
+    assert auth.verify_token(token, auth.hash_password("different"),
+                             known_users={"dev"}) is None
+
+
+def test_a_token_for_an_unknown_user_is_refused():
+    """Signed is not sufficient - the persona must still exist. Guards the
+    case where a persona is removed but an old cookie is still in a browser."""
+    credential = _cred()
+    token = auth.issue_token("ghost", credential)
+
+    assert auth.verify_token(token, credential, known_users={"dev"}) is None
+
+
+def test_no_credential_means_no_tokens_at_all():
+    """Fails closed, exactly as configured() does: if sign-in is not
+    configured, a session token cannot be minted OR accepted."""
+    assert auth.issue_token("dev", None) == ""
+    assert auth.verify_token("dev|9999999999|x", None, known_users={"dev"}) is None
+
+
+def test_the_token_carries_no_secret():
+    """It travels in a cookie, so it must not contain the password or the
+    digest - only a name, an expiry, and a MAC over them."""
+    credential = _cred()
+    token = auth.issue_token("dev", credential)
+
+    assert "fintor" not in token
+    assert credential.digest.hex() not in token
+    assert credential.salt.hex() not in token

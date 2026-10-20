@@ -51,8 +51,8 @@ def _status_tag(status: str) -> tuple[str, str]:
 
 
 def portfolio() -> None:
-    deps, persona = _shell("Portfolio", "Computed in Python, never by the model. "
-                                        "A teaching example, not a real account.")
+    deps, persona = _shell("Portfolio", "Every figure here is calculated, not estimated. "
+                                        "Sample account with simulated holdings.")
     if not persona.holdings:
         st.info(f"{persona.name} holds only cash (${persona.cash:,.0f}) — "
                 "a deliberate starting point. Try another persona to see a funded portfolio.")
@@ -72,7 +72,7 @@ def portfolio() -> None:
 
     with main:
         with card("pf-snapshot", tag=tag, tag_kind=tag_kind, title="Portfolio snapshot",
-                  subtitle="A teaching example, not connected to a real account.",
+                  subtitle="Sample account, not connected to a real brokerage.",
                   meta_label="Total value", meta_value=f"${total:,.0f}"):
             st.plotly_chart(
                 charts.allocation_bar(class_weights(persona.holdings, w), dark=dark), **PLOT)
@@ -114,8 +114,8 @@ def portfolio() -> None:
                     "<b>not</b> move together, so a block of strong blue is "
                     "concentration the weights alone do not show.",
                     "Red would mean a pair that moves in opposite directions.",
-                    "The diagonal is each holding against itself, so it is always "
-                    "1.00 and carries no information.",
+                    "Read the off-diagonal cells: each one is a pair of your "
+                    "holdings.",
                     ignores="Past correlation is not a promise. Pairs that moved "
                             "apart for six months routinely move together in a "
                             "sell-off, which is when diversification matters most.",
@@ -125,7 +125,7 @@ def portfolio() -> None:
         with card("pf-diversification", title="Diversification check"):
             rail_stat("Score", f"{div}/100",
                       note="Describes the mix as it stands today. It is not a "
-                           "forecast and not a grade.")
+                           "forecast.")
         with card("pf-risk", title="Risk"):
             rail_stat("Computed", f"{risk}/100", note=f"Reads as <b>{risk_label}</b>.")
             st.markdown(
@@ -204,8 +204,8 @@ def market() -> None:
                 m4.metric("Volatility", f"{volatility(closes):.1f}%", help="Annualised")
 
             what_this_shows(
-                "The averages are context, not peers, so they are grey while the "
-                "price carries the one colour on the chart.",
+                "The moving averages are context, in grey; the price itself is "
+                "the subject.",
                 "A price above both averages has been rising faster than its own "
                 "recent history; the crossings are where that changed.",
                 "Largest drop is peak-to-trough within the window, which describes "
@@ -230,9 +230,8 @@ def market() -> None:
                     what_this_shows(
                         "Both series start at 100 on the same day, so they are "
                         "comparable on <b>one</b> axis despite different prices.",
-                        "A second y-axis would let either line be made to look like "
-                        "the winner by choosing the scales; indexing removes that "
-                        "choice.",
+                        "What you are comparing is the percentage move over the "
+                        "window, not the share prices.",
                         ignores="Only the window shown. A different start date can "
                                 "reverse which line finishes ahead.",
                     )

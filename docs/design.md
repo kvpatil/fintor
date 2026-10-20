@@ -1,8 +1,8 @@
 # Fintor — design document
 
-Multi-agent AI finance **tutor**. Six specialist agents answer money questions in plain
+Multi-agent AI **finance assistant**. Six specialist agents answer money questions in plain
 English, grounded in a cited knowledge base, enriched with keyless live market data, and
-conditioned on a selectable synthetic persona. It explains; it does not advise.
+conditioned on a selectable synthetic profile. It informs and analyses; it does not advise.
 
 ---
 
@@ -204,7 +204,7 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 
 ## 5. Testing strategy
 
-334 tests, 82% line coverage. No network, no API spend — a session fixture replaces
+352 tests, 83% line coverage. No network, no API spend — a session fixture replaces
 `socket.socket` so an accidental connection fails loudly instead of billing.
 
 | Layer | What is asserted |

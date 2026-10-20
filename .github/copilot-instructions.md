@@ -1,6 +1,6 @@
 # Fintor
 
-Multi-agent AI finance **tutor**: six specialist agents answer money questions in plain
+Multi-agent AI **finance assistant**: six specialist agents answer money questions in plain
 English, grounded in a cited knowledge base, with live market data and persona-driven
 personalization. It explains; it does not give personal financial, investment, legal or tax
 advice, and every answer says so.

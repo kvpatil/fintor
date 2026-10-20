@@ -21,27 +21,46 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.data.personas import PERSONAS  # noqa: E402
 from src.web_app import chrome, gate  # noqa: E402
 from src.web_app.brand import (  # noqa: E402
-    LOGO_DARK_PATH, LOGO_PATH, favicon_data_uri,
+    favicon_data_uri, header_data_uri,
 )
 from src.web_app.theme import inject, is_dark  # noqa: E402
 from src.web_app.views import about, chat, internals, workspace  # noqa: E402
 
-st.set_page_config(page_title="Fintor — finance, taught", page_icon=favicon_data_uri(),
+st.set_page_config(page_title="Fintor", page_icon=favicon_data_uri(),
                    layout="wide", initial_sidebar_state="collapsed")
 inject()
 
 # --- the gate -----------------------------------------------------------
 # Before navigation, so the tabs and header do not render behind the sign-in.
+#
+# A signed cookie is checked first. Without it a browser REFRESH logged the
+# user out, because st.session_state lives and dies with the Streamlit
+# session - measured: sign in, reload, back at the gate. The token is signed,
+# so a hand-edited cookie cannot stand in for the password.
+from src.web_app import session  # noqa: E402
+
+# A sign-out on the previous run deferred its cookie clear to this one.
+session.apply_pending()
+
+if not st.session_state.get("persona_id"):
+    session.restore({p.id for p in PERSONAS})
+
 if not st.session_state.get("persona_id"):
     gate.render()
     st.stop()
 
+# Signed in. Refresh the cookie if the browser does not already hold a current
+# one - this cannot happen at sign-in time, because st.rerun() discards the
+# render that would have carried the component.
+session.sync(st.session_state["persona_id"])
+
 # --- navigation ---------------------------------------------------------
 # (section, title, url_path, render fn, icon)
 #
-# The five workspace pages carry "" as their section, which renders them FLAT and
+# The four workspace pages carry "" as their section, which renders them FLAT and
 # always visible in the top bar. The four reference pages share one section, which
 # renders as a single labelled dropdown. A plain dict would make both groups
 # dropdowns and bury About Fintor behind a click; nine flat tabs would crowd the
@@ -52,8 +71,12 @@ PAGE_SPEC: list[tuple[str, str, str, object, str]] = [
     ("", "Portfolio", "portfolio", workspace.portfolio, ":material/donut_small:"),
     ("", "Market", "market", workspace.market, ":material/trending_up:"),
     ("", "Goals", "goals", workspace.goals, ":material/flag:"),
-    ("", "AI Internals", "internals", internals.render, ":material/memory:"),
+    # AI Internals sits under About, not in the workspace row. It reports
+    # routing tiers, retrieval ranks, cache layers and a token ledger - the
+    # engineering story, which belongs with the other engineering pages. The
+    # four workspace tabs are about the customer's money.
     ("About Fintor", "Architecture", "architecture", about.architecture, ":material/schema:"),
+    ("About Fintor", "AI Internals", "internals", internals.render, ":material/memory:"),
     ("About Fintor", "Design Document", "design", about.design, ":material/description:"),
     ("About Fintor", "Governance", "governance", about.governance, ":material/policy:"),
     ("About Fintor", "Recording", "recording", about.recording, ":material/play_circle:"),
@@ -78,7 +101,15 @@ for _section, _title, _path, _fn, _icon in PAGE_SPEC:
 # colour. Known limit, same as the Plotly figures - Streamlit's theme menu
 # repaints without rerunning the script, so the logo swaps one interaction
 # after the toggle.
-_logo = str(LOGO_DARK_PATH if is_dark() else LOGO_PATH)
+# The header wears the SAME supplied artwork as the login screen, minus the
+# tagline. Two files because an <img> cannot inherit CSS colour.
+#
+# KNOWN LIMIT, unchanged from before: is_dark() is read when the script runs,
+# and Streamlit repaints on a theme toggle WITHOUT rerunning - so the header
+# logo is one interaction behind a toggle. The gate does not have this problem
+# because it inlines both variants and swaps them in CSS; st.logo takes a
+# single image, so the same trick is not available here.
+_logo = header_data_uri(dark=is_dark())
 st.logo(_logo, icon_image=_logo, size="large")
 
 current = st.navigation(_pages, position="top")

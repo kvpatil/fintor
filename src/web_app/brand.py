@@ -292,6 +292,30 @@ FAVICON_PATH = ASSETS / "fintor-favicon.png"
 # the ground it sits on.
 LOCKUP_PATH = ASSETS / "fintor-lockup.webp"
 LOCKUP_DARK_PATH = ASSETS / "fintor-lockup-dark.webp"
+# The same artwork with the tagline erased, for the app header - where the
+# lockup renders at ~34px and "Finance, made approachable." would be a smudge.
+# Built from the same source so the signed-in header cannot drift from the
+# login screen.
+HEADER_PATH = ASSETS / "fintor-header.png"
+HEADER_DARK_PATH = ASSETS / "fintor-header-dark.png"
+
+
+def header_data_uri(dark: bool = False) -> str:
+    """The header lockup as a `data:` URI, for st.logo().
+
+    A FILE PATH does not work here. Streamlit hands it to the media endpoint,
+    which returns 500 in this environment - the uvicorn/gzip middleware raises
+    "Expected ASGI message http.response.start" and the browser gets a broken
+    image. It is the same pipeline, and the same failure, that silently
+    resolved the favicon to an empty string; favicon_data_uri() exists for
+    exactly this reason. A data URI needs no media endpoint, so it cannot be
+    dropped by one.
+    """
+    import base64
+
+    path = HEADER_DARK_PATH if dark else HEADER_PATH
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 def lockup_data_uri(dark: bool = False) -> str:

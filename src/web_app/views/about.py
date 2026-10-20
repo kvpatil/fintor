@@ -48,32 +48,59 @@ MODULE_DIAGRAM = """flowchart LR
   core -.->|imports nothing internal| core
 """
 
-RAG_DIAGRAM = """flowchart LR
+def _rag_diagram() -> str:
+    """Built from config.yaml rather than hard-coded.
+
+    The numbers in this diagram - the overfetch depth, the RRF constant, the
+    refusal threshold - used to be typed into the Mermaid string. They matched
+    config at the time and would have gone stale silently the first time
+    anyone tuned retrieval, on the one page whose whole job is to describe how
+    retrieval works. Reading the same keys the retriever reads means the
+    diagram cannot be wrong.
+    """
+    from src.web_app.state import app_settings
+
+    rag = app_settings().rag
+    k = int(rag.get("overfetch", 20))
+    rrf_k = int(rag.get("rrf_k", 60))
+    floor = float(rag.get("score_threshold", 0.25))
+    return f"""flowchart LR
   Q[Question] --> E[Embed]
   Q --> B[BM25 tokenize]
-  E --> D[Dense top-20]
-  B --> S[Sparse top-20]
-  D --> F["RRF fuse<br/>k=60"]
+  E --> D[Dense top-{k}]
+  B --> S[Sparse top-{k}]
+  D --> F["RRF fuse<br/>k={rrf_k}"]
   S --> F
   F --> C[Recompute cosine]
   C --> DF["Difficulty + category filter<br/>(persona)"]
-  DF --> G{"score >= 0.25?"}
+  DF --> G{{"score >= {floor}?"}}
   G -->|no| R["Refuse<br/>no LLM call"]
   G -->|yes| P[Numbered passages to LLM]
   P --> V["Verify [n] markers"]
 """
 
+
+# All SEVEN caches, which is what the code actually has. This diagram used to
+# show two of them - "Layer 1" and "Layer 4" - while internals.py named three
+# and config.yaml said seven: a three-way disagreement on the page whose job
+# is to be the reference. The four LLM tiers are the CacheTier members
+# (exact, semantic, prompt, offline); the other three are the embedding,
+# market-data and news caches.
 CACHE_DIAGRAM = """flowchart TB
   A[Request] --> BG{"Budget left?"}
   BG -->|no| K["BudgetExceeded<br/>kill switch"]
-  BG -->|yes| L1{"Layer 1<br/>exact response?"}
+  BG -->|yes| OFF{"Offline mode?"}
+  OFF -->|yes| L0["4 · offline<br/>canned, never billed"]
+  OFF -->|no| L1{"1 · exact prompt<br/>on disk?"}
   L1 -->|hit| Z["Return, 0 tokens"]
-  L1 -->|miss| L4{"Layer 4<br/>embedding cached?"}
-  L4 -->|hit| M[Skip embedding call]
-  L4 -->|miss| N[Embed once, store]
-  M --> P[Provider call]
-  N --> P
+  L1 -->|miss| L2{"2 · semantic<br/>paraphrase match?"}
+  L2 -->|hit| Z
+  L2 -->|miss| P["Provider call<br/>3 · prompt prefix cache"]
   P --> R[Record CostRecord]
+
+  EMB["5 · embedding cache<br/>corpus embedded once"] -.-> P
+  MKT["6 · market cache<br/>quotes 30m, history 6h"] -.-> P
+  NWS["7 · news cache<br/>headlines TTL"] -.-> P
 """
 
 PERSONA_DIAGRAM = """flowchart LR
@@ -115,7 +142,7 @@ def architecture() -> None:
     _mermaid(MODULE_DIAGRAM)
 
     st.subheader("4 · Retrieval pipeline")
-    _mermaid(RAG_DIAGRAM)
+    _mermaid(_rag_diagram())
 
     st.subheader("5 · Caching and cost control")
     _mermaid(CACHE_DIAGRAM)
@@ -172,14 +199,19 @@ def design() -> None:
     st.title("Design Document")
     st.caption("Rendered from `docs/design.md`. The README links here rather than duplicating it.")
     _render_markdown_file(ROOT / "docs" / "design.md", download_label="Download design.md")
-    with st.expander("Implementation plan (docs/PLAN.md)"):
-        _render_markdown_file(ROOT / "docs" / "PLAN.md", download_label="Download PLAN.md")
+    # docs/PLAN.md is NOT rendered here, and that is deliberate. It is a
+    # working planning document: it contains the assignment's grading rubric,
+    # the brand's naming rationale, and a teardown of a competing
+    # implementation including its test count. All reasonable things for a
+    # repo to hold and none of them things to show a user inside the product.
+    # It is still in the repository for anyone reading the source.
 
 
 def governance() -> None:
     st.title("Governance")
-    st.caption("AI guardrails as repository artifacts, in GitHub Copilot customization format. "
-               "These constrain the code Claude writes, which is why they were committed first.")
+    st.caption("The rules this system is built to follow - what it will not generate, "
+               "how every figure is grounded, and how spend is bounded. They are "
+               "committed alongside the code and enforced by the test suite.")
 
     skills_dir = ROOT / ".github" / "skills"
     skills = sorted(skills_dir.glob("*/SKILL.md")) if skills_dir.exists() else []
@@ -213,18 +245,9 @@ def recording() -> None:
         if path.exists():
             st.video(str(path))
             return
-    st.info("No recording yet. Drop a file at `docs/demo.mp4` and it will appear here.")
-    st.markdown("""
-**Suggested shot list** — one beat per rubric line:
-
-1. **Persona switch** — ask *"Should I buy more NVDA?"* as **Dev** (70% concentrated), then as
-   **Walter** (four years from retirement). Same agents, same corpus, different answers.
-2. **Multi-agent fan-out** — *"How are capital gains taxed and how is SPY doing?"* → two agents
-   run concurrently, sections merge, citations renumber.
-3. **Tool calling** — *"What is AAPL trading at over 3 months?"* → the ReAct loop calls
-   `get_quote` then `get_price_history`.
-4. **Grounding** — show AI Internals: retrieval candidates with dense/BM25 ranks and RRF scores.
-5. **Caching** — ask the same question twice; watch the cache tier flip to `exact` at zero cost.
-6. **Guardrails** — an off-topic question gets refused with no LLM call at all.
-7. **Governance** — the five SKILL.md files and the traceability matrix.
-""")
+    # The fallback used to carry a seven-beat shot list, each beat labelled
+    # with the grading criterion it was meant to satisfy. That is production
+    # notes for the author, visible to anyone who clones the repo without the
+    # video file.
+    st.info("No recording has been added to this build. Drop a file at "
+            "`docs/demo.mp4` and it will appear here.")

@@ -56,9 +56,13 @@ def persona_card(persona) -> None:
     st.markdown(
         f'<div class="fin-persona"><b>{persona.name}, {persona.age}</b> '
         f'<span>&middot; {persona.headline}</span><br>'
-        f'<span>{persona.experience_level.value} &middot; {persona.risk_tolerance} risk '
+        # experience_level drives the difficulty ceiling internally; it is not
+        # printed. Labelling a customer "beginner" on their own dashboard is
+        # the app grading them, and the risk tolerance is the half that is
+        # theirs rather than our assessment of them.
+        f'<span>{persona.risk_tolerance} risk '
         f'&middot; {persona.horizon_years}-year horizon &middot; '
-        f'a teaching example, not a real account</span></div>',
+        f'sample account</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -67,8 +71,7 @@ def persona_line(persona) -> None:
     """One-line variant for the data pages, where the card would be noise."""
     st.caption(
         f"{persona.name}, {persona.age} · {persona.headline} · "
-        f"{persona.experience_level.value} · states {persona.risk_tolerance} risk. "
-        f"A teaching example, not a real account."
+        f"states {persona.risk_tolerance} risk. Sample account."
     )
 
 
@@ -173,7 +176,7 @@ def what_this_shows(*points: str, ignores: str) -> None:
         raise ValueError("every figure must state what it ignores")
     items = "".join(f"<li>{p}</li>" for p in points)
     st.markdown(
-        '<div class="fin-note"><div class="fin-note-title">What this shows</div>'
+        '<div class="fin-note"><div class="fin-note-title">How to read this</div>'
         f'<ul>{items}<li class="fin-note-limit">{ignores}</li></ul></div>',
         unsafe_allow_html=True,
     )

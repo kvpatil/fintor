@@ -110,7 +110,11 @@ def header(group: str, title: str) -> None:
                 st.markdown(
                     f'<div class="ident">{_mode_chip()}'
                     f'<span class="ident-who">{persona.name}, {persona.age}'
-                    f'<span class="ident-sub"> · {persona.experience_level.value}</span>'
+                    # The experience level drives the difficulty ceiling
+                    # internally, but printing "beginner" beside a customer's
+                    # name is the app grading them. The risk tolerance is the
+                    # useful half, and it is theirs rather than our judgement.
+                    f'<span class="ident-sub"> · {persona.risk_tolerance} risk</span>'
                     f"</span></div>",
                     unsafe_allow_html=True,
                 )
@@ -125,6 +129,9 @@ def header(group: str, title: str) -> None:
                          help="Return to the sign-in screen"):
                 st.session_state.pop("persona_id", None)
                 st.session_state.pop("last_result", None)
+                from src.web_app import session
+
+                session.forget()
                 st.rerun()
 
     st.markdown('<div class="chrome-rule"></div>', unsafe_allow_html=True)

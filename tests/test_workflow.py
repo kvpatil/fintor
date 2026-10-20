@@ -112,7 +112,13 @@ async def test_self_harm_short_circuits_before_router_and_llm():
     assert "router" not in nodes
     assert not any(n.startswith("agent") for n in nodes)
     assert "988" in result["answer"]
-    assert "general financial education" not in result["answer"], \
+    # Checked against the CONSTANT, not a copy of its text. The previous
+    # version hard-coded "general financial education", so rewording the
+    # disclaimer would have made this assertion pass vacuously - it would be
+    # looking for a phrase that no longer appears anywhere.
+    from src.core.safety import EDUCATIONAL_DISCLAIMER
+
+    assert EDUCATIONAL_DISCLAIMER not in result["answer"], \
         "the crisis response must not be buried in disclaimer boilerplate"
 
 

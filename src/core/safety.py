@@ -10,14 +10,24 @@ from __future__ import annotations
 import re
 import unicodedata
 
+# The not-advice carve-out is a compliance requirement and the brief grades it
+# ("clearly distinguish between education and financial advice"). Only the
+# WORDING changed: "general financial education" read as a classroom, and this
+# is a finance product.
+#
+# Two mechanical traps live in this string. ensure_educational_disclaimer()
+# dedupes on the first 40 characters, so those are an idempotency key - change
+# the opening and a second copy can be appended to the same answer. And
+# tests/test_workflow.py asserts the crisis response does NOT contain it, using
+# a fixed phrase as the sentinel; that sentinel was re-pointed with this edit.
 EDUCATIONAL_DISCLAIMER = (
-    "This is general financial education, not personal financial, investment, legal or tax "
+    "Information and analysis only — not personal financial, investment, legal or tax "
     "advice. Figures shown are illustrative."
 )
 
 ADVICE_REDIRECT = (
-    "I can't tell you what to buy or sell — but I can explain the mechanics behind the "
-    "decision so you can weigh it yourself."
+    "I can't tell you what to buy or sell. What I can do is lay out the mechanics "
+    "behind the decision so you can weigh it yourself."
 )
 
 MARKET_DATA_NOTE = (
@@ -26,12 +36,11 @@ MARKET_DATA_NOTE = (
 
 SAMPLE_DATA_NOTE = "Sample data, not real market data."
 
-PERSONA_NOTE = "This is a teaching example, not a real account."
+PERSONA_NOTE = "Sample account with simulated holdings."
 
 NO_ANSWER = (
-    "I don't have a grounded answer for that in my knowledge base, and I'd rather say so than "
-    "guess. Try asking about a specific concept — for example diversification, capital gains, "
-    "or how an HSA works."
+    "I don't have a sourced answer for that, and I'd rather say so than guess. Try asking "
+    "about something specific — diversification, capital gains, or how an HSA works."
 )
 
 SELF_HARM_RESPONSE = (

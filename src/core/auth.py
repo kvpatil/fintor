@@ -122,3 +122,87 @@ def check(username: str, password: str, *, known_users: set[str],
     known = name in known_users
     ok = verify_password(password or "", credential)
     return name if (known and ok) else None
+
+
+# --- session tokens -----------------------------------------------------
+#
+# A Streamlit session dies with the browser tab, so `st.session_state` alone
+# meant a REFRESH logged you out. Verified before this existed: sign in,
+# press reload, land back on the gate.
+#
+# The token is SIGNED, which is the whole point. A cookie holding a bare
+# persona id would be an authentication bypass - anyone could type
+# `fintor_session=walter` and skip the password entirely. HMAC over
+# `persona|expiry`, keyed on the configured password, means a forged or
+# edited cookie fails verification and the gate comes back.
+#
+# ONE MORE KNOWN LIMIT for the list above:
+# * The cookie is NOT HttpOnly. Streamlit's `st.context.cookies` is read-only,
+#   so nothing server-side can set a cookie; it is written by a JS shim and is
+#   therefore readable by script on the page. For six synthetic personas
+#   behind a published password that costs nothing, but it would be the wrong
+#   design for real accounts.
+
+COOKIE_NAME = "fintor_session"
+SESSION_TTL_SECONDS = 12 * 60 * 60
+
+
+def _signing_key(credential: Credential | None) -> bytes:
+    """Derived from the stored digest, never from the plaintext.
+
+    Using the scrypt digest means the key changes when the password changes,
+    so rotating FINTOR_DEMO_PASSWORD invalidates every outstanding session
+    without any extra bookkeeping.
+    """
+    if credential is None:
+        return b""
+    return hashlib.sha256(credential.digest + credential.salt).digest()
+
+
+def issue_token(username: str, credential: Credential | None,
+                *, now: float | None = None,
+                ttl_seconds: int = SESSION_TTL_SECONDS) -> str:
+    """A signed `username|expiry|mac` for the session cookie."""
+    import time
+
+    key = _signing_key(credential)
+    if not key:
+        return ""
+    expiry = int((now if now is not None else time.time()) + ttl_seconds)
+    payload = f"{username}|{expiry}"
+    mac = hmac.new(key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}|{mac}"
+
+
+def verify_token(token: str, credential: Credential | None,
+                 *, known_users: set[str] | None = None,
+                 now: float | None = None) -> str | None:
+    """The username the token proves, or None.
+
+    Returns None for anything that is not a valid, unexpired signature over a
+    known username - a tampered persona, a re-signed payload, a token issued
+    under a previous password, or a malformed string.
+    """
+    import time
+
+    key = _signing_key(credential)
+    if not key or not token:
+        return None
+    parts = token.split("|")
+    if len(parts) != 3:
+        return None
+    username, expiry_raw, mac = parts
+    try:
+        expiry = int(expiry_raw)
+    except ValueError:
+        return None
+    if expiry < (now if now is not None else time.time()):
+        return None
+
+    expected = hmac.new(key, f"{username}|{expiry}".encode("utf-8"),
+                        hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, mac):
+        return None
+    if known_users is not None and username not in known_users:
+        return None
+    return username
