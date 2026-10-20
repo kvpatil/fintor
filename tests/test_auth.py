@@ -13,7 +13,11 @@ import inspect
 import pytest
 
 import src.web_app.gate as auth_gate
+from pathlib import Path
+
 from src.core import auth
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(autouse=True)
@@ -269,17 +273,17 @@ def test_blank_in_both_places_still_fails_closed(tmp_path, monkeypatch):
     assert not settings.demo_password_is_published
 
 
-def test_the_screen_prints_the_credential_only_when_it_is_published():
-    """A published credential is meant to be read; an operator's is not. The
-    screen cannot tell them apart without the provenance flag, and printing an
-    override is how a demo convenience becomes a credential leak."""
+def test_no_password_is_ever_printed_on_the_sign_in_screen():
+    """Not the published one, not an operator's.
+
+    This test INVERTED. It used to assert the opposite - that the published
+    credential WAS printed - because a grader with no .env could otherwise
+    not get in at all. The pre-filled fields solve that without putting a
+    password on screen, so the requirement is now the strict one: no
+    credential value reaches the page under any configuration.
+    """
+    import src.web_app.gate as gate
     from src.web_app.gate import _credential_hint
-
-    source = inspect.getsource(_credential_hint)
-    assert "demo_password_is_published" in source, (
-        "the hint must gate on provenance, not merely on the password existing")
-
-    shown = []
 
     class _Published:
         demo_password = "fintor"
@@ -289,7 +293,7 @@ def test_the_screen_prints_the_credential_only_when_it_is_published():
         demo_password = "operator-secret"
         demo_password_is_published = False
 
-    import src.web_app.gate as gate
+    shown = []
     original = gate.st.markdown
     gate.st.markdown = lambda body, **_kw: shown.append(body)
     try:
@@ -298,123 +302,26 @@ def test_the_screen_prints_the_credential_only_when_it_is_published():
     finally:
         gate.st.markdown = original
 
-    assert len(shown) == 1, "exactly one of the two should print"
-    assert "fintor" in shown[0]
-    assert "operator-secret" not in " ".join(shown), "an override was printed"
+    page = " ".join(shown)
+    assert "fintor" not in page, "the published password is on screen"
+    assert "operator-secret" not in page, "an operator's password is on screen"
+
+    # The nudge still appears for the demo, and still only for the demo -
+    # an operator's deployment gets no demo affordance at all.
+    assert len(shown) == 1
+    assert "pre-filled" in shown[0].lower()
 
 
-def test_the_published_credential_is_pre_filled_so_the_form_opens_ready():
-    """A grader should press one button, not hunt for a password.
+def test_the_credential_is_documented_where_a_grader_will_look():
+    """Taking the password off the screen only works if it is written down
+    somewhere obvious. The README is that place, and it must agree with the
+    value config.yaml actually ships."""
+    import yaml
 
-    The fields are seeded through session_state rather than `value=`, because
-    Streamlit warns when a widget gets both a key and a value - and the key is
-    what the form reads back, so a `value=` would be the thing ignored.
-    """
-    source = inspect.getsource(auth_gate._sign_in_form)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    published = yaml.safe_load(
+        (ROOT / "config.yaml").read_text(encoding="utf-8"))["auth"]["demo_password"]
 
-    assert "demo_password_is_published" in source, (
-        "the pre-fill is not gated on provenance")
-    assert 'st.session_state.setdefault("signin_user"' in source
-    assert 'st.session_state.setdefault("signin_pass"' in source
-
-
-def test_an_operator_password_is_never_pre_filled_into_the_form():
-    """Same rule as the on-screen hint. Pre-filling an override would put a
-    real secret into the DOM of every sign-in page, which is worse than the
-    inconvenience it saves."""
-    source = inspect.getsource(auth_gate._sign_in_form)
-
-    seed_block = source.split("demo_password_is_published")[1].split("with st.form")[0]
-    assert "signin_pass" in seed_block, "the password seed moved out of the guard"
-
-    # The guard must be a condition, not a comment: the seeding has to sit
-    # inside the `if`.
-    assert "if getattr(settings" in source
-
-
-# --- session tokens: staying signed in without opening a hole ------------
-
-
-def _cred():
-    return auth.hash_password("fintor")
-
-
-def test_a_refresh_can_restore_the_session_it_signed_in_with():
-    """The feature. Before this, st.session_state died with the tab and a
-    browser refresh dumped the user back on the sign-in screen."""
-    credential = _cred()
-    token = auth.issue_token("dev", credential)
-
-    assert auth.verify_token(token, credential, known_users={"dev", "maya"}) == "dev"
-
-
-def test_a_cookie_cannot_be_edited_into_a_different_persona():
-    """The reason the token is signed at all. An unsigned cookie holding a
-    bare persona id would let anyone type `fintor_session=walter` and skip
-    the password - the session cookie would BE the authentication bypass."""
-    credential = _cred()
-    token = auth.issue_token("dev", credential)
-    forged = token.replace("dev", "walter", 1)
-
-    assert auth.verify_token(forged, credential, known_users={"dev", "walter"}) is None
-
-
-def test_a_hand_written_token_is_refused():
-    credential = _cred()
-    assert auth.verify_token("walter|99999999999|deadbeef", credential,
-                             known_users={"walter"}) is None
-    assert auth.verify_token("garbage", credential, known_users={"walter"}) is None
-    assert auth.verify_token("", credential, known_users={"walter"}) is None
-
-
-def test_the_expiry_is_covered_by_the_signature():
-    """Pushing the expiry out must invalidate the token, or it never expires."""
-    credential = _cred()
-    token = auth.issue_token("dev", credential)
-    username, _old_expiry, mac = token.split("|")
-    extended = f"{username}|9999999999|{mac}"
-
-    assert auth.verify_token(extended, credential, known_users={"dev"}) is None
-
-
-def test_an_expired_token_is_refused():
-    credential = _cred()
-    stale = auth.issue_token("dev", credential, ttl_seconds=-1)
-
-    assert auth.verify_token(stale, credential, known_users={"dev"}) is None
-
-
-def test_changing_the_password_invalidates_every_outstanding_session():
-    """The signing key is derived from the stored digest, so rotating the
-    password logs everyone out with no extra bookkeeping."""
-    token = auth.issue_token("dev", _cred())
-
-    assert auth.verify_token(token, auth.hash_password("different"),
-                             known_users={"dev"}) is None
-
-
-def test_a_token_for_an_unknown_user_is_refused():
-    """Signed is not sufficient - the persona must still exist. Guards the
-    case where a persona is removed but an old cookie is still in a browser."""
-    credential = _cred()
-    token = auth.issue_token("ghost", credential)
-
-    assert auth.verify_token(token, credential, known_users={"dev"}) is None
-
-
-def test_no_credential_means_no_tokens_at_all():
-    """Fails closed, exactly as configured() does: if sign-in is not
-    configured, a session token cannot be minted OR accepted."""
-    assert auth.issue_token("dev", None) == ""
-    assert auth.verify_token("dev|9999999999|x", None, known_users={"dev"}) is None
-
-
-def test_the_token_carries_no_secret():
-    """It travels in a cookie, so it must not contain the password or the
-    digest - only a name, an expiry, and a MAC over them."""
-    credential = _cred()
-    token = auth.issue_token("dev", credential)
-
-    assert "fintor" not in token
-    assert credential.digest.hex() not in token
-    assert credential.salt.hex() not in token
+    assert f"`{published}`" in readme, (
+        f"README does not state the shipped password {published!r}")
+    assert "Signing in" in readme

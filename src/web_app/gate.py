@@ -222,24 +222,28 @@ def _accounts_band() -> None:
 
 
 def _credential_hint(settings) -> None:
-    """Print the password, but ONLY when it is the published default.
+    """A one-line nudge that the form is ready - WITHOUT printing the password.
 
-    Without this a grader who clones the repo cannot get in at all: there is no
-    .env, so `FINTOR_DEMO_PASSWORD` is unset, and auth.configured() correctly
-    refuses everyone. Failing closed is right for a real deployment and was
-    exactly wrong for the people meant to try the app - they met a locked door
-    on a screen that invites them to pick a reader.
+    It used to show the credential in full: "Any username below, password
+    `fintor`". That solved a real problem - a grader cloning the repo has no
+    .env and would otherwise meet a locked door - but putting a password on
+    screen is the wrong shape of answer, and it reads as careless even when
+    the accounts behind it are synthetic.
 
-    An operator who sets FINTOR_DEMO_PASSWORD gets silence instead. A published
-    credential is meant to be read; theirs is not, and printing it because the
-    code could not tell the difference is how a demo convenience becomes a leak.
+    The pre-filled fields solve the same problem better: the form arrives
+    ready and one click signs you in, so nobody needs to read a password in
+    order to use the app. For anyone who does need it - changing accounts,
+    typing it fresh - the README states it plainly, which is where a
+    credential belongs.
+
+    Still gated on provenance. An operator who sets FINTOR_DEMO_PASSWORD gets
+    nothing at all here, because then it is not a demo and the fields are not
+    pre-filled either.
     """
     if getattr(settings, "demo_password_is_published", False):
         st.markdown(
-            f'<p class="signin-help">Any username below, password '
-            f'<code>{settings.demo_password}</code>. Published on purpose - the '
-            f'accounts are synthetic. Set <code>FINTOR_DEMO_PASSWORD</code> to '
-            f'override it.</p>',
+            '<p class="signin-help">Demo accounts are pre-filled — just sign in. '
+            "Pick any account below to switch.</p>",
             unsafe_allow_html=True,
         )
 

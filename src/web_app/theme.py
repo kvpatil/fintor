@@ -113,11 +113,13 @@ CSS = """
   --gate-lockup-w: 420px;
   /* How far the form sits below the top of the brand panel, set so the
      card's BOTTOM border lands on the rule under the last pillar.
-     Tuned for the SHIPPED state, in which the card carries the published
-     credential hint - that line is 72px tall and was absent while a local
-     .env override suppressed it, which is why this was briefly 96px and
-     overshot by exactly that much once the override was removed. */
-  --gate-card-drop: 24px;
+     Tuned for the SHIPPED state, which includes the one-line demo nudge
+     under the button. The value tracks that card's height: it was 96px when
+     the nudge was a four-line block printing the password, 24px when a local
+     .env override suppressed the nudge entirely, and 48px now the nudge is
+     one line. Measured each time rather than guessed - the harness in the
+     scratchpad asserts card bottom == the rule under the last pillar. */
+  --gate-card-drop: 48px;
 
   /* The gate's own container inset, and the account grid's gap. Both are named
      because the form card's width is computed FROM them: a literal 28px in that

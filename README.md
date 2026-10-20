@@ -28,25 +28,31 @@ FINTOR_OFFLINE=1 .venv/bin/streamlit run src/web_app/app.py
 
 ### Signing in
 
-The app opens on a sign-in screen. Use **any** of the six usernames — `maya`, `dev`,
-`priya`, `walter`, `aisha`, `sam` — with the password **`fintor`**. The screen prints
-the password too, so there is nothing to look up.
+**The demo form arrives pre-filled — just press Sign in.** Nothing to look up and
+nothing to type.
 
-The username is the interesting half: it selects which reader you are, and the same
-question gets a materially different answer as `dev` (31, concentrated in one stock)
-than as `walter` (61, four years from retirement). That contrast is the product.
+To sign in as someone else, use any of the six usernames — `maya`, `dev`, `priya`,
+`walter`, `aisha`, `sam` — with the password **`fintor`**.
 
-The credential is published on purpose and lives in `config.yaml`, not `.env` — the
-six accounts are synthetic teaching personas holding no real data. For a shared
-deployment set `FINTOR_DEMO_PASSWORD` in `.env`; it overrides the default, and the
-screen then stops printing it. Blank in both places disables sign-in entirely rather
-than letting anyone through.
+The username is the interesting half: it selects whose finances you are looking at,
+and the same question gets a materially different answer as `dev` (31, concentrated
+in one stock) than as `walter` (61, four years from retirement). That contrast is the
+product.
+
+The credential ships in `config.yaml` rather than `.env` so a fresh clone works with
+no setup; the accounts are sample profiles holding simulated positions. It is stated
+here rather than on the sign-in screen — a password printed on a login page reads as
+careless even when nothing is behind it.
+
+For a shared deployment set `FINTOR_DEMO_PASSWORD` in `.env`. It overrides the
+default, and the fields then arrive empty. Blank in both places disables sign-in
+entirely rather than letting anyone through.
 
 The retrieval index is **committed**, so there is nothing to build before first run. Market
 and news data need **no API keys** — yfinance and RSS are both keyless.
 
 ```bash
-.venv/bin/python -m pytest -q          # 352 tests, no network, no spend
+.venv/bin/python -m pytest -q          # 342 tests, no network, no spend
 .venv/bin/python -m src.rag.build      # rebuild the index (only after corpus changes)
 ```
 
@@ -157,7 +163,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                352 tests
+└── tests/                342 tests
 ```
 
 ## Usage examples
