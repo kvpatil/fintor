@@ -399,3 +399,72 @@ def test_the_cards_carry_a_link_for_every_persona():
         assert f'href="?account={persona.id}"' in html
         assert 'target="_self"' in html, "a full page load would restart the session"
         assert re.search(r'aria-label="[^"]+"', html), "the link is unlabelled"
+
+
+# --- a session must survive a restart, and a second container -----------
+
+
+def test_a_token_signed_by_one_process_verifies_in_another():
+    """The bug this file exists to prevent recurring.
+
+    `credential_for()` used to hash with a fresh `os.urandom` salt, so two
+    processes with identical configuration derived different HMAC keys and a
+    cookie from one was rejected by the other. Reproduced by signing in one
+    and verifying in the other: it returned None.
+
+    It was never only a multi-instance problem. Any restart changed the key,
+    so every cold start silently signed every user out - which on a
+    scale-to-zero host would be most visits.
+    """
+    settings = type("S", (), {"demo_password": "fintor"})()
+
+    auth.reset_cache()
+    first = auth.credential_for(settings)          # "process A"
+    token = auth.issue_token("dev", first)
+
+    auth.reset_cache()
+    second = auth.credential_for(settings)         # "process B", same config
+
+    assert first.salt == second.salt, "the credential is not reproducible"
+    assert auth.verify_token(token, second, known_users={"dev"}) == "dev"
+
+
+def test_a_deployment_secret_overrides_the_password_derived_key(monkeypatch):
+    """FINTOR_SESSION_SECRET is the right source for a real deployment: it can
+    be rotated without changing the password, and vice versa."""
+    settings = type("S", (), {"demo_password": "fintor"})()
+    auth.reset_cache()
+    credential = auth.credential_for(settings)
+
+    monkeypatch.setenv("FINTOR_SESSION_SECRET", "secret-A")
+    token = auth.issue_token("dev", credential)
+    assert auth.verify_token(token, credential, known_users={"dev"}) == "dev"
+
+    monkeypatch.setenv("FINTOR_SESSION_SECRET", "secret-B")
+    assert auth.verify_token(token, credential, known_users={"dev"}) is None, (
+        "rotating the session secret did not invalidate outstanding sessions")
+
+
+def test_rotating_the_password_still_invalidates_sessions():
+    """The property the random salt was accidentally providing. Deriving the
+    salt deterministically must not lose it."""
+    auth.reset_cache()
+    old = auth.credential_for(type("S", (), {"demo_password": "fintor"})())
+    token = auth.issue_token("dev", old)
+
+    auth.reset_cache()
+    new = auth.credential_for(type("S", (), {"demo_password": "rotated"})())
+
+    assert auth.verify_token(token, new, known_users={"dev"}) is None
+
+
+def test_the_deterministic_salt_does_not_weaken_password_checking():
+    """Deriving the salt from the password is defensible here - one shared,
+    published demo credential - but verification must be unchanged."""
+    auth.reset_cache()
+    credential = auth.credential_for(type("S", (), {"demo_password": "fintor"})())
+
+    assert auth.verify_password("fintor", credential) is True
+    assert auth.verify_password("Fintor", credential) is False
+    assert auth.verify_password("", credential) is False
+    assert auth.verify_password("fintor ", credential) is False

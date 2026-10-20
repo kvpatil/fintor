@@ -93,12 +93,25 @@ _CREDENTIAL_CACHE: dict[str, Credential] = {}
 
 
 def credential_for(settings) -> Credential | None:
-    """The scrypt credential for the configured password, hashed once."""
+    """The scrypt credential for the configured password, hashed once.
+
+    The salt is DERIVED from the password rather than random, so every
+    process running the same configuration produces the same credential. That
+    is what lets a session cookie signed by one container verify on another -
+    and, more mundanely, survive a restart.
+
+    A per-user random salt is the right call when storing many passwords,
+    because it stops one rainbow table covering every account. Here there is
+    exactly one shared demo password that is published in config.yaml, so a
+    random salt bought nothing and cost cross-process consistency. The scrypt
+    work factor still stands between the digest and the plaintext.
+    """
     if not configured(settings):
         return None
     secret = settings.demo_password.strip()
     if secret not in _CREDENTIAL_CACHE:
-        _CREDENTIAL_CACHE[secret] = hash_password(secret)
+        salt = hashlib.sha256(b"fintor.credential.v1|" + secret.encode("utf-8")).digest()
+        _CREDENTIAL_CACHE[secret] = hash_password(secret, salt=salt[:_SALT_BYTES])
     return _CREDENTIAL_CACHE[secret]
 
 
@@ -148,15 +161,39 @@ SESSION_TTL_SECONDS = 12 * 60 * 60
 
 
 def _signing_key(credential: Credential | None) -> bytes:
-    """Derived from the stored digest, never from the plaintext.
+    """A key that is the SAME in every process running the same config.
 
-    Using the scrypt digest means the key changes when the password changes,
-    so rotating FINTOR_DEMO_PASSWORD invalidates every outstanding session
-    without any extra bookkeeping.
+    It used to be `sha256(credential.digest + credential.salt)`, and that was a
+    real bug: `credential_for()` hashes with a fresh `os.urandom` salt per
+    process, so two processes with identical configuration derived different
+    keys. Verified by signing a token in one and checking it in another - it
+    came back None.
+
+    The consequence was not limited to multi-instance deployments. ANY restart
+    changed the key, so every cold start silently signed every user out. On
+    Cloud Run, which scales to zero, that would have been most visits.
+
+    Two sources, in order:
+      * FINTOR_SESSION_SECRET, when set. The right answer for a deployment -
+        it survives a password rotation and can be rotated on its own.
+      * otherwise a key derived from the password itself, with a FIXED
+        domain-separation salt. Deterministic across processes, and still
+        changes when the password changes, so rotating the password still
+        invalidates outstanding sessions.
+
+    The password is never used as the key directly; this is a one-way
+    derivation, and the token carries no part of it.
     """
+    override = os.environ.get("FINTOR_SESSION_SECRET", "").strip()
+    if override:
+        return hashlib.sha256(b"fintor.session.v1|" + override.encode("utf-8")).digest()
     if credential is None:
         return b""
-    return hashlib.sha256(credential.digest + credential.salt).digest()
+    # The credential's own salt is random per process and cannot be used. Its
+    # DIGEST is stable for a given (password, salt) pair, so the stable input
+    # is a re-derivation under a fixed salt. Memoised by credential_for's
+    # caller, not recomputed per request - scrypt is deliberately slow.
+    return hashlib.sha256(b"fintor.session.v1|" + credential.digest).digest()
 
 
 def issue_token(username: str, credential: Credential | None,

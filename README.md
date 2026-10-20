@@ -53,6 +53,17 @@ would rather type: any of `maya`, `dev`, `priya`, `walter`, `aisha`, `sam`, pass
 | MCP server | [`src/mcp_server/server.py`](src/mcp_server/server.py) — six tools over stdio; setup below |
 | Transparency | *About Fintor → AI Internals* in the running app — routing tier, retrieval ranks, token ledger, guardrail counters for the last question |
 
+### Running it as a container
+
+```bash
+docker build -t fintor .
+docker run -e PORT=8080 -p 8080:8080 -e OPENAI_API_KEY=sk-... fintor
+```
+
+1.11 GB image, no network needed at startup — the embedding model and the retrieval
+index are both baked in. Cloud Run deployment, the flags it needs and what the
+deployment deliberately does not do are in [`docs/deploy.md`](docs/deploy.md).
+
 ### Submitting this as a ZIP
 
 Use GitHub's **Code → Download ZIP**, which honours `.gitignore` and produces about

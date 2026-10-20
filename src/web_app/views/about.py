@@ -112,12 +112,18 @@ PERSONA_DIAGRAM = """flowchart LR
   TH --> ANS
 """
 
+# The GCS-volume arrow is gone. It showed SQLite checkpoints on a GCS FUSE
+# mount, which is a corruption path - WAL mode needs POSIX locking that
+# network filesystems do not provide. State is per-instance instead, and the
+# consequence (caches and transcripts lost on recycle) is documented rather
+# than papered over. See docs/deploy.md.
 DEPLOY_DIAGRAM = """flowchart LR
-  DEV[Local] --> IMG["Container<br/>index baked in"]
-  IMG --> CR["Cloud Run<br/>--session-affinity"]
-  SM["Secret Manager<br/>OPENAI_API_KEY"] --> CR
-  GCS["GCS volume<br/>checkpoints"] --> CR
+  DEV[Local] --> IMG["Container<br/>index + model baked in"]
+  IMG --> CR["Cloud Run<br/>session affinity<br/>no CPU throttling"]
+  SM["Secret Manager<br/>API key · password · session secret"] --> CR
   CR --> USER[Browser]
+  CR -.-> EXT["OpenAI · Yahoo Finance · Langfuse"]
+  ST["Per-instance state<br/>caches + threads<br/>lost on recycle"] -.-> CR
 """
 
 
@@ -150,7 +156,7 @@ def architecture() -> None:
     st.subheader("6 · Persona conditioning")
     _mermaid(PERSONA_DIAGRAM)
 
-    st.subheader("7 · Deployment topology (planned)")
+    st.subheader("7 · Deployment topology")
     _mermaid(DEPLOY_DIAGRAM)
 
 

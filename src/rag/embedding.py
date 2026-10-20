@@ -28,11 +28,30 @@ class LocalEmbedder:
     matters here rather than being decorative.
     """
 
-    def __init__(self, model: str = "minishlab/potion-base-8M", cache: EmbeddingCache | None = None) -> None:
+    def __init__(self, model: str = "minishlab/potion-base-8M",
+                 cache: EmbeddingCache | None = None,
+                 source: str | None = None) -> None:
+        """`model` is the IDENTITY; `source` is optionally where to load it from.
+
+        They are separate because the committed index records the model name
+        and `NumpyIndex.load` refuses a mismatch. Loading from a baked-in
+        directory must therefore not change what the embedder calls itself,
+        or every container would fail with IndexMismatch.
+
+        `source` exists for containers. model2vec's `from_pretrained` defaults
+        to `force_download=True`, so passing a repo id reaches HuggingFace on
+        EVERY load - measured with a socket spy: one outbound connection even
+        with a warm cache. Its loader short-circuits on a path that exists, so
+        a local directory skips the network entirely and the container starts
+        without depending on a third party being up.
+        """
+        import os
+
         from model2vec import StaticModel
 
         self._model_name = model
-        self._model = StaticModel.from_pretrained(model)
+        origin = source or os.environ.get("FINTOR_LOCAL_MODEL", "").strip() or model
+        self._model = StaticModel.from_pretrained(origin)
         self._dim = int(self._model.dim)
         self._cache = cache
 

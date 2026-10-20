@@ -1,0 +1,37 @@
+# Everything that must not reach the image, loosely in order of how much it
+# would cost if it did.
+
+# Secrets. A COPY . . would otherwise bake the live API keys into a layer.
+.env
+
+# 1 GB, and rebuilt inside the image anyway.
+.venv/
+
+# Runtime state. SQLite caches and LangGraph threads belong to a running
+# instance, not to an image - shipping them would serve one machine's cached
+# answers to everyone.
+data/cache/
+data/checkpoints/
+
+# Recording artefacts and the demo video: 240 MB of build/ plus 14 MB of mp4
+# that the container never serves. The video is reachable from the repo and
+# from GitHub; it does not need to be in every pulled layer.
+build/
+docs/demo.mp4
+docs/img/
+
+# Source material for the brand assets. The generated .webp/.png files under
+# src/web_app/assets/ are what the app reads.
+*.png
+*.pdf
+
+.git/
+.github/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+scripts/
