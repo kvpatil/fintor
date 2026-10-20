@@ -10,6 +10,57 @@ legal or tax advice, and every answer says so.
 
 ---
 
+---
+
+## For reviewers
+
+**Run it in one command. No API key needed.**
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+FINTOR_OFFLINE=1 .venv/bin/streamlit run src/web_app/app.py
+```
+
+Offline mode uses canned responses — no network, no spend, and every page works.
+For live answers put `OPENAI_API_KEY` in `.env` and drop `FINTOR_OFFLINE=1`.
+
+**Signing in takes one click.** The form arrives pre-filled; press *Sign in*. To see a
+different portfolio, click any of the six account cards and press it again. (If you
+would rather type: any of `maya`, `dev`, `priya`, `walter`, `aisha`, `sam`, password
+`fintor`.)
+
+| | |
+|---|---|
+| **Demo video** | [`docs/demo.mp4`](docs/demo.mp4) — 9 min 22 s. Also inside the app under *About Fintor → Recording*. |
+| **Tests** | 360, all passing offline with zero API spend: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q` |
+| **Coverage** | **83%** line coverage: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q --cov=src` |
+| **Design document** | [`docs/design.md`](docs/design.md), also rendered in-app under *About Fintor* |
+| **Requirement traceability** | [`specs/traceability.md`](specs/traceability.md) — each requirement mapped to the code and the test that satisfies it |
+
+### Where each capability lives
+
+| Capability | Where to look |
+|---|---|
+| Six specialist agents | [`src/agents/`](src/agents/) — `registry.py` wires them; one file each |
+| Workflow orchestration | [`src/workflow/graph.py`](src/workflow/graph.py) — LangGraph, `Send()` fan-out, `operator.add` reducers, SQLite checkpointer |
+| Intent routing | [`src/workflow/router.py`](src/workflow/router.py) — three tiers; most questions never reach the model |
+| RAG | [`src/rag/retriever.py`](src/rag/retriever.py) — dense + BM25 fused by reciprocal rank, difficulty and category filtering |
+| Knowledge base | [`src/data/kb/fintor_kb.json`](src/data/kb/fintor_kb.json) — 77 cited entries, index committed so there is nothing to build |
+| Live market data | [`src/data/market.py`](src/data/market.py) — yfinance, keyless, four-stage degradation |
+| Financial computation | [`src/core/quant.py`](src/core/quant.py), [`src/core/market_calc.py`](src/core/market_calc.py) — all arithmetic, deterministic and unit-tested |
+| Streamlit app | [`src/web_app/`](src/web_app/) — `app.py` is the entry point; pages under `views/` |
+| Visualisation | [`src/web_app/charts.py`](src/web_app/charts.py) — palettes validated for contrast and colour-blind separation |
+| MCP server | [`src/mcp_server/server.py`](src/mcp_server/server.py) — six tools over stdio; setup below |
+| Transparency | *About Fintor → AI Internals* in the running app — routing tier, retrieval ranks, token ledger, guardrail counters for the last question |
+
+### Submitting this as a ZIP
+
+Use GitHub's **Code → Download ZIP**, which honours `.gitignore` and produces about
+19 MB. Zipping a working copy locally would sweep in `.venv` (~1 GB) and `build/`
+(~240 MB). The demo video is committed, so it travels with either.
+
+---
+
 ## The problem
 
 People have no shortage of financial data. What they lack is a way to see what it means
@@ -132,7 +183,7 @@ The retrieval index is **committed**, so there is nothing to build before first 
 and news data need **no API keys** — yfinance and RSS are both keyless.
 
 ```bash
-.venv/bin/python -m pytest -q          # 358 tests, no network, no spend
+.venv/bin/python -m pytest -q          # 360 tests, no network, no spend
 .venv/bin/python -m src.rag.build      # rebuild the index (only after corpus changes)
 ```
 
@@ -235,7 +286,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                358 tests
+└── tests/                360 tests
 ```
 
 ## Usage examples
