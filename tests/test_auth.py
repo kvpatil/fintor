@@ -325,3 +325,77 @@ def test_the_credential_is_documented_where_a_grader_will_look():
     assert f"`{published}`" in readme, (
         f"README does not state the shipped password {published!r}")
     assert "Signing in" in readme
+
+
+# --- picking an account fills the form -----------------------------------
+
+
+class _FakeQueryParams(dict):
+    """st.query_params behaves like a dict and reruns on mutation."""
+
+
+def _pick(monkeypatch, account, *, published=True, password="fintor"):
+    """Run _apply_account_pick with a controlled query string and settings."""
+    import src.web_app.gate as gate
+
+    state: dict = {}
+    params = _FakeQueryParams({"account": account} if account else {})
+    monkeypatch.setattr(gate.st, "session_state", state)
+    monkeypatch.setattr(gate.st, "query_params", params)
+    monkeypatch.setattr(gate, "app_settings", lambda: type(
+        "S", (), {"demo_password": password,
+                  "demo_password_is_published": published})())
+    gate._apply_account_pick({"maya", "dev", "priya", "walter", "aisha", "sam"})
+    return state, params
+
+
+def test_picking_an_account_fills_both_fields(monkeypatch):
+    """The whole point: click a card, the form is ready to submit."""
+    state, _ = _pick(monkeypatch, "walter")
+
+    assert state["signin_user"] == "walter"
+    assert state["signin_pass"] == "fintor"
+
+
+def test_the_pick_is_cleared_from_the_url(monkeypatch):
+    """Otherwise a refresh re-applies a stale choice and the address bar keeps
+    an account name in it for the rest of the session."""
+    _state, params = _pick(monkeypatch, "maya")
+
+    assert "account" not in params
+
+
+def test_an_unknown_account_is_ignored(monkeypatch):
+    """?account= is user input. Anything not one of the six personas must not
+    reach session_state - a traversal string least of all."""
+    for bogus in ("../../etc/passwd", "admin", "", "<script>"):
+        state, _ = _pick(monkeypatch, bogus)
+        assert "signin_user" not in state, f"{bogus!r} was accepted"
+
+
+def test_an_operator_deployment_fills_the_name_but_never_the_secret(monkeypatch):
+    """Same rule as the pre-fill and the on-screen nudge: a published
+    credential may be put in the field, an operator's may not. Picking an
+    account still helps them - it fills the username - and leaves the
+    password for them to type."""
+    state, _ = _pick(monkeypatch, "dev", published=False, password="operator-secret")
+
+    assert state["signin_user"] == "dev"
+    assert "signin_pass" not in state
+
+
+def test_the_cards_carry_a_link_for_every_persona():
+    """The markup half. The cards are one markdown grid, so each is wrapped in
+    an anchor rather than being a widget - if that wrapper is ever dropped the
+    grid still renders and the cards silently stop being clickable."""
+    import re
+
+    from src.data.personas import PERSONAS
+    from src.web_app.gate import _account_cell, _shared_prompts
+
+    shared = _shared_prompts()
+    for persona in PERSONAS:
+        html = _account_cell(persona, shared)
+        assert f'href="?account={persona.id}"' in html
+        assert 'target="_self"' in html, "a full page load would restart the session"
+        assert re.search(r'aria-label="[^"]+"', html), "the link is unlabelled"

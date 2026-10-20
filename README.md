@@ -31,8 +31,11 @@ FINTOR_OFFLINE=1 .venv/bin/streamlit run src/web_app/app.py
 **The demo form arrives pre-filled — just press Sign in.** Nothing to look up and
 nothing to type.
 
-To sign in as someone else, use any of the six usernames — `maya`, `dev`, `priya`,
-`walter`, `aisha`, `sam` — with the password **`fintor`**.
+**To use a different account, click its card.** The six accounts are shown under the
+form; picking one fills the username and password for you. No password is displayed.
+
+If you would rather type it: the usernames are `maya`, `dev`, `priya`, `walter`,
+`aisha`, `sam`, and the password is **`fintor`**.
 
 The username is the interesting half: it selects whose finances you are looking at,
 and the same question gets a materially different answer as `dev` (31, concentrated
@@ -52,7 +55,7 @@ The retrieval index is **committed**, so there is nothing to build before first 
 and news data need **no API keys** — yfinance and RSS are both keyless.
 
 ```bash
-.venv/bin/python -m pytest -q          # 342 tests, no network, no spend
+.venv/bin/python -m pytest -q          # 347 tests, no network, no spend
 .venv/bin/python -m src.rag.build      # rebuild the index (only after corpus changes)
 ```
 
@@ -163,7 +166,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                342 tests
+└── tests/                347 tests
 ```
 
 ## Usage examples

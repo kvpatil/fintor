@@ -171,7 +171,17 @@ def _account_cell(persona, shared: dict[str, list[str]]) -> str:
     others = [n for n in shared.get(prompt, []) if n != persona.name]
     echo = (f'<span class="signin-echo">also asked by {" and ".join(others)}</span>'
             if others else "")
+    # The whole card is a link carrying the account id. Clicking it fills the
+    # form via ?account=<id>, which render() reads and clears.
+    #
+    # A link rather than a Streamlit button because the six cards are one
+    # markdown grid - `grid-auto-rows: 1fr` is what equalises their heights,
+    # and a widget cannot be placed inside arbitrary HTML, so buttons would
+    # mean going back to st.columns and the clipped-border problem that cost
+    # five attempts to fix.
     return (
+        f'<a class="signin-account-link" href="?account={persona.id}" target="_self" '
+        f'aria-label="Fill the sign-in form for {persona.name}">'
         f'<div class="signin-account">'
         f'<div class="signin-account-head">'
         f'<code>{persona.id}</code>'
@@ -181,7 +191,7 @@ def _account_cell(persona, shared: dict[str, list[str]]) -> str:
         f'<p class="signin-account-journey">“{prompt}”{echo}</p>'
         f'<p class="signin-account-nums">risk {risk} · spread {div} · '
         f"${total:,.0f}</p>"
-        f"</div>"
+        f"</div></a>"
     )
 
 
@@ -319,9 +329,38 @@ def _sign_in_form(known: set[str]) -> None:
         st.error(f"That username and password do not match. {remaining} left.")
 
 
+def _apply_account_pick(known: set[str]) -> None:
+    """Fill the form from ?account=<id>, set by clicking an account card.
+
+    Must run BEFORE the widgets are created: assigning to a widget's key
+    after Streamlit has instantiated it raises. render() calls this first for
+    that reason.
+
+    The password is written into the masked field, never shown. And it is
+    only written when it is the PUBLISHED one - picking an account in a
+    deployment where the operator set FINTOR_DEMO_PASSWORD fills the username
+    and leaves them to type their own secret, which is the same rule the
+    pre-fill and the on-screen nudge already follow.
+    """
+    picked = st.query_params.get("account")
+    if not picked or picked not in known:
+        return
+
+    settings = app_settings()
+    st.session_state["signin_user"] = picked
+    if getattr(settings, "demo_password_is_published", False):
+        st.session_state["signin_pass"] = settings.demo_password
+
+    # Clear it so a refresh does not re-apply a stale pick and the URL stays
+    # clean. This triggers a rerun; the state above is already set, so the
+    # next run renders the filled form.
+    del st.query_params["account"]
+
+
 def render() -> None:
     st.markdown(GATE_CHROME_CSS, unsafe_allow_html=True)
     known = {p.id for p in PERSONAS}
+    _apply_account_pick(known)
 
     brand, form = st.columns([5, 4], gap="large")
     with brand:

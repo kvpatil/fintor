@@ -399,6 +399,25 @@ h1 { font-size: 1.72rem; }
    > stMarkdownContainer between the keyed container and our markup; any one of
    them left as display:block re-introduces an auto-height link, and the
    `margin-top:auto` that pins the figures to the bottom stops resolving. */
+/* The card is wrapped in a link, so the ANCHOR is the grid item and the card
+   has to fill it - otherwise grid-auto-rows:1fr equalises the anchors and
+   leaves the visible cards ragged inside them. */
+.signin-accounts > a.signin-account-link {
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+}
+.signin-account-link > .signin-account { flex: 1 1 auto; }
+/* Keyboard users get the same affordance as the mouse. Without this the only
+   cue that a card is clickable is the hover border, which a keyboard never
+   produces. */
+.signin-account-link:focus-visible {
+  outline: 2px solid var(--fin-accent);
+  outline-offset: 2px;
+}
+.signin-account-link:focus-visible .signin-account { border-color: var(--fin-accent); }
+
 /* Each card. The border and padding live here now, on an element we emit, so
    the box model is ours and the bottom padding is actually honoured. */
 .signin-account {
@@ -409,8 +428,9 @@ h1 { font-size: 1.72rem; }
   padding: 13px 15px 12px;
   transition: border-color 120ms ease, transform 120ms ease;
 }
-/* These are not clickable - the hover is an affordance for "this is a unit you
-   read", which is what stops six tinted blocks reading as one slab. */
+/* They ARE clickable now - each card fills the sign-in form with that
+   account. The hover border is the affordance; cursor:pointer comes from the
+   anchor. */
 .signin-account:hover { border-color: var(--fin-accent); }
 @media (prefers-reduced-motion: reduce) {
   .signin-account { transition: none; }
