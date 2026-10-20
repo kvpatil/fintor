@@ -240,14 +240,50 @@ def governance() -> None:
 def recording() -> None:
     st.title("Recording")
     st.caption("Demo walkthrough.")
+
     for candidate in ("docs/demo.mp4", "docs/demo.mov", "docs/recording.mp4"):
         path = ROOT / candidate
         if path.exists():
-            st.video(str(path))
+            _play(path)
             return
+
     # The fallback used to carry a seven-beat shot list, each beat labelled
     # with the grading criterion it was meant to satisfy. That is production
     # notes for the author, visible to anyone who clones the repo without the
     # video file.
     st.info("No recording has been added to this build. Drop a file at "
             "`docs/demo.mp4` and it will appear here.")
+
+
+def _play(path) -> None:
+    """Render the video WITHOUT st.video().
+
+    st.video hands the file to Streamlit's media endpoint, which returns 500
+    in this environment - the uvicorn/gzip middleware raises "Expected ASGI
+    message http.response.start" and the browser gets MEDIA_ERR_SRC_NOT_
+    SUPPORTED. Measured both forms: a path and raw bytes fail identically,
+    because both route through the same endpoint. It is the third thing that
+    endpoint has broken here, after the favicon and the header logo.
+
+    So the bytes are embedded directly in a plain <video> element. A 15 MB
+    data URI is roughly 20 MB of base64 in the page, which is heavy but
+    paid once on a page nobody reloads in a loop - and it needs no media
+    endpoint, so it cannot be dropped by one.
+
+    The download button is not decoration: it uses the same bytes and gives
+    a reviewer a way to watch the file in a real player if the embedded one
+    misbehaves in their browser.
+    """
+    import base64
+
+    data = path.read_bytes()
+    size_mb = len(data) / 1e6
+    uri = "data:video/mp4;base64," + base64.b64encode(data).decode("ascii")
+
+    st.markdown(
+        f'<video controls preload="metadata" style="width:100%;border-radius:10px;"'
+        f' src="{uri}">Your browser cannot play this video.</video>',
+        unsafe_allow_html=True,
+    )
+    st.download_button(f"Download the walkthrough ({size_mb:.0f} MB)", data=data,
+                       file_name=path.name, mime="video/mp4")

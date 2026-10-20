@@ -710,3 +710,35 @@ def test_the_recorder_waits_for_the_label_the_app_actually_shows():
     assert "from src.web_app.views.chat import DONE_LABEL" in source, (
         "the recorder no longer imports the label from the app")
     assert '"Done"' not in source, "a hard-coded completion label is back"
+
+
+def test_the_recording_page_does_not_use_st_video():
+    """st.video routes through Streamlit's media endpoint, which 500s here.
+
+    Measured in the browser: the <video> element reported
+    MEDIA_ERR_SRC_NOT_SUPPORTED and the endpoint returned 500 with
+    "Expected ASGI message 'http.response.start'" in the server log. Both
+    calling conventions fail - a path and raw bytes - because both route
+    through the same place. That endpoint has now broken three things here:
+    the favicon, the header logo, and this.
+
+    The page embeds the bytes as a data URI instead. The video file itself
+    is fine; it decodes with no errors under ffmpeg.
+    """
+    import ast
+
+    tree = ast.parse((ROOT / "src" / "web_app" / "views" / "about.py")
+                     .read_text(encoding="utf-8"))
+    # Parsed, not grepped: the docstring explaining why st.video is avoided
+    # contains the string "st.video(", and a substring check flagged it.
+    calls = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "video"]
+    assert not calls, (
+        "st.video is back on the recording page; it will render a broken player")
+
+    source = (ROOT / "src" / "web_app" / "views" / "about.py").read_text(encoding="utf-8")
+    assert "data:video/mp4;base64," in source, "the video is no longer embedded"
+    assert "st.download_button(" in source, (
+        "the download fallback is gone - a reviewer whose browser refuses the "
+        "embedded player would have no way to watch it")
