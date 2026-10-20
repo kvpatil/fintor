@@ -31,7 +31,7 @@ class PortfolioAgent(BaseAgent):
             return AgentResult(agent=self.name, intent=self.intent, narration="template",
                                text=ensure_educational_disclaimer(
                                    "Pick a persona on the left and I'll analyse that portfolio. "
-                                   "Every persona here is a teaching example, not a real account."))
+                                   "Every account here is a sample profile with simulated holdings."))
 
         symbols = [h.symbol for h in persona.holdings]
         quotes = self.deps.market.quotes(symbols) if symbols else {}

@@ -54,6 +54,21 @@ class WorkflowState(TypedDict, total=False):
     # The only reducer. Parallel agent branches append; nothing overwrites.
     agent_results: Annotated[list[dict], operator.add]
     trace: Annotated[list[dict], operator.add]
+    # Where THIS turn's entries begin in the two accumulating channels above.
+    #
+    # Needed because operator.add means a checkpointed thread never resets
+    # them. Passing "agent_results": [] into ainvoke does NOT clear the
+    # channel - the reducer appends the empty list to what is already stored -
+    # so on the second question in a thread, synthesis saw the first
+    # question's results too, and concatenated them into the answer.
+    #
+    # Shipped that way: a recording caught an answer carrying three copies of
+    # the portfolio section, one of them worded the way the product was
+    # worded days earlier. Every turn on a thread made the next answer longer
+    # and staler, and the thread store had grown to 8.9 MB.
+    #
+    # A plain channel, so the value from the newest write simply wins.
+    turn_offset: int
     final: dict[str, Any]
 
 
@@ -81,13 +96,19 @@ class FintorWorkflow:
     # -- nodes ---------------------------------------------------------------
     async def _guard(self, state: WorkflowState) -> dict:
         text = normalize_input(state.get("question", ""))
+        # Guard runs first, after the checkpointed state has been merged, so
+        # this length is exactly the boundary between previous turns and this
+        # one.
+        offset = len(state.get("agent_results", []))
         if detect_self_harm(text):
             # Deterministic, code-generated, never persisted, and it bypasses the
             # usual disclaimer so a crisis number is not buried in boilerplate.
             return {"text": text, "short_circuit": SELF_HARM_RESPONSE,
+                    "turn_offset": offset,
                     "trace": [{"node": "guard", "detail": "self-harm short-circuit", "ms": 0}]}
         return {
             "text": text,
+            "turn_offset": offset,
             "injection_suspected": looks_like_injection(text),
             "trace": [{"node": "guard", "detail": "normalized; no block", "ms": 0}],
         }
@@ -156,7 +177,9 @@ class FintorWorkflow:
             return {"final": {"text": state["short_circuit"], "sections": [], "citations": [],
                               "data_status": DataStatus.LIVE.value, "skip_disclaimer": True}}
 
-        results = [AgentResult(**r) for r in state.get("agent_results", [])]
+        # Only this turn's results. See turn_offset in WorkflowState.
+        this_turn = state.get("agent_results", [])[state.get("turn_offset", 0):]
+        results = [AgentResult(**r) for r in this_turn]
         good = [r for r in results if r.text and not r.error_code]
         failed = [r for r in results if r.error_code]
         good.sort(key=lambda r: SECTION_ORDER.index(r.intent))
@@ -276,13 +299,19 @@ class FintorWorkflow:
                         persona=pseudonym(persona.id, "p") if persona else None):
             out = await self.compiled.ainvoke(state, config=config if self._checkpointer else None)
             route = out.get("route", {})
+            # Everything the caller sees is sliced to THIS turn. The channel
+            # still holds every turn on the thread - that is what makes the
+            # conversation durable - but the answer, the trace and the
+            # retrieval candidates on the internals page are about the
+            # question just asked.
+            turn_results = out.get("agent_results", [])[out.get("turn_offset", 0):]
             # Read it inside the span: outside, the context is already gone.
             trace_id = current_trace_id()
             update_current_trace(
                 metadata={
                     "router_tier": route.get("tier"),
                     "intents": route.get("intents"),
-                    "agents": [r.get("agent") for r in out.get("agent_results", [])],
+                    "agents": [r.get("agent") for r in turn_results],
                     "citations": out.get("final", {}).get("citations_verified"),
                 },
             )
@@ -293,7 +322,7 @@ class FintorWorkflow:
             "final": out.get("final", {}),
             "route": out.get("route", {}),
             "trace": out.get("trace", []),
-            "agent_results": out.get("agent_results", []),
+            "agent_results": turn_results,
         }
 
 

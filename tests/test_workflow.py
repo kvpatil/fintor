@@ -256,3 +256,52 @@ def test_citation_verification_keeps_valid_markers_untouched():
     text, stripped = verify_citations("All good [1][2][3].", {1, 2, 3})
     assert stripped == []
     assert text == "All good [1][2][3]."
+
+
+# --- a thread must not replay its own history into the next answer -------
+
+
+@pytest.mark.asyncio
+async def test_a_second_question_on_a_thread_does_not_repeat_the_first_answer(tmp_path):
+    """The accumulating channels must not leak across turns.
+
+    `agent_results` carries an operator.add reducer so concurrent agents can
+    write to it safely. The cost is that a CHECKPOINTED thread never clears
+    it: passing "agent_results": [] into ainvoke appends an empty list to
+    whatever is stored rather than resetting it. Synthesis then merged every
+    previous turn's sections into the current answer.
+
+    It shipped. A demo recording caught an answer carrying three copies of
+    the portfolio section, one worded the way the product had been worded
+    days earlier, and the thread store had reached 8.9 MB.
+
+    Every other workflow test builds the graph WITHOUT a checkpointer, which
+    is exactly why none of them saw it - the bug needs a persisted thread.
+    """
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    import aiosqlite
+
+    path = tmp_path / "threads.sqlite"
+    agents = {Intent.FINANCE_QA: StubAgent("finance_qa", Intent.FINANCE_QA)}
+
+    answers = []
+    async with aiosqlite.connect(str(path)) as conn:
+        saver = AsyncSqliteSaver(conn)
+        await saver.setup()
+        wf = _workflow(agents)
+        wf._checkpointer = saver
+        wf.compiled = wf._build().compile(checkpointer=saver)
+
+        for question in ("what is an index fund", "what is a bond"):
+            out = await wf.ainvoke(question, thread_id="same-thread")
+            answers.append(out)
+
+    first, second = answers
+    assert len(second["agent_results"]) == len(first["agent_results"]), (
+        "the second turn carried the first turn's agent results")
+
+    # The stub answers every question with the same sentence, so a leak shows
+    # up as that sentence appearing twice rather than once.
+    assert second["answer"].count("finance_qa ran") == 1, (
+        "the previous turn's section was concatenated into this answer:\n"
+        + second["answer"])
