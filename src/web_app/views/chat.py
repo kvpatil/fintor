@@ -16,6 +16,13 @@ from src.web_app.theme import chip
 # describe the pipeline; these describe what is being done to answer the
 # question. The node names themselves are unchanged and still shown verbatim
 # on the AI Internals trace.
+# The label the status widget shows when a turn finishes. A CONSTANT because
+# scripts/record_demo.py waits for it to know the answer has landed, and when
+# this was a bare string in both places renaming it here silently broke the
+# recorder: every question waited out its 120-second timeout instead, and two
+# beats overran their narration by a minute.
+DONE_LABEL = "Answered"
+
 NODE_LABEL = {
     "guard": "Checking the question",
     "router": "Finding the right specialist",
@@ -147,7 +154,7 @@ def render() -> None:
         with st.chat_message("assistant"):
             with st.status("Working on it…", expanded=True) as status:
                 result = _collect(get_deps(), question, persona, status)
-                status.update(label="Answered", state="complete", expanded=False)
+                status.update(label=DONE_LABEL, state="complete", expanded=False)
 
             final = result.get("final", {})
             st.markdown(escape_dollars(final.get("text", "_No answer produced._")))

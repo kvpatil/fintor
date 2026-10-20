@@ -31,6 +31,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+# Imported, not restated. See chat.py: duplicating this string is what broke
+# the recorder when the label was reworded.
+from src.web_app.views.chat import DONE_LABEL  # noqa: E402
 BUILD = ROOT / "build" / "demo"
 AUDIO = BUILD / "audio"
 VIDEO = BUILD / "video"
@@ -110,27 +115,36 @@ def sign_in(page, username: str, password: str) -> None:
 def ask(page, question: str, settle_ms: int = 120_000) -> None:
     """Type a question and wait for THIS turn's workflow to finish.
 
-    Counting the 'Done' markers rather than waiting for one to exist: the status
+    Counting the completion markers rather than waiting for one to exist: the status
     widget from the previous turn stays collapsed in the DOM still reading
-    "Done", so a plain wait_for_selector returns instantly on every question
+    complete, so a plain wait_for_selector returns instantly on every question
     after the first, and the recorder would race ahead of the answer.
     """
-    done = page.get_by_text("Done", exact=True)
-    before = done.count()
+    import time
+
+    before_done = page.get_by_text(DONE_LABEL, exact=True).count()
+    before_msgs = page.locator('[data-testid="stChatMessage"]').count()
 
     box = page.locator('[data-testid="stChatInputTextArea"]')
     box.fill(question)
     box.press("Enter")
 
-    deadline = settle_ms
-    step = 1000
-    while deadline > 0:
-        page.wait_for_timeout(step)
-        deadline -= step
-        if page.get_by_text("Done", exact=True).count() > before:
+    # WALL CLOCK, not a decrementing counter. The previous version subtracted
+    # `step` per iteration while ignoring how long the DOM query itself took -
+    # and get_by_text().count() grows slow as the transcript grows. A nominal
+    # 120s budget actually ran 250s on a long thread, which the mux then had
+    # to squeeze into a 50s narration slot: a 5x fast-forward in the cut.
+    deadline = time.monotonic() + settle_ms / 1000
+    while time.monotonic() < deadline:
+        page.wait_for_timeout(750)
+        # Either signal is enough. The status label is the precise one; the
+        # message count is the one that still works if the label is reworded
+        # or the status widget collapses out of the text layer.
+        if (page.get_by_text(DONE_LABEL, exact=True).count() > before_done
+                or page.locator('[data-testid="stChatMessage"]').count() >= before_msgs + 2):
             break
     else:
-        print(f"    ! never saw a new 'Done' for: {question[:48]}")
+        print(f"    ! no answer within {settle_ms / 1000:.0f}s for: {question[:48]}")
     page.wait_for_timeout(2000)
 
 
@@ -259,7 +273,11 @@ def run_beat(page, beat: Beat, password: str) -> None:
         scroll_through(page, steps=4, dwell=1100)
 
     elif beat.id == "08-internals":
-        nav(page, "AI Internals")
+        # Under About Fintor now, not a workspace tab - it reports routing
+        # tiers, retrieval ranks and a token ledger, which is the engineering
+        # story rather than the state of anyone's money. nav() looks for a
+        # top-level link and would not find it.
+        open_about(page, "AI Internals")
         scroll_through(page, steps=7, dwell=800)
 
     elif beat.id == "09-close":
@@ -291,10 +309,21 @@ def launch_browser(pw):
         return pw.chromium.launch(args=["--force-device-scale-factor=1"])
 
 
+def _published_password() -> str:
+    """The demo credential from config.yaml."""
+    import yaml
+
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    return str(cfg.get("auth", {}).get("demo_password", ""))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--password", required=True,
-                    help="FINTOR_DEMO_PASSWORD the running app was started with")
+    # Defaults to the credential config.yaml publishes, so a recording needs
+    # no environment setup. Still overridable for an instance started with
+    # FINTOR_DEMO_PASSWORD.
+    ap.add_argument("--password", default=_published_password(),
+                    help="sign-in password; defaults to the one in config.yaml")
     ap.add_argument("--skip-audio", action="store_true",
                     help="reuse existing clips in build/demo/audio")
     args = ap.parse_args()

@@ -28,10 +28,10 @@ pause_after = 1.5
 text = """
 This is Fintor. A multi-agent finance assistant that explains rather than advises.
 It opens on a sign in screen, and that is not decoration. The account you choose is the single most important input to everything that follows.
-There are six readers. Maya is twenty four, with her first paycheck and nothing invested yet.
-Dev is thirty one, holding seventy percent of his portfolio in one employer stock after a public offering.
+There are six sample accounts. Maya is twenty four, with her first paycheck and nothing invested yet.
+Dev is thirty one, with most of his portfolio in a single employer stock after a public offering.
 Walter is sixty one and four years from retiring. Priya is saving for a house. Aisha holds crypto. Sam is optimising tax-advantaged accounts.
-Each card shows the question that reader actually asks. Two of them open with exactly the same question, and that is deliberate. Hold that thought.
+Each card shows the question that person actually asks, and clicking one fills the form for you. Two of them open with exactly the same question, and that is deliberate. Hold that thought.
 Sign in is real. Passwords are hashed with scrypt and compared in constant time, and if no password is configured the screen refuses everyone rather than waving them through.
 We will sign in as Dev.
 """
@@ -45,9 +45,9 @@ A guard inspects the question first. Then a router decides which specialists sho
 That router has three tiers. Tier one is regular expressions, which is free and instant. Tier two compares the question against intent centroids using embeddings, still with no model call. Only tier three asks a language model to classify, and most questions never reach it.
 The chosen agents run. Their findings are assembled into one answer, and then the whole thing is verified before you see it.
 Watch each step report itself as it completes.
-The answer that lands is grounded. Every claim traces back to a passage that was actually retrieved from the knowledge base.
+The answer that lands is grounded. Every claim traces back to a passage that was actually retrieved, and the sources are listed under the answer.
 A citation that does not resolve to a real passage is stripped out rather than shown, and the number stripped is reported.
-Underneath the answer, chips tell you which router tier resolved it, which agents ran, and whether the data behind it was live or served from cache.
+Underneath the answer, a marker tells you whether the figures behind it are live or served from cache. The routing detail is not cluttering this page - it is all on the AI Internals page, under About Fintor.
 """
 
 [[beat]]
@@ -61,8 +61,8 @@ Dev is thirty one, aggressive, and concentrated in a single technology stock.
 We ask Walter the identical question Dev asked. Word for word. Should I buy more of this one stock.
 The agents are the same. The knowledge base is the same. The retrieval is the same. The only thing that has changed is who is asking.
 The persona sets a difficulty ceiling, which filters the corpus before ranking, so a beginner is never served an advanced passage.
-It sets the risk framing. It gives the agent a different portfolio to reason about. And it carries its own conversation thread, so each reader's history stays separate.
-Watch the answer change with the reader.
+It sets the risk framing. It gives the agent a different portfolio to reason about. And it carries its own conversation thread, so each account's history stays separate.
+Watch the answer change with the person asking.
 """
 
 [[beat]]
@@ -84,7 +84,7 @@ pause_after = 2.0
 text = """
 The portfolio page computes in Python. The model never does the arithmetic.
 The total, the allocation across asset classes, and every holding with its weight.
-A diversification score, and a risk score computed from the asset mix, shown against the risk tolerance the reader claimed. When those two disagree, that is worth seeing.
+A diversification score, and a risk score computed from the asset mix, shown against the risk tolerance the account states. When those two disagree, that is worth seeing.
 Where a concentration flag fires, it is stated plainly rather than buried.
 And underneath, the thing most tools in this category leave out entirely.
 This is a correlation matrix across the holdings. It asks a different question from the allocation chart.
@@ -143,8 +143,9 @@ And every run is traced to Langfuse, so a question answered last week can still 
 id = "09-close"
 pause_after = 1.0
 text = """
-The architecture diagrams are generated from the compiled workflow graph, so they cannot drift from the code that actually runs.
-Behind them sit the specifications, the governance skills, and a traceability matrix connecting each requirement to the code and the tests that satisfy it.
+The first architecture diagram is generated from the compiled workflow graph, so it cannot drift from the code that actually runs.
+Behind it sit the specifications, the governance skills, and a traceability matrix connecting each requirement to the code and the tests that satisfy it.
+The same analysis functions are also exposed over the Model Context Protocol, so another agent - Claude Desktop, for instance - can call this portfolio and goal analysis directly. One implementation, two front doors.
 Every figure you have seen is computed, cited, and covered by an automated test that runs offline without touching a paid API.
 Fintor. Finance, made approachable.
 """

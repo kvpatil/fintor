@@ -693,3 +693,20 @@ def test_the_sign_in_screen_hides_the_stale_top_nav():
     assert "stLogoLink" in GATE_CHROME_CSS
     assert "stToolbar" not in GATE_CHROME_CSS, \
         "leave the toolbar alone - the theme switcher lives there"
+
+
+def test_the_recorder_waits_for_the_label_the_app_actually_shows():
+    """scripts/record_demo.py blocks until a turn reports completion. It has
+    to be looking for the same string the app emits.
+
+    When both held a bare "Done" and the app's was reworded to "Answered",
+    the recorder silently stopped seeing completions: every question waited
+    out its full 120-second timeout, two beats overran their narration by
+    about a minute each, and the take had to be thrown away. The string is
+    one constant now; this makes sure it stays one.
+    """
+    source = (ROOT / "scripts" / "record_demo.py").read_text(encoding="utf-8")
+
+    assert "from src.web_app.views.chat import DONE_LABEL" in source, (
+        "the recorder no longer imports the label from the app")
+    assert '"Done"' not in source, "a hard-coded completion label is back"
