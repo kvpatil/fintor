@@ -1,9 +1,11 @@
 # Fintor
 
-**Finance, made approachable.** A multi-agent AI finance tutor: six specialist agents answer money
-questions in plain English, grounded in a cited knowledge base, enriched with keyless live
-market data, and conditioned on a selectable persona. It explains; it does not give personal
-financial, investment, legal or tax advice, and every answer says so.
+**Finance, made approachable.** A multi-agent AI finance assistant: six specialist agents
+analyse a portfolio, project a goal, read the market, and answer money questions in plain
+English — grounded in a cited knowledge base, enriched with keyless live market data, and
+conditioned on a selectable profile. Every figure is computed in Python, never estimated by
+a model. It provides information and analysis; it does not give personal financial,
+investment, legal or tax advice, and every answer says so.
 
 ```
 Workspace                    About Fintor
@@ -55,7 +57,7 @@ The retrieval index is **committed**, so there is nothing to build before first 
 and news data need **no API keys** — yfinance and RSS are both keyless.
 
 ```bash
-.venv/bin/python -m pytest -q          # 347 tests, no network, no spend
+.venv/bin/python -m pytest -q          # 349 tests, no network, no spend
 .venv/bin/python -m src.rag.build      # rebuild the index (only after corpus changes)
 ```
 
@@ -166,7 +168,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                347 tests
+└── tests/                349 tests
 ```
 
 ## Usage examples

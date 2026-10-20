@@ -205,7 +205,7 @@ The video is never re-recorded. Only the audio is replaced.
 
 > The architecture diagrams are generated from the compiled workflow graph, so they cannot drift from the code that actually runs.
 > Behind them sit the specifications, the governance skills, and a traceability matrix connecting each requirement to the code and the tests that satisfy it.
-> Two hundred and thirty eight tests, all passing, offline and without touching a paid API.
+> Every figure you have seen is computed, cited, and covered by an automated test that runs offline without touching a paid API.
 > Fintor.
 > Finance, made approachable.
 

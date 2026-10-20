@@ -185,3 +185,53 @@ def test_every_declared_port_is_runtime_checkable():
         if not getattr(proto, "_is_runtime_protocol", False):
             not_checkable.append(name)
     assert not not_checkable, f"not runtime_checkable: {not_checkable}"
+
+
+def test_the_product_describes_itself_consistently():
+    """One vocabulary across every file that describes what Fintor is.
+
+    These four drifted: design.md, copilot-instructions.md and the overview
+    spec were updated to "finance assistant" while the README's opening line -
+    the first thing anyone reads on GitHub - still said "tutor", and so did
+    the finance_qa SYSTEM PROMPT, which is not cosmetic at all: it instructs
+    the model on what voice to answer in.
+
+    "statutory" contains the substring, so the check is word-boundaried.
+    docs/PLAN.md is excluded - it is a historical planning document, no longer
+    rendered in the product, and rewriting history there would be dishonest.
+    """
+    import re
+
+    offenders = []
+    for path in [ROOT / "README.md", ROOT / "docs" / "design.md",
+                 ROOT / ".github" / "copilot-instructions.md",
+                 ROOT / "specs" / "000-overview.md",
+                 ROOT / "src" / "agents" / "finance_qa.py"]:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"\btutor\b|\bfinance, taught\b", text, re.I):
+            offenders.append(path.relative_to(ROOT).as_posix())
+
+    assert not offenders, (
+        "these still call Fintor a tutor: " + ", ".join(offenders))
+
+
+def test_the_narration_states_no_test_count():
+    """A spoken number in a recorded video cannot be corrected by editing a
+    file - the audio has to be re-cut.
+
+    It had already gone stale twice and in two different directions: the
+    narration script said 254 while the written walkthrough said 238, with
+    the real figure at 347. The fix is not a fresher number, it is not
+    quoting a number that changes on every commit.
+    """
+    import re
+
+    for rel in ("scripts/narration.toml", "docs/demo-script.md"):
+        path = ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8").lower()
+        assert not re.search(r"(hundred and \w+|\b\d{3}\b)\s+tests", text), (
+            f"{rel} quotes a test count that will be wrong by the next commit")

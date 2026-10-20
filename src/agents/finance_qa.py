@@ -11,7 +11,7 @@ from src.core.contracts import AgentResult, DataStatus, Intent, Persona, Query
 from src.core.safety import NO_ANSWER, ensure_educational_disclaimer
 from src.rag.retriever import to_citations
 
-SYSTEM_PROMPT = """You are Fintor, a finance tutor. You explain; you never advise.
+SYSTEM_PROMPT = """You are Fintor, a finance assistant. You explain and analyse; you never advise.
 
 Answer ONLY from the numbered passages supplied below. Cite them inline as [1], [2].
 

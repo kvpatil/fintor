@@ -3,7 +3,7 @@
 One row per acceptance criterion. A criterion with no passing test is `Draft`, never
 `Implemented`. Regenerated in the same change as the test, per the docs-with-code convention.
 
-Run `pytest -q` to verify every row below. 347 tests, no network, no API spend.
+Run `pytest -q` to verify every row below. 349 tests, no network, no API spend.
 
 | Spec | Criterion | Test | Status |
 |---|---|---|---|

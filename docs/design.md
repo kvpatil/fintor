@@ -204,7 +204,7 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 
 ## 5. Testing strategy
 
-347 tests, 82% line coverage. No network, no API spend — a session fixture replaces
+349 tests, 82% line coverage. No network, no API spend — a session fixture replaces
 `socket.socket` so an accidental connection fails loudly instead of billing.
 
 | Layer | What is asserted |
@@ -332,4 +332,4 @@ and `.github/agents/*`.
 headline clustering, multimodal statement parsing, long-term per-persona memory, Presidio PII
 redaction.
 
-**Phase 4** — MCP server, voice, auth, Docker + Cloud Run, GitHub Actions CI with `ruff`.
+**Phase 4** — voice, Docker + Cloud Run, GitHub Actions CI with `ruff`. (The MCP server and sign-in have since shipped; see §7 and `src/core/auth.py`.)
