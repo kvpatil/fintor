@@ -15,6 +15,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from src.agents.registry import AGENT_CLASSES
+from src.core.contracts import Intent
 from src.web_app.components import card, cost_bar
 from src.web_app.state import active_persona, get_deps, last_result
 from src.web_app.theme import chip
@@ -32,6 +34,44 @@ CACHE_NOTE = {
     "prompt": "Layer 3 — provider prompt cache reused the prefix.",
     "offline": "Offline mode — canned response, never billed.",
 }
+
+
+# One line per specialist, in the order the router considers them. Keyed off
+# Intent so this card cannot list an agent that is not wired, and the assertion
+# below means adding a seventh agent fails the page loudly rather than quietly
+# under-reporting the roster.
+AGENT_ROSTER = {
+    Intent.FINANCE_QA: ("Finance Q&A", "Explains concepts from the knowledge base."),
+    Intent.PORTFOLIO: ("Portfolio analysis", "Weights, concentration, correlation, risk."),
+    Intent.MARKET: ("Market data", "Prices, moving averages, benchmark comparison."),
+    Intent.TAX: ("Tax education", "Account types and tax treatment. Never advice."),
+    Intent.GOAL_PLANNING: ("Goal planning", "Projections and the spread around them."),
+    Intent.NEWS: ("News synthesis", "Recent headlines for a holding or topic."),
+}
+assert set(AGENT_ROSTER) == set(AGENT_CLASSES), "roster drifted from the registry"
+
+
+def _roster_section(route: dict) -> None:
+    """The six specialists, with the ones this question used marked.
+
+    The router selects from a fixed roster rather than asking a model what
+    agents exist, so the roster is a property of the code and is read from
+    `AGENT_CLASSES` directly. Showing which ran alongside which exist is the
+    point: the cost argument is that most questions use one or two of six.
+    """
+    selected = {str(i) for i in route.get("intents", [])}
+    with card("in-roster", title="The six specialists",
+              subtitle="The router picks only the ones a question needs — "
+                       "which is what keeps the cost down. Marked agents ran "
+                       "on the last question."):
+        cols = st.columns(3)
+        for n, (intent, (name, what)) in enumerate(AGENT_ROSTER.items()):
+            used = str(intent) in selected
+            with cols[n % 3]:
+                st.markdown(
+                    f'{chip("ran" if used else "idle", "accent" if used else "")} '
+                    f"**{name}**", unsafe_allow_html=True)
+                st.caption(what)
 
 
 def _graph_section(deps) -> None:
@@ -97,6 +137,8 @@ def render() -> None:
             else:
                 matched = ", ".join(map(str, signals))
             c2.caption(f"Matched signals — {matched}")
+
+    _roster_section(route)
 
     # -- persona conditioning --------------------------------------------
     with card("in-persona", title="Persona conditioning",
