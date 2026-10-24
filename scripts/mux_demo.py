@@ -1,9 +1,24 @@
-"""Combine the silent footage and the narration into one submittable file.
+"""Combine the silent footage and the narration into one playable file.
 
     .venv/bin/python scripts/mux_demo.py
 
-Writes docs/demo.mp4 - H.264 video and AAC audio in a single container, which is
-what `views/about.py::recording()` looks for and what a grader can open anywhere.
+Writes build/demo/demo_mux.mp4 - H.264 video and AAC audio in a single
+container.
+
+THIS IS AN INTERMEDIATE, NOT THE DELIVERABLE.
+---------------------------------------------
+It used to write straight to docs/demo.mp4, the path `views/about.py::
+recording()` plays and the README links. That was true when this script was
+the whole pipeline. It is not any more: the shipped cut comes off the far end
+of record_scene -> validate_scene -> narration_build -> mux_narration ->
+assemble_final -> remix, and remix.py's output is what gets copied to
+docs/demo.mp4.
+
+Left as it was, re-running this script would have replaced a scored, narrated
+29 MB file with a half-bitrate mux of the same footage - and `ffmpeg -y` would
+not have paused to ask. Recoverable from git, but only if you noticed. So the
+default now lands in build/, and writing anywhere outside build/ onto a file
+that already exists takes an explicit --force.
 
 SWAPPING IN A HUMAN NARRATION
 -----------------------------
@@ -34,7 +49,7 @@ AUDIO = BUILD / "audio"
 RAW = BUILD / "video" / "raw.webm"
 TIMINGS = BUILD / "timings.json"
 SEGMENTS = BUILD / "segments"
-OUT = ROOT / "docs" / "demo.mp4"
+OUT = BUILD / "demo_mux.mp4"
 
 AUDIO_EXTS = (".aiff", ".m4a", ".wav", ".mp3")
 
@@ -60,6 +75,27 @@ def ffmpeg_exe() -> str:
 
 
 FFMPEG = ffmpeg_exe()
+
+
+def guard_output(out: Path, force: bool) -> None:
+    """Refuse to overwrite anything outside build/ that already exists.
+
+    Scoped by location rather than by filename: hardcoding "docs/demo.mp4"
+    would guard the one path we happen to have been bitten by and miss the
+    next one. Anything under build/demo is scratch and is overwritten without
+    comment - that is what the directory is for, and it is gitignored.
+    """
+    try:
+        out.resolve().relative_to(BUILD.resolve())
+        return
+    except ValueError:
+        pass
+    if out.exists() and not force:
+        raise SystemExit(
+            f"refusing to overwrite {out}\n"
+            f"  It exists and is outside build/, so it is probably the finished\n"
+            f"  cut - this script only produces a rough mux. Write to the default\n"
+            f"  ({OUT.relative_to(ROOT)}) instead, or pass --force if you are sure.")
 
 
 def run(cmd: list[str]) -> None:
@@ -177,7 +213,14 @@ def main() -> int:
                          "clips in build/demo/audio are concatenated")
     ap.add_argument("--video", type=Path, default=RAW)
     ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--force", action="store_true",
+                    help="allow --out to overwrite an existing file outside build/")
     args = ap.parse_args()
+
+    # Before any ffmpeg work: a nine-minute encode that ends in a refusal is
+    # worse than no refusal at all. Covers mux_per_beat too - both paths write
+    # to args.out.
+    guard_output(args.out, args.force)
 
     if not args.video.exists():
         raise SystemExit(f"no footage at {args.video} - run scripts/record_demo.py first")

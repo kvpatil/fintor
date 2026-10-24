@@ -11,8 +11,10 @@
 *.docx.pdf
 AI Finance Assistant - Problem Statement*.pdf
 
-# Demo video intermediates: the raw webm and the per-beat narration clips.
-# The finished docs/demo.mp4 is handled separately - see scripts/mux_demo.py.
+# Demo video intermediates: the raw webm, the per-beat narration clips, and
+# every mux and mix between them - including mux_demo.py's demo_mux.mp4 and
+# remix.py's fintor_final_v2.mp4. The finished cut is committed separately as
+# docs/demo.mp4, which is a copy of whatever the chain last approved.
 build/
 
 # Python
