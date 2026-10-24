@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -247,6 +249,21 @@ def recording() -> None:
     st.title("Recording")
     st.caption("Demo walkthrough.")
 
+    # A URL wins over a local file when both are available.
+    #
+    # .dockerignore keeps the 29 MB mp4 out of the image on purpose, so in a
+    # container there is no local file to find and this page used to render its
+    # "no recording" fallback - the one page a reviewer of a DEPLOYED build is
+    # most likely to open. Cloud Run reads the object from Cloud Storage
+    # instead, which is better than baking it in regardless of size: the
+    # browser streams it and can seek (the bucket answers byte-range requests
+    # with a 206), where the data-URI path below has to transfer all 41 MB of
+    # base64 before the first frame.
+    url = os.environ.get("FINTOR_DEMO_VIDEO_URL", "").strip()
+    if url:
+        _play_url(url)
+        return
+
     for candidate in ("docs/demo.mp4", "docs/demo.mov", "docs/recording.mp4"):
         path = ROOT / candidate
         if path.exists():
@@ -259,6 +276,23 @@ def recording() -> None:
     # video file.
     st.info("No recording has been added to this build. Drop a file at "
             "`docs/demo.mp4` and it will appear here.")
+
+
+def _play_url(url: str) -> None:
+    """Stream from a URL. No bytes pass through this process.
+
+    st.video() is still avoided here for the reason in _play(): it routes
+    through Streamlit's media endpoint even for a remote source. A plain
+    <video src> lets the browser fetch the object directly, so the container
+    never holds the file and the page stays small.
+    """
+    st.markdown(
+        f'<video controls preload="metadata" style="width:100%;border-radius:10px;"'
+        f' src="{html.escape(url, quote=True)}">'
+        f'Your browser cannot play this video.</video>',
+        unsafe_allow_html=True,
+    )
+    st.link_button("Download the walkthrough", url)
 
 
 def _play(path) -> None:

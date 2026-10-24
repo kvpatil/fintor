@@ -13,9 +13,13 @@
 data/cache/
 data/checkpoints/
 
-# Recording artefacts and the demo video: 240 MB of build/ plus 14 MB of mp4
-# that the container never serves. The video is reachable from the repo and
-# from GitHub; it does not need to be in every pulled layer.
+# Recording artefacts and the demo video: 240 MB of build/ plus 29 MB of mp4.
+# The container DOES serve the video - views/about.py::recording() is the page
+# for it - but it reads it from Cloud Storage via FINTOR_DEMO_VIDEO_URL rather
+# than from a layer. Keeping it out is what makes that indirection worth having:
+# the browser fetches the object directly and can seek it, and the image does
+# not carry 29 MB that only one page reads. Without the env var set, the page
+# falls back to the local file, which is how it works in a clone.
 build/
 docs/demo.mp4
 docs/img/
