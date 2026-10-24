@@ -4,8 +4,12 @@
 
 # Course material, not our work and not ours to publish. Removed from history
 # after it was pushed to a public repo in the initial scaffold.
+# Both patterns below were needed: the original was exported as .docx.pdf, but
+# a later copy landed as a bare .pdf, which neither pattern matched - so it sat
+# untracked-but-committable in a PUBLIC repo until someone ran `git add -A`.
+# Match the stem, not one spelling of the extension.
 *.docx.pdf
-AI Finance Assistant - Problem Statement.docx.pdf
+AI Finance Assistant - Problem Statement*.pdf
 
 # Demo video intermediates: the raw webm and the per-beat narration clips.
 # The finished docs/demo.mp4 is handled separately - see scripts/mux_demo.py.
