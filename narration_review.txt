@@ -1,0 +1,52 @@
+[0.0–10.0s] This is Fintor, a multi-agent finance assistant that explains rather than advises. It opens on a sign and screen, and that is not decoration.
+[10.0–22.0s] The account you choose is the single most important input to everything that follows. There are six sample accounts. Maya is 24, with her first paycheck and nothing invested yet.
+[22.0–34.0s] Dev is 31, with most of his portfolio in a single employer stock after a public offering. Walter is 61 and four years from retiring. Priya is saving for a house.
+[34.0–45.5s] Asha holds crypto. Sam is optimizing tax advantage accounts. Each card shows the question that person actually asks, and clicking one fills the form for you.
+[45.5–56.9s] Two of them open with exactly the same question, and that is deliberate. Hold that thought. Sign in is real. Passwords are hashed with script and compared in constant time,
+[56.9–67.8s] and if no password is configured the screen refuses everyone, rather than waving them through. We will sign in as Dev. Every answer is built in the open, and you can watch it happen.
+[67.8–79.9s] A guard inspects the question first, then a router decides which specialist should handle it. That router has three tiers. Tier one is regular expressions, which is free and instant.
+[79.9–92.0s] Tier two compares the question against intent centroids using embeddings, still with no model call. Only tier three asks a language model to classify, and most questions never reach it.
+[92.0–103.0s] The chosen agents run. Their findings are assembled into one answer, and then the whole thing is verified before you see it. Watch each step report itself as it completes.
+[103.0–112.0s] The answer that lands is grounded. Every claim traces back to a passage that was actually retrieved, and the sources are listed under the answer.
+[112.0–123.8s] A citation that does not resolve to a real passage is stripped out rather than shown, and the number stripped is reported. Underneath the answer, a marker tells you whether the figures behind it are live or
+[123.8–134.4s] served from cache. The routing detail is not cluttering this page. It is all on the AI Internals page, under About Fintor. Now the part that matters most.
+[134.4–146.3s] We sign out, and sign back in as Walter. Walter is 61. For years from retiring, holding mostly bonds, and describing himself as conservative.
+[146.3–158.6s] Dev is 31, aggressive, and concentrated in a single technology stock. We ask Walter the identical question Dev asked. Word for word, should I buy more of this one stock?
+[158.6–167.4s] The agents are the same. The knowledge base is the same. The retrieval is the same. The only thing that has changed is who is asking.
+[167.4–177.7s] The persona sets a difficulty ceiling, which filters the corpus before ranking, so a beginner is never served an advanced passage. It sets the risk framing.
+[177.7–186.7s] It gives the agent a different portfolio to reason about. And it carries its own conversation thread, so each account's history stays separate.
+[186.7–196.8s] Watch the answer change with the person asking, one question can need more than one specialist. This one asks about capital gains tax and about how an index is performing.
+[196.8–208.8s] In a single sentence, the router recognizes both intents and fans out. The two agents run concurrently, not one after the other, using dynamic dispatch in the workflow graph.
+[208.8–221.4s] Each agent returns findings with citations. The findings are merged, and citations renumbered, producing one coherent answer.
+[221.4–234.3s] stapled together. There are six specialists in total. One's question answering, portfolio analysis, market data, tax education, goal planning, and news synthesis.
+[234.3–245.1s] The router picks only the ones a question actually needs, which is what keeps the cost down. The portfolio page computes in Python. The model never does the arithmetic.
+[245.1–255.6s] The total, the allocation across asset classes, and every holding with its weight. A diversification score, and a risk score computed from the asset mix, shown against
+[255.6–266.4s] the risk tolerance the account states. When those two disagree, that is worth seeing. Where a concentration flag fires, it is stated plainly rather than buried.
+[266.4–278.2s] And underneath, the thing most tools in this category leave out entirely. This is a correlation matrix across the holdings. It asks a different question from the allocation chart.
+[278.2–290.1s] Allocation tells you what you own. Correlation tells you whether the things you own move together. And does not come from owning several things. It comes from owning several things that do not move as one.
+[290.1–300.5s] A block of strong color here is concentration that the weights alone will never show you. Every cell carries its number, so the reading never depends on color alone, and the ramp
+[300.5–310.6s] is chosen so the label stays legible on every possible fill. Market data is live, and keyless. No paid data vendor is required to run this.
+[310.6–322.0s] Averages are fetched on demand, and a visible marker always says whether what you are looking at is live, a saved copy, or the last known value. That matters more than it sounds.
+[322.0–334.3s] When a data source fails, Fintor degrades gracefully through four stages, without inventing values. Price history includes gray 20- and 50-day moving averages for context.
+[334.3–342.5s] than as competing colored lines. The price is the subject. The averages are reference. Change over the period.
+[342.5–354.9s] The largest peak to trough decline, which describes the experience of holding something better than volatility does. And annualized volatility itself. Then a comparison against a benchmark.
+[354.9–366.2s] Both series are indexed so they start at 100 on the same day. That is deliberate. The alternative, a second vertical axis, is the single most common mistake in financial
+[366.2–374.1s] charting, because it lets either line be made to look like the winner just by choosing the scales. Indexing removes that choice.
+[374.1–385.0s] Goal planning, a target amount, what is already saved, what goes in each month, and an assumed annual return. The projection updates as those inputs change.
+[385.0–395.0s] It is compound arithmetic, not a simulation, and the page says so rather than implying more precision than it has. The dashed line is the target.
+[395.0–405.9s] Where the curve crosses it is the year the goal is met at this rate. The figures beside it say whether the plan is on track, and what monthly contribution would reach the target exactly.
+[405.9–414.7s] Underneath, the same plan run at two percentage points either side of the assumption. That table is the most important thing on this page.
+[414.7–426.9s] A single projection presented as a forecast is the most common way tools like this mislead people. Showing the spread makes the uncertainty visible instead of hiding it behind one confident looking line.
+[426.9–439.2s] And the assumptions are listed out. Contributions at month end. A constant rate. No attempt to model the order returns arrive in, which changes the outcome even when the average is identical.
+[439.2–449.2s] All of that machinery is on screen rather than buried, and this page is where it lives. The routing decision, with the tier that resolved it and the signals that matched.
+[449.2–461.6s] The persona conditioning, including the difficulty ceiling and the conversation thread. A trace of the workflow graph, node by node, with the time each one took. Then retrieval.
+[461.6–470.8s] Every candidate passage, with its dense vector rank, its keyword rank, and the fused score that ordered them. Retrieval here is hybrid.
+[470.8–480.0s] Dense embeddings and classic keyword search run separately, then combined by reciprocal rank fusion. And search alone misses parent phrases.
+[480.0–488.1s] Vectors alone miss exact terms, like a specific tax form number. Running both and fusing them covers each other's blind spots.
+[488.1–500.2s] Every model call is listed, with its token counts, its cost, and which cash tier served it. Ask the same question twice and the second one is served from disk at zero tokens and zero cost.
+[500.2–509.7s] There is an exact match cash for completions, a separate one for embeddings, another for market data, and an offline mode that is never built at all.
+[509.7–522.4s] And every run is traced to Langfuse, so a question answered last week can still be opened and inspected long after the session has ended. The first architecture diagram is generated from the compiled workflow graph, so it
+[522.4–535.1s] cannot drift from the code that actually runs. Behind it sit the specifications, the governance skills, and the traceability matrix connecting each requirement to the code and the test that satisfy it.
+[535.1–547.6s] The same analysis functions are also exposed over the Model Context Protocol, so another agent, cloud desktop, for instance, can call this portfolio and goal analysis directly.
+[547.6–558.6s] One implementation, two front doors, every figure you have seen is computed, cited, and covered by an automated test that runs offline without touching a paid API.
+[558.6–561.8s] Fintor, finance, made approachable.
