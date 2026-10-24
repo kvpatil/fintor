@@ -68,6 +68,11 @@ def main() -> int:
         "",
         "The video is never re-recorded. Only the audio is replaced.",
         "",
+        "This writes `build/demo/demo_mux.mp4`, not the file the app plays. "
+        "The committed `docs/demo.mp4` is a copy of the finished mix from "
+        "`scripts/remix.py`; replacing it is a deliberate step, not a "
+        "side effect of re-running the mux.",
+        "",
         "---",
         "",
     ]
