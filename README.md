@@ -31,7 +31,7 @@ would rather type: any of `maya`, `dev`, `priya`, `walter`, `aisha`, `sam`, pass
 
 | | |
 |---|---|
-| **Demo video** | [`docs/demo.mp4`](docs/demo.mp4) — 9 min 22 s. Also inside the app under *About Fintor → Recording*. |
+| **Demo video** | [`docs/demo.mp4`](docs/demo.mp4) — 9 min 22 s, narrated and scored. Also inside the app under *About Fintor → Recording*. |
 | **Tests** | 360, all passing offline with zero API spend: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q` |
 | **Coverage** | **82%** line coverage: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q --cov=src` |
 | **Design document** | [`docs/design.md`](docs/design.md), also rendered in-app under *About Fintor* |
@@ -67,8 +67,9 @@ deployment deliberately does not do are in [`docs/deploy.md`](docs/deploy.md).
 ### Submitting this as a ZIP
 
 Use GitHub's **Code → Download ZIP**, which honours `.gitignore` and produces about
-19 MB. Zipping a working copy locally would sweep in `.venv` (~1 GB) and `build/`
-(~240 MB). The demo video is committed, so it travels with either.
+29 MB — most of it the demo video. Zipping a working copy locally would sweep in
+`.venv` (~1 GB) and `build/` (~240 MB). The demo video is committed, so it travels
+with either.
 
 ---
 

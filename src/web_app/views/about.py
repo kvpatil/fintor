@@ -271,10 +271,12 @@ def _play(path) -> None:
     because both route through the same endpoint. It is the third thing that
     endpoint has broken here, after the favicon and the header logo.
 
-    So the bytes are embedded directly in a plain <video> element. A 15 MB
-    data URI is roughly 20 MB of base64 in the page, which is heavy but
-    paid once on a page nobody reloads in a loop - and it needs no media
-    endpoint, so it cannot be dropped by one.
+    So the bytes are embedded directly in a plain <video> element. The 29 MB
+    mp4 is roughly 41 MB of base64 in the page, which is heavy but paid once
+    on a page nobody reloads in a loop - and it needs no media endpoint, so
+    it cannot be dropped by one. Measured at that size: the player reaches
+    readyState 4 and reports the full 9:21, so the data URI is not hitting a
+    browser length limit. Worth re-checking if the video grows much past this.
 
     The download button is not decoration: it uses the same bytes and gives
     a reviewer a way to watch the file in a real player if the embedded one
