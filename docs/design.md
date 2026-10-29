@@ -204,7 +204,7 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 
 ## 5. Testing strategy
 
-361 tests, 82% line coverage. No network, no API spend — a session fixture replaces
+375 tests, 83% line coverage. No network, no API spend — a session fixture replaces
 `socket.socket` so an accidental connection fails loudly instead of billing.
 
 | Layer | What is asserted |
@@ -218,7 +218,7 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 | Agents | Per agent: the relevance gate makes zero LLM calls, sample news is never narrated, a personal tax question is redirected, a hallucinated figure is dropped from an extraction, a failing agent costs one section |
 | MCP | Every tool's output equals the `quant`/`market_calc` function it wraps, dispatched through `call_tool` rather than around it |
 
-**Where the coverage is, and where it is not.** 82% overall, clearing the brief's 80%.
+**Where the coverage is, and where it is not.** 83% overall, clearing the brief's 80%.
 The six agents are now 84-100% each, having been 16-52%: nothing imported `src.agents`
 for behaviour at all, so ~320 statements of the product's core were guarded only by the
 workflow tests mocking them away. `src/rag/build.py` and `src/core/ports.py` left 0%.

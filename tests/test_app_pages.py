@@ -742,3 +742,219 @@ def test_the_recording_page_does_not_use_st_video():
     assert "st.download_button(" in source, (
         "the download fallback is gone - a reviewer whose browser refuses the "
         "embedded player would have no way to watch it")
+
+
+# --- the About pages are readable without signing in --------------------
+#
+# The gate is otherwise absolute: it calls st.stop() before st.navigation(),
+# so the app's pages do not exist for an anonymous visitor rather than merely
+# being hidden. These tests pin the ONE hole deliberately cut in that, and -
+# more importantly - pin its edges.
+
+
+def _visible_markdown(at) -> str:
+    """Markdown with the injected <style> blocks dropped.
+
+    Needed because theme.py's CSS quotes the tagline in a comment ("...meets
+    'Finance, made approachable.' rather than the logo"), and --gate-lockup-w
+    names the gate too. A substring check over every markdown element therefore
+    reports the gate as rendered on a page it never touched - which it did,
+    costing one false failure here. Anything asserting on gate COPY has to look
+    past the stylesheet.
+    """
+    return "\n".join(m.value for m in at.markdown
+                      if not m.value.lstrip().startswith("<style>"))
+
+
+def _public_pages() -> dict:
+    from src.web_app.views.about import PUBLIC_PAGES
+
+    return PUBLIC_PAGES
+
+
+def test_public_pages_are_a_subset_of_the_navigation():
+    """A renamed route must not leave the public registry pointing at nothing.
+
+    PUBLIC_PAGES is keyed by url_path so the two can be compared; this is what
+    makes that choice load-bearing rather than incidental.
+    """
+    paths = {r[2] for r in _page_spec()}
+    unknown = set(_public_pages()) - paths
+    assert not unknown, f"public pages that are not in PAGE_SPEC: {unknown}"
+
+
+def test_ai_internals_is_not_public():
+    """The one exclusion that matters.
+
+    AI Internals sits in the same "About Fintor" nav group as the four public
+    pages, which makes it the obvious thing to add to the registry by reflex.
+    It reports the LAST RUN - routing tier, retrieval ranks, token ledger -
+    which an anonymous visitor has none of, so it would render empty, and it
+    is a readout of session activity besides.
+    """
+    assert "internals" not in _public_pages()
+    assert set(_public_pages()) == {"architecture", "design", "governance", "recording"}
+
+
+def test_the_gate_links_to_every_public_page():
+    """Built from the registry, so a public page cannot go unadvertised."""
+    import os
+
+    os.environ["FINTOR_OFFLINE"] = "1"
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_file(str(APP), default_timeout=300)
+    at.run()
+    assert not at.exception, at.exception[0].value if at.exception else ""
+
+    body = _visible_markdown(at)
+    for key, (title, _fn) in _public_pages().items():
+        assert f"?about={key}" in body, f"the gate does not link to {key}"
+        assert title in body, f"the gate does not name {title}"
+
+
+@pytest.mark.slow
+def test_about_page_renders_without_a_persona():
+    """?about=recording serves the page, not the door.
+
+    This is the whole feature. `at.query_params` is an instance dict that
+    AppTest forwards into the script run, which is a different mechanism from
+    st.navigation - test_views_render.py records that AppTest cannot drive
+    navigation, and that limitation is exactly why the public shell is reached
+    by a query param instead of a second nav tree.
+    """
+    import os
+
+    os.environ["FINTOR_OFFLINE"] = "1"
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_file(str(APP), default_timeout=300)
+    at.query_params["about"] = "recording"
+    at.run()
+    assert not at.exception, at.exception[0].value if at.exception else ""
+
+    assert [t.value for t in at.title] == ["Recording"], (
+        "the Recording page should render for an anonymous visitor")
+
+    # STRUCTURAL, not a string match: the gate is the only thing in the app
+    # that draws text inputs, so their absence is unambiguous where a substring
+    # check over the markdown is not.
+    assert not at.text_input, "the sign-in form rendered behind the public page"
+
+    body = _visible_markdown(at)
+    assert "Demo accounts" not in body, "the gate's account band leaked through"
+    assert "signin-account" not in body, "the gate's account cards leaked through"
+    # The shell's own chrome: a way back in, and a breadcrumb for depth.
+    assert "pub-signin" in body, "no way back to the sign-in screen"
+    assert 'class="bc"' in body, "the public shell should carry a breadcrumb"
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("requested", ["internals", "nonsense", "chat", ""])
+def test_non_public_about_values_fall_through_to_the_gate(requested):
+    """A hand-typed or stale ?about= meets the front door, not an error.
+
+    "internals" is the one that matters - it is a real page in the same nav
+    group, so a reader who guesses the URL must not get in. "chat" covers the
+    workspace, which is in PAGE_SPEC but not in PUBLIC_PAGES.
+    """
+    import os
+
+    os.environ["FINTOR_OFFLINE"] = "1"
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_file(str(APP), default_timeout=300)
+    at.query_params["about"] = requested
+    at.run()
+    assert not at.exception, at.exception[0].value if at.exception else ""
+
+    # Two text inputs - username and password - is the gate and nothing else.
+    # Asserted structurally for the reason _visible_markdown() documents: the
+    # tagline lives in the stylesheet, so a substring check would pass here
+    # even if the gate had never rendered.
+    assert len(at.text_input) == 2, (
+        f"?about={requested!r} did not fall back to the sign-in form")
+    assert not at.title, f"?about={requested!r} rendered a page body"
+
+    from src.web_app.gate import TAGLINE
+
+    assert TAGLINE in _visible_markdown(at), "the gate's brand panel is missing"
+
+
+@pytest.mark.slow
+def test_public_about_does_not_build_the_container():
+    """An anonymous visitor must not be able to trigger an index load.
+
+    Same sabotage as test_gate_does_not_build_the_container: make the container
+    explode and assert the page still renders. This is what `architecture()`'s
+    `generated=False` branch is for - drawing the compiled LangGraph is the one
+    part of that page that needs deps, and on Cloud Run leaving it reachable
+    would let anyone load the embedder and the retrieval index per page view.
+
+    Architecture is the page under test precisely because it is the only public
+    one that touches get_deps() at all.
+    """
+    import os
+
+    os.environ["FINTOR_OFFLINE"] = "1"
+    from streamlit.testing.v1 import AppTest
+
+    probe = (
+        "import sys, os\n"
+        f"sys.path.insert(0, {str(ROOT)!r})\n"
+        "os.environ['FINTOR_OFFLINE'] = '1'\n"
+        "import src.container as container\n"
+        "def _boom(*a, **k):\n"
+        "    raise AssertionError('a public About page built the container')\n"
+        "container.build = _boom\n"
+        "exec(open(%r).read())\n" % str(APP)
+    )
+    # Restored in a finally for the reason the gate's version of this test
+    # documents at length: AppTest runs IN PROCESS, so the patch leaks into
+    # every later test that renders through the container.
+    import src.container as container
+
+    original_build = container.build
+    try:
+        at = AppTest.from_string(probe, default_timeout=300)
+        at.query_params["about"] = "architecture"
+        at.run()
+    finally:
+        container.build = original_build
+
+    assert not at.exception, at.exception[0].value if at.exception else ""
+    assert [t.value for t in at.title] == ["Architecture"], (
+        "Architecture did not render with the container disabled")
+
+    # at.subheader, NOT at.markdown. st.subheader does not land in the markdown
+    # list, so checking the body text here passed vacuously and would have gone
+    # on passing with diagram 1 fully restored - caught by reading the element
+    # lists back rather than by trusting a green test.
+    heads = [h.value for h in at.subheader]
+    assert not [h for h in heads if h.startswith("1 ")], (
+        f"the generated diagram needs the container and must not be drawn here: {heads}")
+    # And the other six ARE still drawn - a page that rendered nothing would
+    # also satisfy the assertion above.
+    assert len(heads) == 6, f"expected sections 2-7, got {heads}"
+    assert heads[0].startswith("2 ") and heads[-1].startswith("7 ")
+
+
+def test_architecture_keeps_the_generated_diagram_when_signed_in():
+    """The public path drops diagram 1; the authenticated path must not.
+
+    Guards against `generated=False` becoming the de-facto default and quietly
+    removing the one diagram on this page that cannot drift from the code.
+    """
+    import inspect
+
+    from src.web_app.views import about
+
+    sig = inspect.signature(about.architecture)
+    assert sig.parameters["generated"].default is True
+    assert sig.parameters["generated"].kind is inspect.Parameter.KEYWORD_ONLY, (
+        "positional would let a call site flip it by accident")
+
+    # The authenticated registration must not bind it off.
+    spec_src = APP.read_text(encoding="utf-8")
+    assert "about.architecture," in spec_src, (
+        "PAGE_SPEC no longer registers the full Architecture page")

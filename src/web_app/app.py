@@ -6,6 +6,13 @@ Run: streamlit run src/web_app/app.py
 Shape of this file: gate first, then navigation, then chrome, then the page. The
 gate calls st.stop(), so none of the app's chrome exists until a persona is chosen
 - which is what makes it read as a sign-in screen rather than a modal over the app.
+
+ONE EXCEPTION, above the gate: the four About Fintor reference pages are readable
+without signing in, through `public.render()`. They render files that are already
+committed to this repository, so the gate in front of them was guarding nothing -
+and a reviewer should not have to authenticate to read the design document or
+watch the walkthrough. AI Internals is NOT among them; see views/about.py.
+The workspace pages and st.navigation() stay strictly behind the gate.
 """
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.data.personas import PERSONAS  # noqa: E402
-from src.web_app import chrome, gate  # noqa: E402
+from src.web_app import chrome, gate, public  # noqa: E402
 from src.web_app.brand import (  # noqa: E402
     favicon_data_uri, header_data_uri,
 )
@@ -49,6 +56,18 @@ if not st.session_state.get("persona_id"):
     session.restore({p.id for p in PERSONAS})
 
 if not st.session_state.get("persona_id"):
+    # Before the gate, deliberately. A public About page is a destination in its
+    # own right - landing on one should show the page, not a door in front of it.
+    # Returns False for an absent or unrecognised `?about=`, including
+    # `?about=internals`, so anything unknown meets the sign-in screen.
+    #
+    # st.stop() on both paths, same as before. It does leave the previous run's
+    # elements painted when the new screen writes fewer of them - the stale nav
+    # tabs gate.py documents - so the gate-to-page and page-to-page transitions
+    # were checked in the browser against the live DOM: 0 inputs, 0 account
+    # cards, one public bar. The screens replace each other cleanly.
+    if public.render(st.query_params.get("about")):
+        st.stop()
     gate.render()
     st.stop()
 

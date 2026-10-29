@@ -487,6 +487,72 @@ h1 { font-size: 1.72rem; }
 [data-testid="stMarkdownContainer"] p.gate-ask-band { margin-top: 30px; }
 [data-testid="stMarkdownContainer"] p.gate-foot { margin-top: 24px; }
 
+/* --- the About pages, read without signing in -------------------------- */
+
+/* The gate's row of links through to the public reference pages. A <nav> of
+   <a>s rather than a <p>, which sidesteps the specificity trap documented
+   just above: Streamlit's margin on `[data-testid="stMarkdownContainer"] p`
+   would beat a bare class here too. */
+.gate-about {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px;
+  margin: 18px 0 0; padding-top: 14px;
+  border-top: 1px solid var(--fin-line);
+  font-size: var(--fs-sm);
+}
+.gate-about .gate-about-lead { color: var(--fin-muted); margin-right: 2px; }
+.gate-about a {
+  color: var(--fin-accent); text-decoration: none; font-weight: 500;
+}
+.gate-about a:hover { text-decoration: underline; }
+
+/* The public shell's bar: brand, tabs, sign in. Grid rather than flex so the
+   tab row keeps its position when the brand image's intrinsic width differs
+   between the two theme variants. */
+.pub-bar {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: 0 24px;
+  padding-bottom: 12px;
+}
+/* 150px, not the gate's 420px: --gate-lockup-w is the hero size and this is
+   chrome. The artwork carries its own proportions, so width is the only thing
+   to set. */
+.pub-brand { display: block; flex: none; }
+.pub-brand img { display: block; width: 150px; max-width: 100%; height: auto; }
+/* Two files, one shown - an <img> cannot inherit CSS colour, and deciding
+   server-side goes stale the moment the viewer toggles the theme, because
+   Streamlit repaints without rerunning the script. The probe's data-theme is
+   what drives this, so the swap needs no rerun. Same mechanism as
+   .gate-lockup. */
+.pub-brand .lockup-dark { display: none; }
+:root[data-theme="dark"] .pub-brand .lockup-light { display: none; }
+:root[data-theme="dark"] .pub-brand .lockup-dark { display: block; }
+
+.pub-tabs {
+  display: flex; flex-wrap: wrap; gap: 0 20px;
+  font-size: var(--fs-sm); font-weight: 500;
+}
+.pub-tabs a {
+  color: var(--fin-muted); text-decoration: none;
+  padding: 6px 0; border-bottom: 2px solid transparent;
+}
+.pub-tabs a:hover { color: var(--fin-ink); }
+/* The current tab is marked by colour AND a rule. Colour alone was the nav
+   contrast problem this project has already fixed once. */
+.pub-tabs a.is-current {
+  color: var(--fin-ink); border-bottom-color: var(--fin-accent);
+}
+.pub-signin {
+  color: var(--fin-accent); text-decoration: none;
+  font-size: var(--fs-sm); font-weight: 600; white-space: nowrap;
+}
+.pub-signin:hover { text-decoration: underline; }
+
+/* Narrow: the three-column bar stacks rather than crushing the tab row. */
+@media (max-width: 640px) {
+  .pub-bar { grid-template-columns: 1fr; gap: 10px 0; }
+  .pub-signin { justify-self: start; }
+}
+
 /* Reference pages are read, not scanned, so they take a narrower measure.
    Headings and figures stay full width; only running text is constrained. */
 .fin-prose p, .fin-prose li { max-width: var(--fin-prose); }

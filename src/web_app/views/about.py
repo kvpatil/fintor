@@ -129,17 +129,30 @@ DEPLOY_DIAGRAM = """flowchart LR
 """
 
 
-def architecture() -> None:
+def architecture(*, generated: bool = True) -> None:
+    """The seven diagrams.
+
+    `generated=False` drops the first one, which is the only part of this page
+    that needs the container: drawing it builds the embedder and loads the
+    retrieval index. The pre-auth shell passes False, because state.py is
+    explicit that the container is not for unauthenticated callers - and on
+    Cloud Run an anonymous visitor could otherwise trigger an index load per
+    page view. The other six are static strings and a config read.
+    """
     st.title("Architecture")
-    st.caption("The first diagram is generated from the compiled LangGraph, so it cannot "
-               "drift from the code. The rest are maintained by hand.")
+    if generated:
+        st.caption("The first diagram is generated from the compiled LangGraph, so it "
+                   "cannot drift from the code. The rest are maintained by hand.")
 
-    deps = get_deps()
-    from src.workflow.graph import FintorWorkflow
+        deps = get_deps()
+        from src.workflow.graph import FintorWorkflow
 
-    st.subheader("1 · Workflow graph (generated)")
-    st.caption("`compiled.get_graph().draw_mermaid()`")
-    _mermaid(FintorWorkflow(deps).mermaid())
+        st.subheader("1 · Workflow graph (generated)")
+        st.caption("`compiled.get_graph().draw_mermaid()`")
+        _mermaid(FintorWorkflow(deps).mermaid())
+    else:
+        st.caption("These are maintained by hand. The compiled LangGraph is drawn from "
+                   "the running system, so it appears here once you are signed in.")
 
     st.subheader("2 · System architecture")
     _mermaid(SYSTEM_DIAGRAM)
@@ -329,3 +342,29 @@ def _play(path) -> None:
     )
     st.download_button(f"Download the walkthrough ({size_mb:.0f} MB)", data=data,
                        file_name=path.name, mime="video/mp4")
+
+
+# --- what is readable without signing in --------------------------------
+# Keyed by the same url_path values app.py's PAGE_SPEC uses, so a renamed
+# route cannot leave this mapping pointing at nothing - test_app_pages.py
+# asserts the keys are a subset of PAGE_SPEC's paths.
+#
+# Everything these four pages render is already public: docs/design.md,
+# .github/skills/*, specs/* and docs/demo.mp4 are committed to the repository,
+# the walkthrough is linked from the README, and the Cloud Storage object
+# answers an anonymous GET. The gate in front of them was guarding content
+# with no lock behind it, and a reviewer of a deployed build should not have
+# to authenticate to read the design document.
+#
+# AI Internals is deliberately ABSENT. It shares the "About Fintor" nav group
+# but it is a readout of the LAST RUN - routing tier, retrieval ranks, token
+# ledger - which an anonymous visitor has none of, so it would render empty
+# and it reports session activity besides. The exclusion is tested.
+#
+# Architecture is bound with generated=False: see its docstring.
+PUBLIC_PAGES: dict[str, tuple[str, object]] = {
+    "architecture": ("Architecture", lambda: architecture(generated=False)),
+    "design": ("Design Document", design),
+    "governance": ("Governance", governance),
+    "recording": ("Recording", recording),
+}

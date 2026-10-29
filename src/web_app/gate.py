@@ -21,6 +21,7 @@ from src.core import auth
 from src.core.quant import diversification_score, portfolio_value, risk_score, weights
 from src.data.personas import PERSONAS
 from src.web_app.brand import lockup_data_uri
+from src.web_app.views import about
 from src.web_app.state import app_settings
 
 TAGLINE = "Finance, made approachable."
@@ -231,6 +232,30 @@ def _accounts_band() -> None:
     )
 
 
+def _about_links() -> None:
+    """Links through to the reference pages, which need no sign-in.
+
+    Built from `about.PUBLIC_PAGES` rather than a list typed here, so adding or
+    removing a public page cannot leave this row advertising one that is gated -
+    or quietly omitting one that is not.
+
+    `target="_self"` keeps it inside the Streamlit session instead of opening a
+    tab; `?about=<key>` is read by public.render() in app.py before this screen
+    is reached on the next run. Same mechanism as the `?account=<id>` cards
+    below, which already prove the pattern.
+    """
+    links = "".join(
+        f'<a href="?about={key}" target="_self">{title}</a>'
+        for key, (title, _fn) in about.PUBLIC_PAGES.items()
+    )
+    st.markdown(
+        '<nav class="gate-about" aria-label="About Fintor">'
+        '<span class="gate-about-lead">About Fintor, no sign-in needed:</span>'
+        f"{links}</nav>",
+        unsafe_allow_html=True,
+    )
+
+
 def _credential_hint(settings) -> None:
     """A one-line nudge that the form is ready - WITHOUT printing the password.
 
@@ -368,6 +393,9 @@ def render() -> None:
     with form:
         with st.container(key="signin-card"):
             _sign_in_form(known)
+        # Under the card, not above it: the form is what most people came for,
+        # and a reviewer who wants the engineering story will read down.
+        _about_links()
 
     # Full width, below both panels, so six accounts fit without scrolling.
     _accounts_band()
