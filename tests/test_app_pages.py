@@ -958,3 +958,39 @@ def test_architecture_keeps_the_generated_diagram_when_signed_in():
     spec_src = APP.read_text(encoding="utf-8")
     assert "about.architecture," in spec_src, (
         "PAGE_SPEC no longer registers the full Architecture page")
+
+
+def test_dockerignore_keeps_what_the_about_pages_render():
+    """The image must contain the files the public About pages read.
+
+    .dockerignore has now hidden About-page content twice: the 29 MB mp4,
+    which made a DEPLOYED Recording page render its "no recording" fallback,
+    and `.github/`, which left Governance reporting "Active skills 0" and an
+    empty copilot-instructions tab while a local run showed five. Both are
+    invisible from a local run by construction - that is what makes the trap
+    worth a test rather than a comment.
+
+    Asserted against the real paths the page reads, not a copy of the
+    exclusion list, so renaming a skills directory cannot quietly pass.
+    """
+    import fnmatch
+
+    patterns = [
+        line.strip()
+        for line in (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+    def excluded(rel: str) -> list[str]:
+        return [p for p in patterns
+                if fnmatch.fnmatch(rel, p) or rel.startswith(p.rstrip("/") + "/")]
+
+    needed = [p.relative_to(ROOT).as_posix()
+              for p in sorted((ROOT / ".github" / "skills").glob("*/SKILL.md"))]
+    needed += [".github/copilot-instructions.md", "specs/traceability.md"]
+    assert len(needed) > 1, "no skills found - the Governance page would be empty"
+
+    for rel in needed:
+        assert not excluded(rel), (
+            f"{rel} is excluded from the image by {excluded(rel)}; the Governance "
+            "page renders it and would come up empty in a deployed build")

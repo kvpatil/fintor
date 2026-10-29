@@ -30,7 +30,14 @@ docs/img/
 *.pdf
 
 .git/
-.github/
+# NOT .github/ wholesale. views/about.py::governance() reads
+# .github/skills/*/SKILL.md and .github/copilot-instructions.md and renders
+# them as the Governance page, so excluding the directory shipped a container
+# that reported "Active skills 0" and an empty copilot-instructions tab while
+# a local run showed five. Same trap as the 29 MB mp4 above: .dockerignore
+# deciding an About page has nothing to show. Workflows are the part that is
+# genuinely build-only, so that is the part excluded.
+.github/workflows/
 __pycache__/
 *.pyc
 .pytest_cache/
