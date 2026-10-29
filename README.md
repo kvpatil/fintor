@@ -29,8 +29,15 @@ different portfolio, click any of the six account cards and press it again. (If 
 would rather type: any of `maya`, `dev`, `priya`, `walter`, `aisha`, `sam`, password
 `fintor`.)
 
+**Or do not sign in at all.** *Architecture*, *Design Document*, *Governance* and the
+*Recording* are in the menu at the top of the sign-in screen and open without an
+account — they render files committed to this repository, so there was nothing for a
+login to protect. The workspace pages and *AI Internals* stay behind it: those report a
+portfolio and the last run, which an anonymous visitor does not have.
+
 | | |
 |---|---|
+| **Live demo** | <https://fintor-871915486388.us-central1.run.app> — *Architecture*, *Design Document*, *Governance* and the *Recording* open without signing in. |
 | **Demo video** | [`docs/demo.mp4`](docs/demo.mp4) — 9 min 22 s, narrated and scored. Also inside the app under *About Fintor → Recording*. |
 | **Tests** | 378, all passing offline with zero API spend: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q` |
 | **Coverage** | **83%** line coverage: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q --cov=src` |
@@ -146,12 +153,13 @@ Five decisions worth the reading time:
   the guardrail counters — for the run you just did.
 
 ```
-Workspace                    About Fintor
-├── Chat                     ├── Architecture      (7 diagrams, #1 generated from the graph)
-├── Portfolio                ├── AI Internals      ← the machinery, made visible
-├── Market                   ├── Design Document
-└── Goals                    ├── Governance        (5 SKILL.md + traceability)
-                             └── Recording
+Workspace                    About Fintor              ○ = no sign-in needed
+├── Chat                     ├── ○ Architecture    (7 diagrams; #1 is generated from
+├── Portfolio                │                      the graph, and needs a sign-in)
+├── Market                   ├──   AI Internals    ← the machinery, made visible
+└── Goals                    ├── ○ Design Document
+                             ├── ○ Governance      (5 SKILL.md + traceability)
+                             └── ○ Recording
 ```
 
 ## Quick start
@@ -298,7 +306,7 @@ fintor/
 │   ├── agents/           6 specialists · base · narration · registry
 │   ├── workflow/         graph · router · tools · verify
 │   └── web_app/          app.py · gate · chrome · views/ · theme · brand · assets/
-└── tests/                361 tests
+└── tests/                378 tests
 ```
 
 ## Usage examples
