@@ -380,5 +380,17 @@ def render() -> None:
         with st.container(key="signin-card"):
             _sign_in_form(known)
 
-    # Full width, below both panels, so six accounts fit without scrolling.
+    # Full width, below both panels. This used to fit all six accounts in a
+    # 900px viewport - by 2px, measured. The About menu above costs 71px of
+    # that, so the bottom row is now just under the fold at that height and a
+    # short scroll brings it up.
+    #
+    # The 71px was not recoverable. Shrinking the hero lockup does nothing:
+    # the row's height is set by the taller sign-in card, not the brand panel.
+    # Raising the bar runs it into Streamlit's own toolbar, which occupies
+    # y=16-44 on the right - exactly where the Sign in link sits. Compressing
+    # the bar, its padding, the top inset and the "Demo accounts" margin all
+    # together recovered 68 of the 69px and still missed, at the cost of
+    # tightening four separately-tuned values. A menu a reviewer can find beat
+    # a no-scroll guarantee that only ever held at one exact window height.
     _accounts_band()

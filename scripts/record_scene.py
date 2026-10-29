@@ -317,6 +317,36 @@ def scroll_top(page) -> None:
     page.evaluate(_scroll_js("sc.scrollTo({top: 0, behavior: 'auto'});"))
 
 
+def frame_account_cards(page) -> int:
+    """Scroll just far enough that all six account cards are in frame.
+
+    Scene 1 names all six people and then points at Walter's question, so the
+    bottom row has to be on screen for the whole beat. It used to be, by 2px:
+    the sign-in screen was tuned so six cards fit a 900px viewport exactly.
+    The About menu added at the top of the gate costs 71px of that, which put
+    the bottom row 69px under the fold - and Walter is in it, so the cursor
+    move onto his question would have made Playwright scroll mid-shot, on the
+    scene's key beat.
+
+    MEASURED, not a constant. It scrolls by whatever the overflow actually is
+    and returns it, so a later layout change cannot silently reintroduce the
+    clipping - and it is a no-op the moment the cards fit again. The 8px is
+    breathing room under the last card's border.
+    """
+    over = page.evaluate(_scroll_js("""
+        const cards=[...document.querySelectorAll('a.signin-account-link')];
+        if (!cards.length) return 0;
+        const under = cards[cards.length-1].getBoundingClientRect().bottom
+                      - window.innerHeight;
+        if (under <= 0) return 0;
+        sc.scrollTo({top: sc.scrollTop + under + 8, behavior: 'auto'});
+        return Math.round(under);
+    """))
+    print(f"    account cards framed: scrolled {over}px"
+          if over else "    account cards framed: already in frame")
+    return over
+
+
 def has_text(page, text: str) -> str:
     """A selector for the card containing `text`, for scroll targets."""
     return f'div[class*="st-key-card-{text}"]'
@@ -353,6 +383,7 @@ def scene_s1(page, clock, at) -> None:
 
     clock.until(at(1))                      # "There are six sample accounts"
     scroll_top(page)
+    frame_account_cards(page)               # the menu costs 71px; see the helper
 
     for idx, who in ((2, "maya"), (3, "dev"), (4, "walter"),
                      (5, "priya"), (6, "aisha"), (7, "sam")):
