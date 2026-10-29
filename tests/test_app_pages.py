@@ -994,3 +994,51 @@ def test_dockerignore_keeps_what_the_about_pages_render():
         assert not excluded(rel), (
             f"{rel} is excluded from the image by {excluded(rel)}; the Governance "
             "page renders it and would come up empty in a deployed build")
+
+
+def test_the_gate_and_the_public_pages_share_one_bar():
+    """Both screens render the same chrome, so clicking between them moves nothing.
+
+    The gate's variant drops the Sign in link - it is the sign-in screen - and
+    marks no tab current. Everything else must match, which is what keeps the
+    lockup and the tab row from shifting as you move between them.
+    """
+    from src.web_app.public import top_bar
+
+    gate_bar = top_bar(None, signin=False)
+    page_bar = top_bar("recording")
+
+    assert 'class="pub-signin"' not in gate_bar, "the gate offers a link to itself"
+    assert 'class="pub-signin"' in page_bar
+    assert "is-current" not in gate_bar, "no page is current on the gate"
+    assert "is-current" in page_bar
+
+    # The lockup and every tab are common to both.
+    assert gate_bar.count("<img") == page_bar.count("<img") == 2
+    for key, (title, _fn) in _public_pages().items():
+        assert f"?about={key}" in gate_bar and f"?about={key}" in page_bar
+        assert title in gate_bar and title in page_bar
+
+
+def test_the_gate_puts_the_about_links_above_the_sign_in_form():
+    """Position is the point, so it is asserted rather than left to the eye.
+
+    They were under the form card, where they read as a footnote to it instead
+    of as navigation - easy to miss for the one audience those pages exist for.
+    A menu belongs where menus are.
+    """
+    import os
+
+    os.environ["FINTOR_OFFLINE"] = "1"
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_file(str(APP), default_timeout=300)
+    at.run()
+    assert not at.exception, at.exception[0].value if at.exception else ""
+
+    body = _visible_markdown(at)
+    assert "pub-bar" in body, "the gate is not rendering the shared bar"
+    # The bar is emitted before the brand panel, which is the first thing the
+    # two-column layout draws.
+    assert body.index("pub-bar") < body.index("signin-brand"), (
+        "the About links render after the sign-in panel; they belong above it")

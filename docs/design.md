@@ -204,7 +204,7 @@ error; the next one answers and `fallback_used` is recorded for the Internals pa
 
 ## 5. Testing strategy
 
-375 tests, 83% line coverage. No network, no API spend — a session fixture replaces
+378 tests, 83% line coverage. No network, no API spend — a session fixture replaces
 `socket.socket` so an accidental connection fails loudly instead of billing.
 
 | Layer | What is asserted |

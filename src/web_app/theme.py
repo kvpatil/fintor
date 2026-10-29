@@ -489,25 +489,11 @@ h1 { font-size: 1.72rem; }
 
 /* --- the About pages, read without signing in -------------------------- */
 
-/* The gate's row of links through to the public reference pages. A <nav> of
-   <a>s rather than a <p>, which sidesteps the specificity trap documented
-   just above: Streamlit's margin on `[data-testid="stMarkdownContainer"] p`
-   would beat a bare class here too. */
-.gate-about {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px;
-  margin: 18px 0 0; padding-top: 14px;
-  border-top: 1px solid var(--fin-line);
-  font-size: var(--fs-sm);
-}
-.gate-about .gate-about-lead { color: var(--fin-muted); margin-right: 2px; }
-.gate-about a {
-  color: var(--fin-accent); text-decoration: none; font-weight: 500;
-}
-.gate-about a:hover { text-decoration: underline; }
-
-/* The public shell's bar: brand, tabs, sign in. Grid rather than flex so the
-   tab row keeps its position when the brand image's intrinsic width differs
-   between the two theme variants. */
+/* The bar carried by BOTH the gate and the reference pages, so moving between
+   them shifts nothing. Grid rather than flex so the tab row keeps its position
+   when the brand image's intrinsic width differs between the two theme
+   variants - and so the gate, which omits the Sign in link, still places the
+   tabs at exactly the same x as a page that includes it. */
 .pub-bar {
   display: grid; grid-template-columns: auto 1fr auto;
   align-items: center; gap: 0 24px;

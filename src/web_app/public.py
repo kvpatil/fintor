@@ -36,6 +36,13 @@ GROUP = "About Fintor"
 # is ours to set rather than something to fight six wrappers over.
 PUBLIC_CHROME_CSS = (
     "<style>"
+    # The SAME top inset the gate uses. Both screens now lead with the same
+    # bar, so they have to start at the same y or clicking between them jogs
+    # the chrome - measured at 16px, which is --gate-top (4.5rem) against the
+    # app default --fin-top-gap (3.5rem). Taking the gate's value rather than
+    # retuning the gate: that 4.5rem was measured against the sign-in layout
+    # and is not mine to move.
+    "[data-testid='stMainBlockContainer']{padding-top:var(--gate-top);}"
     # Collapse the elements that paint nothing. inject() emits a <style>, this
     # block emits another, and the theme probe is a height=0 iframe - three
     # slots in a `gap:16px` flex column, which is dead air above the bar. Same
@@ -62,8 +69,18 @@ PUBLIC_CHROME_CSS = (
 )
 
 
-def _bar(current: str) -> str:
-    """The lockup, the four tabs, and Sign in.
+def top_bar(current: str | None = None, *, signin: bool = True) -> str:
+    """The lockup, the four tabs, and optionally Sign in.
+
+    SHARED WITH THE GATE, which renders it with current=None and signin=False -
+    there is no current page there, and no point offering a link to the screen
+    you are already on. One bar across both screens means clicking into a
+    reference page and back moves nothing: same lockup, same tabs, same place.
+
+    It also puts the links where a menu goes. They started under the sign-in
+    card, which read as a footnote to the form rather than as navigation - the
+    four pages exist for someone evaluating the build, and that reader should
+    not have to look past the login to find them.
 
     The brand and the Sign in link both point at `?`, which drops the query and
     lands back on the gate - clicking the logo to get to the front door is what
@@ -87,8 +104,9 @@ def _bar(current: str) -> str:
         f'<img class="lockup-dark" src="{header_data_uri(dark=True)}" alt="">'
         "</a>"
         f'<nav class="pub-tabs" aria-label="{GROUP}">{tabs}</nav>'
-        '<a class="pub-signin" href="?" target="_self">Sign in</a>'
-        "</header>"
+        + ('<a class="pub-signin" href="?" target="_self">Sign in</a>'
+           if signin else "")
+        + "</header>"
     )
 
 
@@ -113,7 +131,7 @@ def render(requested: object) -> bool:
 
     title, run = page
     st.markdown(PUBLIC_CHROME_CSS, unsafe_allow_html=True)
-    st.markdown(_bar(str(requested).strip()), unsafe_allow_html=True)
+    st.markdown(top_bar(str(requested).strip()), unsafe_allow_html=True)
     st.markdown(chrome.breadcrumb(GROUP, title), unsafe_allow_html=True)
     st.markdown('<div class="chrome-rule"></div>', unsafe_allow_html=True)
     run()

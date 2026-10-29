@@ -32,7 +32,7 @@ would rather type: any of `maya`, `dev`, `priya`, `walter`, `aisha`, `sam`, pass
 | | |
 |---|---|
 | **Demo video** | [`docs/demo.mp4`](docs/demo.mp4) — 9 min 22 s, narrated and scored. Also inside the app under *About Fintor → Recording*. |
-| **Tests** | 375, all passing offline with zero API spend: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q` |
+| **Tests** | 378, all passing offline with zero API spend: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q` |
 | **Coverage** | **83%** line coverage: `FINTOR_OFFLINE=1 .venv/bin/python -m pytest -q --cov=src` |
 | **Design document** | [`docs/design.md`](docs/design.md), also rendered in-app under *About Fintor* |
 | **Requirement traceability** | [`specs/traceability.md`](specs/traceability.md) — each requirement mapped to the code and the test that satisfies it |
